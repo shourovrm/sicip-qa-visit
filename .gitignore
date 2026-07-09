@@ -1,0 +1,40 @@
+# secrets / env — never remote
+.env
+.env.*
+*.keystore
+*.jks
+keystore.properties
+service-account*.json
+supabase/.token
+
+# AI / planning traces — local only
+CLAUDE.md
+.claude/
+DECISIONS.md
+docs/superpowers/
+*.plan.md
+
+# org data / spreadsheets / personal info — local only, never remote
+*.xlsx
+*.csv
+tools/officers.json
+tools/passwords.txt
+
+# android
+.gradle/
+build/
+**/build/
+local.properties
+.kotlin/
+*.apk
+*.aab
+captures/
+
+# web
+node_modules/
+dist/
+.vite/
+
+# misc
+*.log
+.DS_Store
