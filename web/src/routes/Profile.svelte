@@ -1,6 +1,5 @@
 <!-- my stats, theme toggle, change password, logout, view-only sheet link -->
 <script>
-  import { onMount } from 'svelte'
   import { officer, signOut, updatePassword } from '../lib/auth.js'
   import { theme, toggleTheme } from '../lib/theme.js'
   import { listVisits } from '../lib/db.js'
@@ -13,7 +12,11 @@
   let visitCount = 0
   let loading = true
 
-  onMount(async () => {
+  // stats wait for the officer row (hard refresh: mount fires before auth resolves)
+  let loadStarted = false
+  $: if ($officer && !loadStarted) { loadStarted = true; loadStats() }
+
+  async function loadStats() {
     const visits = await listVisits()
     const mine = $officer?.id
     const mineVisits = visits.filter((v) => v.officer_id === mine)
@@ -22,7 +25,7 @@
     const ranked = rank(visits.map((v) => ({ officerId: v.officer_id, category: v.category, deleted: v.deleted })))
     myRankPos = ranked.findIndex(([id]) => id === mine) + 1
     loading = false
-  })
+  }
 
   let newPw = '', confirmPw = '', pwErr = '', pwDone = false
 

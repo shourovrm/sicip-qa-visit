@@ -1,6 +1,5 @@
 <!-- own finished/active tours (trips): travel legs CRUD + per-tour category (writes to primary visit) -->
 <script>
-  import { onMount } from 'svelte'
   import { listTrips, listVisits, listLegsForTrips, updateVisit, createLeg, updateLeg, softDeleteLeg } from '../lib/db.js'
   import { officer } from '../lib/auth.js'
   import { CATEGORY_LABELS, suggestedNights, suggestedFood } from '../lib/scoring.js'
@@ -24,7 +23,9 @@
     legs = await listLegsForTrips(trips.map((t) => t.id))
     loading = false
   }
-  onMount(load)
+  // load waits for the officer row (hard refresh: mount fires before auth resolves)
+  let loadStarted = false
+  $: if ($officer && !loadStarted) { loadStarted = true; load() }
 
   function primaryVisit(tripId) {
     return visits.find((v) => v.trip_id === tripId && !v.is_additional)

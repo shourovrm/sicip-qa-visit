@@ -4,13 +4,14 @@
   export let options = []
   export let placeholder = ''
   export let disabled = false
+  export let id = undefined
 
   function pair(o) {
     return Array.isArray(o) ? o : [o, o]
   }
 </script>
 
-<select bind:value {disabled} on:change>
+<select {id} bind:value {disabled} on:change>
   {#if placeholder}<option value="">{placeholder}</option>{/if}
   {#each options as o}
     {@const [v, label] = pair(o)}
