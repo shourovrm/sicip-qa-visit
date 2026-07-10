@@ -11,8 +11,12 @@ from scratch. Any other tab in the spreadsheet is left alone.
 3. Delete the boilerplate `Code.gs` content, paste in `tools/sheets/bridge.gs`. Save.
 4. Project Settings (gear icon, left sidebar) -> Script Properties -> Add:
    - `SUPABASE_URL` = `https://twpehiqfdjfprtwsiwqp.supabase.co`
-   - `SERVICE_KEY` = the `service_role` key — Supabase dashboard -> Settings ->
-     API keys -> reveal `service_role`. **Keep this secret**: it bypasses RLS.
+   - `SERVICE_KEY` = the **legacy** `service_role` key (long `eyJ...` JWT) —
+     Supabase dashboard -> Settings -> API Keys -> "Legacy API keys" -> reveal
+     `service_role`. Do NOT use a new-style `sb_secret_...` key: Supabase
+     rejects those from Apps Script with "Forbidden use of secret API key in
+     browser" (UrlFetchApp's Mozilla-style User-Agent trips the heuristic).
+     **Keep this secret**: it bypasses RLS.
      Script Properties are private to the script owner, which is why it's safe
      to store here — never put it in a cell or in code.
 5. Back in the editor, select `syncAll` from the function dropdown, click Run.
