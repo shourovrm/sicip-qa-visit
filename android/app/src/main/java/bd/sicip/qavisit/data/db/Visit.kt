@@ -48,6 +48,10 @@ interface VisitDao {
     @Query("SELECT * FROM visits WHERE deleted = 0 ORDER BY start_date DESC")
     suspend fun all(): List<Visit>
 
+    // trip detail: every visit attached to one trip (primary + any ad-hoc adds).
+    @Query("SELECT * FROM visits WHERE trip_id = :tripId AND deleted = 0 ORDER BY start_date")
+    suspend fun byTrip(tripId: String): List<Visit>
+
     // sync needs this to check "already had this row?" and "is it locally dirty?" before overwriting.
     @Query("SELECT * FROM visits WHERE id = :id")
     suspend fun byId(id: String): Visit?

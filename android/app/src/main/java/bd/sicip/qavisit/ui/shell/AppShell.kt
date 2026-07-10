@@ -30,17 +30,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.sync.SyncNow
 import bd.sicip.qavisit.data.sync.SyncStateStore
-import bd.sicip.qavisit.ui.screens.HomeScreen
+import bd.sicip.qavisit.ui.home.HomeScreen
+import bd.sicip.qavisit.ui.home.StartTrip
+import bd.sicip.qavisit.ui.home.TripScreen
 import bd.sicip.qavisit.ui.screens.LeavesScreen
 import bd.sicip.qavisit.ui.screens.ProfileScreen
 import bd.sicip.qavisit.ui.screens.TeamScreen
 import bd.sicip.qavisit.ui.screens.VisitsScreen
+import bd.sicip.qavisit.ui.visits.VisitForm
 import java.time.Duration
 import java.time.Instant
 
@@ -58,7 +64,8 @@ private val NAV_ITEMS = listOf(
 // screen-level shell composable is the natural opt-in boundary.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppShell(context: Context) {
+fun AppShell(context: Context, officerId: String) {
+    val db = remember { AppDb.get(context) }
     val syncState = remember { SyncStateStore(context) }
     val lastSyncAt by syncState.lastSyncAt.collectAsState(initial = null)
     val lastError by syncState.lastError.collectAsState(initial = null)
@@ -119,11 +126,67 @@ fun AppShell(context: Context) {
             startDestination = NAV_ITEMS.first().route,
             modifier = Modifier.padding(innerPadding),
         ) {
-            composable("home") { HomeScreen() }
+            composable("home") {
+                HomeScreen(
+                    officerId = officerId,
+                    db = db,
+                    onOpenTrip = { tripId -> navController.navigate("trip/$tripId") },
+                    onAddLeg = { tripId -> navController.navigate("trip/$tripId?action=addLeg") },
+                    onLogVisit = { tripId, hasPrimary ->
+                        navController.navigate("visit_form?tripId=$tripId&additional=$hasPrimary")
+                    },
+                    onFinishTrip = { tripId -> navController.navigate("trip/$tripId?action=finish") },
+                    onStartTrip = { navController.navigate("start_trip") },
+                    onScheduleVisit = { navController.navigate("visit_form") },
+                    onEditVisit = { visitId -> navController.navigate("visit_form?visitId=$visitId") },
+                )
+            }
             composable("team") { TeamScreen() }
             composable("visits") { VisitsScreen() }
             composable("leaves") { LeavesScreen() }
             composable("profile") { ProfileScreen() }
+
+            composable(
+                "visit_form?visitId={visitId}&tripId={tripId}&additional={additional}",
+                arguments = listOf(
+                    navArgument("visitId") { type = NavType.StringType; nullable = true; defaultValue = null },
+                    navArgument("tripId") { type = NavType.StringType; nullable = true; defaultValue = null },
+                    navArgument("additional") { type = NavType.BoolType; defaultValue = false },
+                ),
+            ) { entry ->
+                VisitForm(
+                    officerId = officerId,
+                    visitDao = db.visitDao(),
+                    visitId = entry.arguments?.getString("visitId"),
+                    tripId = entry.arguments?.getString("tripId"),
+                    forceAdditional = entry.arguments?.getBoolean("additional") ?: false,
+                    onDone = { navController.popBackStack() },
+                )
+            }
+
+            composable("start_trip") {
+                StartTrip(officerId = officerId, db = db, onDone = { navController.popBackStack() })
+            }
+
+            composable(
+                "trip/{tripId}?action={action}",
+                arguments = listOf(
+                    navArgument("tripId") { type = NavType.StringType },
+                    navArgument("action") { type = NavType.StringType; nullable = true; defaultValue = null },
+                ),
+            ) { entry ->
+                val tripId = entry.arguments?.getString("tripId") ?: return@composable
+                TripScreen(
+                    tripId = tripId,
+                    initialAction = entry.arguments?.getString("action"),
+                    db = db,
+                    onScheduleAdhocVisit = { id, hasPrimary ->
+                        navController.navigate("visit_form?tripId=$id&additional=$hasPrimary")
+                    },
+                    onEditVisit = { visitId -> navController.navigate("visit_form?visitId=$visitId") },
+                    onDone = { navController.popBackStack() },
+                )
+            }
         }
     }
 }

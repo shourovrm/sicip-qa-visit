@@ -47,14 +47,15 @@ class MainActivity : ComponentActivity() {
 
             SicipTheme(themeMode = mode) {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    if (session != null) {
+                    val currentSession = session
+                    if (currentSession != null) {
                         // logged in -> start the recurring sync and kick off one right away
                         // so the very first screen after login isn't stuck on stale data.
                         LaunchedEffect(Unit) {
                             SyncWorker.schedulePeriodic(applicationContext)
                             SyncNow.enqueue(applicationContext)
                         }
-                        AppShell(context = applicationContext)
+                        AppShell(context = applicationContext, officerId = currentSession.userId)
                     } else {
                         LoginScreen(
                             sessionStore = sessionStore,

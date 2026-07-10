@@ -1,0 +1,124 @@
+// start a trip: optionally attach scheduled visits + inform a colleague, then log the
+// first leg. creates Trip(status=active), stamps trip_id on picked visits, inserts leg.
+package bd.sicip.qavisit.ui.home
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import bd.sicip.qavisit.data.db.AppDb
+import bd.sicip.qavisit.data.db.Officer
+import bd.sicip.qavisit.data.db.Trip
+import bd.sicip.qavisit.data.db.Visit
+import bd.sicip.qavisit.ui.common.PickerDropdown
+import kotlinx.coroutines.launch
+import java.time.Instant
+import java.util.UUID
+
+@Composable
+fun StartTrip(officerId: String, db: AppDb, onDone: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var candidates by remember { mutableStateOf<List<Visit>>(emptyList()) }
+    var colleagues by remember { mutableStateOf<List<Officer>>(emptyList()) }
+    val selected = remember { mutableStateOf(setOf<String>()) }
+    var informedOfficerId by remember { mutableStateOf<String?>(null) }
+    val leg = rememberLegDraft()
+
+    LaunchedEffect(officerId) {
+        candidates = db.visitDao().byOfficer(officerId).filter { it.status == "scheduled" && it.tripId == null }
+        colleagues = db.officerDao().all().filter { it.id != officerId }
+    }
+
+    val informedOptions = listOf("None (no one)") + colleagues.map { it.name }
+    val informedLabel = colleagues.firstOrNull { it.id == informedOfficerId }?.name ?: "None (no one)"
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text("Start trip", style = MaterialTheme.typography.titleLarge)
+
+        if (candidates.isNotEmpty()) {
+            Text("Attach scheduled visits (optional)", style = MaterialTheme.typography.labelSmall)
+            candidates.forEach { visit ->
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Checkbox(
+                        checked = selected.value.contains(visit.id),
+                        onCheckedChange = { checked ->
+                            selected.value = if (checked) selected.value + visit.id else selected.value - visit.id
+                        },
+                    )
+                    Text("${visit.institute} · ${visit.district} · ${visit.startDate}", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
+
+        Text("Inform a colleague (optional)", style = MaterialTheme.typography.labelSmall)
+        PickerDropdown(
+            label = "Colleague",
+            options = informedOptions,
+            selected = informedLabel,
+            onSelect = { name -> informedOfficerId = colleagues.firstOrNull { it.name == name }?.id },
+        )
+
+        Text("First leg", style = MaterialTheme.typography.labelSmall)
+        LegFormFields(leg)
+
+        Button(
+            onClick = {
+                scope.launch {
+                    val now = Instant.now().toString()
+                    val tripId = UUID.randomUUID().toString()
+                    db.tripDao().upsert(
+                        Trip(
+                            id = tripId,
+                            officerId = officerId,
+                            status = "active",
+                            startedAt = now,
+                            informedOfficerId = informedOfficerId,
+                            updatedAt = now,
+                            dirty = true,
+                        ),
+                    )
+                    selected.value.forEach { visitId ->
+                        val v = candidates.first { it.id == visitId }
+                        db.visitDao().upsert(v.copy(tripId = tripId, updatedAt = now, dirty = true))
+                    }
+                    if (leg.valid) {
+                        db.travelLegDao().upsert(leg.toEntity(tripId))
+                    }
+                    onDone()
+                }
+            },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.tertiary,
+                contentColor = MaterialTheme.colorScheme.onTertiary,
+            ),
+            shape = RoundedCornerShape(99),
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+        ) { Text("Start trip") }
+    }
+}
