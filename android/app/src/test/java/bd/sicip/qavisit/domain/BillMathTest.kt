@@ -68,6 +68,15 @@ class BillMathTest {
         assertEquals(500.0, totals.ta, 0.001)
     }
 
+    // Dhaka-inside-metro day tour: no accommodation/food claimed, unlike the plain same-day rule.
+    @Test fun metro_day_tour_zero_nights_and_food() {
+        assertEquals(0, tripNights("2026-06-01", "2026-06-01", metro = true))
+        assertEquals(0.0, tripFoodDays("2026-06-01", "2026-06-01", metro = true), 0.0001)
+        val totals = billTotals(listOf(Trip(listOf(Leg(fare = 300.0)), "2026-06-01", "2026-06-01", metro = true)))
+        assertEquals(0.0, totals.accommodation, 0.001)
+        assertEquals(0.0, totals.food, 0.001)
+    }
+
     @Test fun endDate_before_startDate_throws() {
         assertThrows(IllegalArgumentException::class.java) {
             tripNights("2026-06-14", "2026-06-08")

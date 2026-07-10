@@ -1,4 +1,6 @@
 // schedule/edit a visit. same screen both ways: visitId != null -> prefill + update in place.
+// mirrors every field on the original paper/Google Form, including category (auto-suggested,
+// overridable) and the office-order ref no/date pair.
 package bd.sicip.qavisit.ui.visits
 
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +32,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -38,12 +41,15 @@ import bd.sicip.qavisit.data.db.VisitDao
 import bd.sicip.qavisit.data.seed.ASSOCIATIONS
 import bd.sicip.qavisit.data.seed.DISTRICTS
 import bd.sicip.qavisit.data.seed.PURPOSES
+import bd.sicip.qavisit.domain.POINTS
 import bd.sicip.qavisit.domain.autoCategory
 import bd.sicip.qavisit.ui.common.PickerDropdown
 import bd.sicip.qavisit.ui.common.showDatePicker
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.util.UUID
+
+private val CATEGORY_OPTIONS = POINTS.keys.toList()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,10 +73,16 @@ fun VisitForm(
     var dhakaMetro by remember { mutableStateOf(false) }
     var purpose by remember { mutableStateOf(PURPOSES.first()) }
     var refNo by remember { mutableStateOf("") }
+    var refDate by remember { mutableStateOf<String?>(null) }
     var startDate by remember { mutableStateOf(Instant.now().toString().take(10)) }
     var endDate by remember { mutableStateOf(Instant.now().toString().take(10)) }
+    var category by remember { mutableStateOf("N/A") }
+    var categoryTouched by remember { mutableStateOf(false) } // true once the user picks a value themselves
     var remarks by remember { mutableStateOf("") }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var refOptions by remember { mutableStateOf(emptyList<String>()) }
+
+    LaunchedEffect(Unit) { refOptions = visitDao.distinctRefs() }
 
     LaunchedEffect(visitId) {
         if (visitId != null) {
@@ -83,15 +95,24 @@ fun VisitForm(
                 dhakaMetro = it.dhakaMetro ?: false
                 purpose = it.purpose
                 refNo = it.refNo ?: ""
+                refDate = it.refDate
                 startDate = it.startDate
                 endDate = it.endDate
+                category = it.category
+                categoryTouched = it.categoryOverride
                 remarks = it.remarks ?: ""
             }
-            loaded = true
         }
+        loaded = true
     }
 
     if (!loaded) return
+
+    // what the app would pick on its own right now; N/A for ad-hoc adds (scored only at trip
+    // finish), else the span/district rule. picking anything else in the dropdown overrides it.
+    val isAdditional = forceAdditional || (existing?.isAdditional ?: false)
+    val auto = if (isAdditional) "N/A" else autoCategory(startDate, endDate, district, dhakaMetro)
+    LaunchedEffect(auto) { if (!categoryTouched) category = auto }
 
     Column(
         modifier = Modifier
@@ -132,12 +153,29 @@ fun VisitForm(
 
         PickerDropdown("Purpose", PURPOSES, purpose, { purpose = it })
 
-        OutlinedTextField(
-            value = refNo,
-            onValueChange = { refNo = it },
-            label = { Text("Ref no (optional)") },
-            modifier = Modifier.fillMaxWidth(),
+        // ref no: type-to-filter over every ref_no ever used (distinctRefs), free typing still
+        // commits (onTextChange), tapping a suggestion also pulls in its last ref_date.
+        PickerDropdown(
+            label = "Ref no (optional)",
+            options = refOptions,
+            selected = refNo,
+            onSelect = { picked ->
+                refNo = picked
+                scope.launch { visitDao.refDateFor(picked)?.let { refDate = it } }
+            },
+            onTextChange = { refNo = it },
+            searchable = true,
         )
+
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(
+                onClick = { showDatePicker(context, refDate ?: startDate) { refDate = it } },
+                modifier = Modifier.height(48.dp),
+            ) { Text(if (refDate != null) "Ref date: $refDate" else "Ref date (optional)") }
+            if (refDate != null) {
+                TextButton(onClick = { refDate = null }) { Text("Clear") }
+            }
+        }
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             OutlinedButton(
@@ -149,6 +187,18 @@ fun VisitForm(
                 modifier = Modifier.height(48.dp),
             ) { Text("End: $endDate") }
         }
+
+        PickerDropdown(
+            label = "Category",
+            options = CATEGORY_OPTIONS,
+            selected = category,
+            onSelect = { category = it; categoryTouched = true },
+        )
+        Text(
+            "Auto: $auto — change to override",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         OutlinedTextField(
             value = remarks,
@@ -172,8 +222,11 @@ fun VisitForm(
                         dhakaMetro = if (district == "Dhaka") dhakaMetro else null,
                         purpose = purpose,
                         refNo = refNo.ifBlank { null },
+                        refDate = refDate,
                         startDate = startDate,
                         endDate = endDate,
+                        category = category,
+                        categoryOverride = category != auto,
                         remarks = remarks.ifBlank { null },
                     )
                     onDone()
@@ -223,9 +276,8 @@ fun VisitForm(
     }
 }
 
-// N/A for ad-hoc adds (no auto category, filled in only at trip finish for the primary visit);
-// otherwise suggest from the span/district rule right away, same as the finish-trip dialog will.
-// a previous override on an edited row always wins over a fresh suggestion.
+// category/categoryOverride are resolved by the caller (dropdown value vs. the live auto
+// suggestion) -- this just persists them, same as every other field.
 suspend fun saveVisit(
     dao: VisitDao,
     existing: Visit?,
@@ -238,18 +290,15 @@ suspend fun saveVisit(
     dhakaMetro: Boolean?,
     purpose: String,
     refNo: String?,
+    refDate: String?,
     startDate: String,
     endDate: String,
+    category: String,
+    categoryOverride: Boolean,
     remarks: String?,
 ) {
     val now = Instant.now().toString()
     val isAdditional = forceAdditional || (existing?.isAdditional ?: false)
-    val categoryOverride = existing?.categoryOverride ?: false
-    val category = when {
-        categoryOverride -> existing.category
-        isAdditional -> "N/A"
-        else -> autoCategory(startDate, endDate, district, dhakaMetro)
-    }
     dao.upsert(
         Visit(
             id = existing?.id ?: UUID.randomUUID().toString(),
@@ -261,6 +310,7 @@ suspend fun saveVisit(
             dhakaMetro = dhakaMetro,
             purpose = purpose,
             refNo = refNo,
+            refDate = refDate,
             startDate = startDate,
             endDate = endDate,
             category = category,

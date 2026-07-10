@@ -17,26 +17,31 @@ private fun spanDays(startDate: String, endDate: String): Long {
     return ChronoUnit.DAYS.between(start, end) + 1
 }
 
-// nights away = span days minus the last (no-stay) day
-fun tripNights(startDate: String, endDate: String): Int = (spanDays(startDate, endDate) - 1).toInt()
+// nights away = span days minus the last (no-stay) day. metro: Dhaka-inside-metro tours
+// claim no accommodation regardless of span (0 nights instead of the span default).
+fun tripNights(startDate: String, endDate: String, metro: Boolean = false): Int =
+    if (metro) 0 else (spanDays(startDate, endDate) - 1).toInt()
 
-// full day for every day except the last travel day, which is half
-fun tripFoodDays(startDate: String, endDate: String): Double = (spanDays(startDate, endDate) - 1) + 0.5
+// full day for every day except the last travel day, which is half. metro: same rule, no food claim.
+fun tripFoodDays(startDate: String, endDate: String, metro: Boolean = false): Double =
+    if (metro) 0.0 else (spanDays(startDate, endDate) - 1) + 0.5
 
 fun ta(legs: List<Leg>): Double = legs.sumOf { it.fare }
 
-// one finished trip batched into a bill. nights/food default to the span math above;
-// either can be overridden to match what was actually claimed on the official bill
-// (e.g. a same-day trip claimed with 0 nights/0 food instead of the 0/0.5 span default).
+// one finished trip batched into a bill. nights/food default to the span math above (or the
+// metro override); either can still be overridden explicitly to match what was actually
+// claimed on the official bill (e.g. a same-day trip claimed with 0 nights/0 food instead of
+// the 0/0.5 span default).
 data class Trip(
     val legs: List<Leg>,
     val startDate: String,
     val endDate: String,
     val nights: Int? = null,
     val food: Double? = null,
+    val metro: Boolean = false,
 ) {
-    val resolvedNights: Int get() = nights ?: tripNights(startDate, endDate)
-    val resolvedFood: Double get() = food ?: tripFoodDays(startDate, endDate)
+    val resolvedNights: Int get() = nights ?: tripNights(startDate, endDate, metro)
+    val resolvedFood: Double get() = food ?: tripFoodDays(startDate, endDate, metro)
 }
 
 // a bill batches multiple finished trips: TA is every leg's fare, accommodation/food are

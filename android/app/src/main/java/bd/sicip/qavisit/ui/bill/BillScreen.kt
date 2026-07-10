@@ -71,6 +71,7 @@ import bd.sicip.qavisit.domain.tripNights
 import bd.sicip.qavisit.pdf.BillLeg
 import bd.sicip.qavisit.pdf.BillTrip
 import bd.sicip.qavisit.pdf.generateBillPdf
+import bd.sicip.qavisit.ui.common.TwoTabRow
 import bd.sicip.qavisit.ui.common.showDatePicker
 import bd.sicip.qavisit.ui.home.LegFormFields
 import bd.sicip.qavisit.ui.home.rememberLegDraft
@@ -92,36 +93,78 @@ private const val FILE_PROVIDER_AUTHORITY = "bd.sicip.qavisit.fileprovider"
 // bill line, matching how the official sample batches per-trip, not per-visit).
 private data class TripCandidate(val trip: Trip, val primary: Visit, val legs: List<TravelLeg>)
 
+private suspend fun loadCandidates(db: AppDb, officerId: String, submitted: Boolean): List<TripCandidate> {
+    val trips = if (submitted) {
+        db.tripDao().finishedSubmittedByOfficer(officerId)
+    } else {
+        db.tripDao().finishedUnsubmittedByOfficer(officerId)
+    }
+    return trips.mapNotNull { trip ->
+        val visits = db.visitDao().byTrip(trip.id)
+        val primary = primaryVisit(visits) { it.isAdditional } ?: return@mapNotNull null
+        TripCandidate(trip, primary, db.travelLegDao().byTrip(trip.id))
+    }
+}
+
 @Composable
 fun BillScreen(officerId: String, db: AppDb, onDone: () -> Unit) {
-    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var step by remember { mutableStateOf(1) }
-    var candidates by remember { mutableStateOf<List<TripCandidate>>(emptyList()) }
+    var showSubmittedTab by remember { mutableStateOf(false) }
+    var unsubmitted by remember { mutableStateOf<List<TripCandidate>>(emptyList()) }
+    var submitted by remember { mutableStateOf<List<TripCandidate>>(emptyList()) }
     var officerName by remember { mutableStateOf("") }
     val selected = remember { mutableStateOf(setOf<String>()) }
+    var showMarkConfirm by remember { mutableStateOf(false) }
+
+    suspend fun reload() {
+        unsubmitted = loadCandidates(db, officerId, submitted = false)
+        submitted = loadCandidates(db, officerId, submitted = true)
+    }
 
     LaunchedEffect(officerId) {
         officerName = db.officerDao().byId(officerId)?.name ?: ""
-        candidates = db.tripDao().finishedUnsubmittedByOfficer(officerId).mapNotNull { trip ->
-            val visits = db.visitDao().byTrip(trip.id)
-            val primary = primaryVisit(visits) { it.isAdditional } ?: return@mapNotNull null
-            TripCandidate(trip, primary, db.travelLegDao().byTrip(trip.id))
-        }
+        reload()
     }
 
     when (step) {
         1 -> TripPickerStep(
-            candidates = candidates,
+            candidates = if (showSubmittedTab) submitted else unsubmitted,
+            showSubmittedTab = showSubmittedTab,
+            onTabChange = { showSubmittedTab = it },
             selected = selected.value,
             onToggle = { id, on -> selected.value = if (on) selected.value + id else selected.value - id },
             onNext = { step = 2 },
+            onMarkSubmitted = { showMarkConfirm = true },
         )
         else -> BillPreviewStep(
             officerName = officerName,
-            trips = candidates.filter { it.trip.id in selected.value },
+            trips = (unsubmitted + submitted).filter { it.trip.id in selected.value },
             db = db,
             onBack = { step = 1 },
             onGenerated = onDone,
+        )
+    }
+
+    // "Mark N tour(s) as submitted?" -- reachable standalone from the Unsubmitted tab, no need
+    // to generate a bill first. markSubmitted per trip, then the batch drops off that tab.
+    if (showMarkConfirm) {
+        AlertDialog(
+            onDismissRequest = { showMarkConfirm = false },
+            title = { Text("Mark as submitted?") },
+            text = { Text("Mark ${selected.value.size} tour(s) as submitted? They move to the Submitted tab.") },
+            confirmButton = {
+                Button(onClick = {
+                    scope.launch {
+                        val now = Instant.now().toString()
+                        selected.value.forEach { id -> db.tripDao().markSubmitted(id, now) }
+                        selected.value = emptySet()
+                        reload()
+                        showMarkConfirm = false
+                    }
+                }) { Text("Mark submitted") }
+            },
+            dismissButton = { TextButton(onClick = { showMarkConfirm = false }) { Text("Cancel") } },
         )
     }
 }
@@ -129,18 +172,31 @@ fun BillScreen(officerId: String, db: AppDb, onDone: () -> Unit) {
 @Composable
 private fun TripPickerStep(
     candidates: List<TripCandidate>,
+    showSubmittedTab: Boolean,
+    onTabChange: (Boolean) -> Unit,
     selected: Set<String>,
     onToggle: (String, Boolean) -> Unit,
     onNext: () -> Unit,
+    onMarkSubmitted: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
+        TwoTabRow(
+            leftLabel = "Unsubmitted",
+            rightLabel = "Submitted",
+            leftSelected = !showSubmittedTab,
+            onSelect = { left -> onTabChange(!left) },
+        )
         Text(
-            "Select finished tours to batch onto one TA/DA bill.",
+            if (showSubmittedTab) {
+                "Already-submitted tours -- select to re-bill."
+            } else {
+                "Select finished tours to batch onto one TA/DA bill."
+            },
             style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
         LazyColumn(
-            contentPadding = PaddingValues(horizontal = 16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.weight(1f),
         ) {
@@ -165,21 +221,35 @@ private fun TripPickerStep(
                 }
             }
         }
-        Button(
-            onClick = onNext,
-            enabled = selected.isNotEmpty(),
-            modifier = Modifier.fillMaxWidth().padding(16.dp).height(48.dp),
-        ) { Text("Next (${selected.size} selected)") }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+        ) {
+            if (!showSubmittedTab) {
+                OutlinedButton(
+                    onClick = onMarkSubmitted,
+                    enabled = selected.isNotEmpty(),
+                    modifier = Modifier.weight(1f).height(48.dp),
+                ) { Text("Mark submitted") }
+            }
+            Button(
+                onClick = onNext,
+                enabled = selected.isNotEmpty(),
+                modifier = Modifier.weight(1f).height(48.dp),
+            ) { Text("Next (${selected.size} selected)") }
+        }
     }
 }
 
 // per-selected-trip editable state: nights/food default from the span rule (BillMath), the
-// officer can override either (e.g. the official sample zeroed a same-day Dhaka trip). legs
-// start from what was loaded but stay independently mutable so add/edit/delete in bill prep
-// (the only place travel rows are entered) reflects immediately in totals + the PDF.
+// officer can override either (e.g. the official sample zeroed a same-day Dhaka trip, or a
+// Dhaka-inside-metro tour which always defaults to 0/0 regardless of span). legs start from
+// what was loaded but stay independently mutable so add/edit/delete in bill prep (the only
+// place travel rows are entered) reflects immediately in totals + the PDF.
 private class TripEdit(val candidate: TripCandidate) {
-    var nightsText by mutableStateOf(tripNights(candidate.primary.startDate, candidate.primary.endDate).toString())
-    var foodText by mutableStateOf(numText(tripFoodDays(candidate.primary.startDate, candidate.primary.endDate)))
+    private val metro = candidate.primary.district == "Dhaka" && candidate.primary.dhakaMetro == true
+    var nightsText by mutableStateOf(tripNights(candidate.primary.startDate, candidate.primary.endDate, metro).toString())
+    var foodText by mutableStateOf(numText(tripFoodDays(candidate.primary.startDate, candidate.primary.endDate, metro)))
     var legs by mutableStateOf(candidate.legs)
     val nights: Int get() = nightsText.toIntOrNull() ?: 0
     val foodDays: Double get() = foodText.toDoubleOrNull() ?: 0.0

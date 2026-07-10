@@ -34,6 +34,10 @@ fun PickerDropdown(
     selected: String,
     onSelect: (String) -> Unit,
     searchable: Boolean = false,
+    // set for fields where free typing (not just picking a suggestion) is a valid value, e.g.
+    // ref no -- every keystroke commits to the caller's state, tapping a suggestion still goes
+    // through onSelect so callers can attach extra side effects (autofill) to the tap only.
+    onTextChange: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -51,7 +55,7 @@ fun PickerDropdown(
     ) {
         OutlinedTextField(
             value = query,
-            onValueChange = { query = it; expanded = true },
+            onValueChange = { query = it; expanded = true; onTextChange?.invoke(it) },
             readOnly = !searchable,
             label = { Text(label) },
             modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable, true).fillMaxWidth(),
