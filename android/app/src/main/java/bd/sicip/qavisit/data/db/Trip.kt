@@ -33,6 +33,10 @@ interface TripDao {
     @Query("SELECT * FROM trips WHERE officer_id = :officerId AND status = 'active' AND deleted = 0 LIMIT 1")
     suspend fun activeTrip(officerId: String): Trip?
 
+    // TA/DA bill picker: own finished trips to batch onto a bill, newest first.
+    @Query("SELECT * FROM trips WHERE officer_id = :officerId AND status = 'finished' AND deleted = 0 ORDER BY started_at DESC")
+    suspend fun finishedByOfficer(officerId: String): List<Trip>
+
     // sync needs this to check "already had this row?" and "is it locally dirty?" before overwriting.
     @Query("SELECT * FROM trips WHERE id = :id")
     suspend fun byId(id: String): Trip?

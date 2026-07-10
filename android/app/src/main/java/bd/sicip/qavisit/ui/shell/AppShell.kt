@@ -41,6 +41,7 @@ import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.sync.SyncNow
 import bd.sicip.qavisit.data.sync.SyncStateStore
 import bd.sicip.qavisit.settings.ThemePrefs
+import bd.sicip.qavisit.ui.bill.BillScreen
 import bd.sicip.qavisit.ui.home.HomeScreen
 import bd.sicip.qavisit.ui.home.StartTrip
 import bd.sicip.qavisit.ui.home.TripScreen
@@ -152,7 +153,11 @@ fun AppShell(context: Context, officerId: String) {
                     officerId = officerId,
                     db = db,
                     onEditVisit = { visitId -> navController.navigate("visit_form?visitId=$visitId") },
+                    onOpenBill = { navController.navigate("bill") },
                 )
+            }
+            composable("bill") {
+                BillScreen(officerId = officerId, db = db, onDone = { navController.popBackStack() })
             }
             composable("leaves") {
                 LeavesScreen(

@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -39,7 +40,7 @@ import java.util.Locale
 private const val ALL_OFFICERS = "All officers"
 
 @Composable
-fun VisitsScreen(officerId: String, db: AppDb, onEditVisit: (String) -> Unit) {
+fun VisitsScreen(officerId: String, db: AppDb, onEditVisit: (String) -> Unit, onOpenBill: () -> Unit) {
     var personal by remember { mutableStateOf(true) }
     var myVisits by remember { mutableStateOf<List<Visit>>(emptyList()) }
     var allVisits by remember { mutableStateOf<List<Visit>>(emptyList()) }
@@ -76,7 +77,12 @@ fun VisitsScreen(officerId: String, db: AppDb, onEditVisit: (String) -> Unit) {
             ) { Text("Team") }
         }
 
-        if (!personal) {
+        if (personal) {
+            OutlinedButton(
+                onClick = onOpenBill,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            ) { Text("TA/DA Bill") }
+        } else {
             PickerDropdown(
                 label = "Officer",
                 options = listOf(ALL_OFFICERS) + officers.map { it.name },
