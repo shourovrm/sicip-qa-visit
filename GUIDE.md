@@ -1,7 +1,7 @@
 # SICIP QA Visit — Startup Guide
 
 ## Install
-1. APK: `SICIP-QA-Visit-v1.1.0.apk` (repo root, also `android/app/build/outputs/apk/release/`).
+1. APK: `SICIP-QA-Visit-v1.2.0.apk` (repo root, also `android/app/build/outputs/apk/release/`).
 2. Copy to phone (USB / Drive / WhatsApp-to-self), tap it, allow "install unknown apps" when prompted. No Play Store, no Google services needed. Android 8+.
 
 ## First login (needs internet once)
@@ -22,9 +22,12 @@
 - **Multiple visits in one tour**: first visit scores, others auto N/A — matches the office scoring sheet.
 - **Team**: who's on visit / on leave / in office (derived — no check-in needed) + points leaderboard.
 - **Leaves**: Leaves tab → Add leave (Casual / Sick / Emergency / Others).
-- **TA/DA bill**: Visits → TA/DA Bill → tick the finished tour(s) for the claim → add/edit travel rows → adjust nights/food per tour if needed (e.g. zero out a same-day Dhaka tour) → Generate → PDF saved to Downloads + share sheet. Layout matches the official template exactly.
+- **TA/DA bill**: Visits → TA/DA Bill → New bill tab → tick finished tour(s) → add/edit travel rows, adjust nights/food (inside-metro tours default to 0/0) → **Generate PDF** for a draft, or **Submit bill** to finalize — submitting freezes the values, files it under **Previous bills** (read-only, view PDF anytime), and cannot be edited after.
+- **Ref numbers**: while editing a visit, typing in the ref box suggests refs colleagues already used; picking one auto-fills its date.
 - **Theme**: Profile → System / Light / Dark.
-- **Filters**: Visits tab chips — period (incl. custom range), district, category, purpose.
+- **Visits tabs**: Scheduled (upcoming + on-tour) and Completed (finished, with category). Category is set when you finish a tour — not before.
+- **Filters**: chips on both tabs — period (incl. custom range), district, category, purpose. Rank has Overall | Last month.
+- **Updates**: when a new APK is released, a banner appears on Home with a Get button — no store needed.
 - **Visit Scores sheet**: Profile → opens the Google Sheet (view-only) in browser.
 
 ## Admin notes (Riad)
