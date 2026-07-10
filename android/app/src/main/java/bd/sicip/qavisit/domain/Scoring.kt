@@ -34,6 +34,16 @@ fun rank(visits: List<VisitScore>): List<Pair<String, Int>> =
         .entries.sortedByDescending { it.value }
         .map { it.key to it.value }
 
+// visits within a calendar month, for the home dashboard's "this month: n visits · m pts" line.
+data class MonthVisit(val startDate: String, val category: String, val deleted: Boolean = false)
+
+// yearMonth as "yyyy-MM" (java.time.YearMonth.toString() shape); startDate compared by its
+// first 7 chars so this stays a plain string op, no date parsing needed.
+fun monthSummary(visits: List<MonthVisit>, yearMonth: String): Pair<Int, Int> {
+    val inMonth = visits.filterNot { it.deleted }.filter { it.startDate.take(7) == yearMonth }
+    return inMonth.size to inMonth.sumOf { points(it.category) }
+}
+
 // district=Dhaka -> metro sub-option decides; else category from date span.
 fun autoCategory(startDate: String, endDate: String, district: String, dhakaMetro: Boolean?): String {
     if (district == "Dhaka") {

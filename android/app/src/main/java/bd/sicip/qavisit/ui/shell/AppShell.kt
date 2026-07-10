@@ -137,12 +137,13 @@ fun AppShell(context: Context, officerId: String) {
                     officerId = officerId,
                     db = db,
                     onOpenTrip = { tripId -> navController.navigate("trip/$tripId") },
-                    onAddLeg = { tripId -> navController.navigate("trip/$tripId?action=addLeg") },
                     onLogVisit = { tripId, hasPrimary ->
                         navController.navigate("visit_form?tripId=$tripId&additional=$hasPrimary")
                     },
                     onFinishTrip = { tripId -> navController.navigate("trip/$tripId?action=finish") },
-                    onStartTrip = { navController.navigate("start_trip") },
+                    onStartTrip = { visitId ->
+                        navController.navigate(if (visitId != null) "start_trip?visitId=$visitId" else "start_trip")
+                    },
                     onScheduleVisit = { navController.navigate("visit_form") },
                     onEditVisit = { visitId -> navController.navigate("visit_form?visitId=$visitId") },
                 )
@@ -203,8 +204,18 @@ fun AppShell(context: Context, officerId: String) {
                 )
             }
 
-            composable("start_trip") {
-                StartTrip(officerId = officerId, db = db, onDone = { navController.popBackStack() })
+            composable(
+                "start_trip?visitId={visitId}",
+                arguments = listOf(
+                    navArgument("visitId") { type = NavType.StringType; nullable = true; defaultValue = null },
+                ),
+            ) { entry ->
+                StartTrip(
+                    officerId = officerId,
+                    db = db,
+                    preselectedVisitId = entry.arguments?.getString("visitId"),
+                    onDone = { navController.popBackStack() },
+                )
             }
 
             composable(

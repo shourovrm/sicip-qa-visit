@@ -1,6 +1,7 @@
-// finish-trip dialog: shows the primary visit's auto category + points, lets the officer
-// override it or nudge the end date, then marks every attached visit done and the trip
-// finished, and kicks a sync so the change reaches the server right away.
+// end-tour dialog: asks the tour's end date+time (prefilled now, editable, stored in the
+// existing finished_at column), then shows the primary visit's auto category + points and
+// lets the officer override it, then marks every attached visit done and the trip finished,
+// and kicks a sync so the change reaches the server right away.
 package bd.sicip.qavisit.ui.home
 
 import androidx.compose.foundation.layout.Column
@@ -10,13 +11,16 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Trip
 import bd.sicip.qavisit.data.db.Visit
@@ -26,8 +30,10 @@ import bd.sicip.qavisit.domain.points
 import bd.sicip.qavisit.domain.primaryVisit
 import bd.sicip.qavisit.ui.common.PickerDropdown
 import bd.sicip.qavisit.ui.common.showDatePicker
+import bd.sicip.qavisit.ui.common.showTimePicker
 import kotlinx.coroutines.launch
 import java.time.Instant
+import java.time.LocalTime
 
 private val CATEGORIES = listOf("A**", "A++", "A+", "A", "B", "C", "D", "E", "N/A")
 
@@ -36,23 +42,29 @@ fun FinishTripDialog(trip: Trip, visits: List<Visit>, db: AppDb, onDismiss: () -
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val primary = remember(visits) { primaryVisit(visits) { it.isAdditional } }
-    var endDate by remember(primary) { mutableStateOf(primary?.endDate ?: "") }
+    var endDate by remember { mutableStateOf(Instant.now().toString().take(10)) }
+    var endTime by remember { mutableStateOf(String.format("%02d:%02d:00", LocalTime.now().hour, LocalTime.now().minute)) }
     val autoCat = primary?.let { autoCategory(it.startDate, endDate, it.district, it.dhakaMetro) } ?: "N/A"
     var overrideCategory by remember { mutableStateOf<String?>(null) }
     val finalCategory = overrideCategory ?: autoCat
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Finish trip") },
+        title = { Text("End tour") },
         text = {
             Column {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { showDatePicker(context, endDate) { endDate = it } }, modifier = Modifier.weight(1.3f)) {
+                        Text(endDate, maxLines = 1)
+                    }
+                    OutlinedButton(onClick = { showTimePicker(context, endTime) { endTime = it } }, modifier = Modifier.weight(1f)) {
+                        Text(endTime.take(5), maxLines = 1)
+                    }
+                }
                 if (primary == null) {
-                    Text("No visits attached -- this trip will finish with none.")
+                    Text("No visits attached -- this tour will end with none.")
                 } else {
                     Text("Primary visit: ${primary.institute}")
-                    OutlinedButton(onClick = { showDatePicker(context, endDate) { endDate = it } }) {
-                        Text("End date: $endDate")
-                    }
                     PickerDropdown(
                         label = "Category (auto: $autoCat)",
                         options = CATEGORIES,
@@ -66,11 +78,11 @@ fun FinishTripDialog(trip: Trip, visits: List<Visit>, db: AppDb, onDismiss: () -
         confirmButton = {
             Button(onClick = {
                 scope.launch {
-                    finishTrip(db, trip, visits, primary, endDate, finalCategory, overrideCategory != null)
+                    finishTrip(db, trip, visits, primary, endDate, finalCategory, overrideCategory != null, "${endDate}T${endTime}Z")
                     SyncNow.enqueue(context)
                     onFinished()
                 }
-            }) { Text("Finish") }
+            }) { Text("End tour") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
@@ -84,6 +96,7 @@ suspend fun finishTrip(
     primaryEndDate: String,
     primaryCategory: String,
     primaryCategoryOverride: Boolean,
+    finishedAt: String,
 ) {
     val now = Instant.now().toString()
     visits.forEach { v ->
@@ -99,5 +112,5 @@ suspend fun finishTrip(
             ),
         )
     }
-    db.tripDao().upsert(trip.copy(status = "finished", finishedAt = now, updatedAt = now, dirty = true))
+    db.tripDao().upsert(trip.copy(status = "finished", finishedAt = finishedAt, updatedAt = now, dirty = true))
 }

@@ -1,5 +1,6 @@
-// home tab: active-trip hero (direction B navy card) or a start-trip prompt, upcoming
-// scheduled visits, and a 3-up points/rank/visits snippet row. FAB schedules a new visit.
+// home tab: dashboard (points/rank/visits + this-month line) on top, ACTIVE TOUR hero when a
+// tour is running, then UPCOMING scheduled visits -- each with its own small "Start" button
+// that opens the start-tour sheet pre-checked for that visit. FAB schedules a new visit.
 package bd.sicip.qavisit.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
@@ -35,7 +36,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Visit
-import bd.sicip.qavisit.domain.formatFare
 import bd.sicip.qavisit.domain.dayNumber
 import bd.sicip.qavisit.domain.primaryVisit
 import bd.sicip.qavisit.ui.common.StatusPill
@@ -46,10 +46,9 @@ fun HomeScreen(
     officerId: String,
     db: AppDb,
     onOpenTrip: (String) -> Unit,
-    onAddLeg: (String) -> Unit,
     onLogVisit: (tripId: String, hasPrimary: Boolean) -> Unit,
     onFinishTrip: (String) -> Unit,
-    onStartTrip: () -> Unit,
+    onStartTrip: (visitId: String?) -> Unit,
     onScheduleVisit: () -> Unit,
     onEditVisit: (String) -> Unit,
 ) {
@@ -73,26 +72,30 @@ fun HomeScreen(
             modifier = Modifier.fillMaxSize(),
         ) {
             item {
-                val trip = state.activeTrip
-                if (trip == null) {
-                    NoActiveTripCard(onStartTrip)
-                } else {
+                Dashboard(
+                    myPoints = state.myPoints,
+                    myRank = state.myRank,
+                    officerCount = state.officerCount,
+                    visitCount = state.myVisitCount,
+                    monthVisitCount = state.monthVisitCount,
+                    monthPoints = state.monthPoints,
+                )
+            }
+
+            val trip = state.activeTrip
+            if (trip != null) {
+                item {
                     ActiveTripHero(
                         dayNumber = dayNumber(trip.startedAt),
                         primary = primaryVisit(state.activeTripVisits) { it.isAdditional },
                         startedAt = trip.startedAt,
                         visitCount = state.activeTripVisits.size,
-                        legCount = state.activeTripLegs.size,
-                        fareSum = state.activeTripLegs.sumOf { it.fare },
                         onOpen = { onOpenTrip(trip.id) },
-                        onAddLeg = { onAddLeg(trip.id) },
                         onLogVisit = { onLogVisit(trip.id, state.activeTripVisits.any { !it.isAdditional }) },
                         onFinishTrip = { onFinishTrip(trip.id) },
                     )
                 }
             }
-
-            item { PointsRow(myPoints = state.myPoints, myRank = state.myRank, officerCount = state.officerCount, visitCount = state.myVisitCount) }
 
             if (state.upcoming.isNotEmpty()) {
                 item {
@@ -103,32 +106,44 @@ fun HomeScreen(
                     )
                 }
                 items(state.upcoming) { visit ->
-                    UpcomingVisitCard(visit, onClick = { onEditVisit(visit.id) })
+                    UpcomingVisitCard(visit, onClick = { onEditVisit(visit.id) }, onStart = { onStartTrip(visit.id) })
                 }
+            } else if (trip == null) {
+                item { TeachingCard() }
             }
         }
     }
 }
 
 @Composable
-private fun NoActiveTripCard(onStartTrip: () -> Unit) {
+private fun Dashboard(
+    myPoints: Int,
+    myRank: Int,
+    officerCount: Int,
+    visitCount: Int,
+    monthVisitCount: Int,
+    monthPoints: Int,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        PointsRow(myPoints = myPoints, myRank = myRank, officerCount = officerCount, visitCount = visitCount)
+        Text(
+            "This month: $monthVisitCount visits · $monthPoints pts",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun TeachingCard() {
     Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("No active trip", style = MaterialTheme.typography.titleMedium)
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Schedule a visit to begin", style = MaterialTheme.typography.titleMedium)
             Text(
-                "Start a trip when you head out -- attach any scheduled visits, log legs as you go.",
+                "Tap + to schedule your first visit, then start a tour from it.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Button(
-                onClick = onStartTrip,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.tertiary,
-                    contentColor = MaterialTheme.colorScheme.onTertiary,
-                ),
-                shape = RoundedCornerShape(99),
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-            ) { Text("Start trip") }
         }
     }
 }
@@ -139,10 +154,7 @@ private fun ActiveTripHero(
     primary: Visit?,
     startedAt: String,
     visitCount: Int,
-    legCount: Int,
-    fareSum: Double,
     onOpen: () -> Unit,
-    onAddLeg: () -> Unit,
     onLogVisit: () -> Unit,
     onFinishTrip: () -> Unit,
 ) {
@@ -154,22 +166,21 @@ private fun ActiveTripHero(
     ) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                "ACTIVE TRIP · DAY $dayNumber",
+                "ACTIVE TOUR · DAY $dayNumber",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onPrimary,
             )
             Text(
-                text = primary?.let { "${it.purpose} · ${it.institute}" } ?: "Ad-hoc trip",
+                text = primary?.let { "${it.purpose} · ${it.institute}" } ?: "Ad-hoc tour",
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onPrimary,
             )
             Text(
-                "Started ${startedAt.take(10)} · $visitCount visits · $legCount legs · ${formatFare(fareSum)}",
+                "Started ${startedAt.take(10)} · $visitCount visits",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimary,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedHeroButton("Add leg", onAddLeg, Modifier.weight(1f))
                 OutlinedHeroButton("Log visit", onLogVisit, Modifier.weight(1f))
                 Button(
                     onClick = onFinishTrip,
@@ -179,7 +190,7 @@ private fun ActiveTripHero(
                     ),
                     shape = RoundedCornerShape(99),
                     modifier = Modifier.weight(1f).height(48.dp),
-                ) { Text("Finish") }
+                ) { Text("End tour") }
             }
         }
     }
@@ -218,11 +229,12 @@ private fun SnippetCard(label: String, value: String, modifier: Modifier = Modif
 }
 
 @Composable
-private fun UpcomingVisitCard(visit: Visit, onClick: () -> Unit) {
+private fun UpcomingVisitCard(visit: Visit, onClick: () -> Unit, onStart: () -> Unit) {
     Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth(), onClick = onClick) {
         Row(
             modifier = Modifier.padding(16.dp).fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             // weighted + ellipsized so a long institute name can never squeeze the pill offscreen.
             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
@@ -235,8 +247,20 @@ private fun UpcomingVisitCard(visit: Visit, onClick: () -> Unit) {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Box(contentAlignment = Alignment.Center) {
-                StatusPill("SCHEDULED", LocalStatusColors.current.onVisit)
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(contentAlignment = Alignment.Center) {
+                    StatusPill("SCHEDULED", LocalStatusColors.current.onVisit)
+                }
+                Button(
+                    onClick = onStart,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.tertiary,
+                        contentColor = MaterialTheme.colorScheme.onTertiary,
+                    ),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                    shape = RoundedCornerShape(99),
+                    modifier = Modifier.height(32.dp),
+                ) { Text("Start", style = MaterialTheme.typography.labelMedium) }
             }
         }
     }

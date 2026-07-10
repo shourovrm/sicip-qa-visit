@@ -1,4 +1,5 @@
-// one travel-leg form, shared by "start trip" (first leg) and trip detail ("add leg").
+// one travel-leg form; used by bill prep's "Add travel" / edit-travel dialogs (BillScreen) --
+// travel entry lives there now, not in start-tour or the tour detail screen.
 package bd.sicip.qavisit.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
@@ -46,6 +47,26 @@ class LegDraft {
 
 @Composable
 fun rememberLegDraft(): LegDraft = remember { LegDraft() }
+
+private fun fareToText(fare: Double): String = if (fare == fare.toLong().toDouble()) fare.toLong().toString() else fare.toString()
+
+// edit mode: prefill a draft from an existing row. keyed by id so switching which row is
+// being edited (rare, but cheap to get right) starts a fresh draft instead of reusing state.
+@Composable
+fun rememberLegDraft(existing: TravelLeg): LegDraft = remember(existing.id) {
+    LegDraft().also { d ->
+        d.depDate = existing.depDate
+        d.depTime = existing.depTime
+        d.depPlace = existing.depPlace
+        d.arrDate = existing.arrDate
+        d.arrTime = existing.arrTime
+        d.arrPlace = existing.arrPlace
+        d.mode = existing.mode
+        d.travelClass = existing.travelClass
+        d.fareText = fareToText(existing.fare)
+        d.remarks = existing.remarks ?: ""
+    }
+}
 
 @Composable
 fun LegFormFields(draft: LegDraft) {
@@ -115,10 +136,10 @@ fun LegFormFields(draft: LegDraft) {
     }
 }
 
-fun LegDraft.toEntity(tripId: String): TravelLeg {
+fun LegDraft.toEntity(tripId: String, id: String = UUID.randomUUID().toString()): TravelLeg {
     val now = Instant.now().toString()
     return TravelLeg(
-        id = UUID.randomUUID().toString(),
+        id = id,
         tripId = tripId,
         depDate = depDate,
         depTime = depTime,

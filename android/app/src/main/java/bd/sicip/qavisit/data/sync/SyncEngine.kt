@@ -262,7 +262,7 @@ class SyncEngine(
         return applied
     }
 
-    // local notice: "<name> started a trip — informed you". POST_NOTIFICATIONS is declared
+    // local notice: "<name> started a tour — informed you". POST_NOTIFICATIONS is declared
     // in the manifest but the runtime permission prompt is wired up by the shell-work task --
     // until it's granted, notify() throws SecurityException on API 33+; swallow it, a missed
     // notification must never fail the whole sync.
@@ -278,8 +278,8 @@ class SyncEngine(
         }
         val notification = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info) // ponytail: system icon, swap for app icon when we have one
-            .setContentTitle("Trip started")
-            .setContentText("$officerName started a trip — informed you")
+            .setContentTitle("Tour started")
+            .setContentText("$officerName started a tour — informed you")
             .setAutoCancel(true)
             .build()
         try {

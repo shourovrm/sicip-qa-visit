@@ -103,4 +103,26 @@ class ScoringTest {
         val ranked = rank(visits)
         assertEquals(listOf("high" to 101, "mid" to 36, "low" to 4), ranked)
     }
+
+    // ---- monthSummary: home dashboard "this month" line ----
+    @Test fun monthSummary_counts_only_matching_month() {
+        val visits = listOf(
+            MonthVisit("2026-07-01", "A"),   // 53, in July
+            MonthVisit("2026-07-15", "B"),   // 36, in July
+            MonthVisit("2026-06-30", "A**"), // in June, excluded
+        )
+        assertEquals(2 to 89, monthSummary(visits, "2026-07"))
+    }
+
+    @Test fun monthSummary_skips_deleted() {
+        val visits = listOf(
+            MonthVisit("2026-07-01", "A**", deleted = true),
+            MonthVisit("2026-07-02", "D"), // 4
+        )
+        assertEquals(1 to 4, monthSummary(visits, "2026-07"))
+    }
+
+    @Test fun monthSummary_empty_when_nothing_matches() {
+        assertEquals(0 to 0, monthSummary(listOf(MonthVisit("2026-05-01", "A")), "2026-07"))
+    }
 }
