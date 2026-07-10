@@ -10,6 +10,14 @@ export async function listOfficers() {
   return data
 }
 
+// admin-only (RLS officers_admin): name/role/active. auth-user delete/reset stays out of the
+// browser (needs the service key) -- see tools/ scripts.
+export async function updateOfficer(id, patch) {
+  const { data, error } = await supabase.from('officers').update(patch).eq('id', id).select().single()
+  if (error) throw error
+  return data
+}
+
 // ---- visits ----
 export async function listVisits() {
   const { data, error } = await notDeleted(supabase.from('visits').select('*')).order('start_date', { ascending: false })

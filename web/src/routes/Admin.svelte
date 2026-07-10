@@ -2,13 +2,17 @@
      those pages themselves (RLS is_admin() bypass + this app's canEdit checks already allow it). -->
 <script>
   import { onMount } from 'svelte'
-  import { getAppMeta, setAppMeta } from '../lib/db.js'
+  import { getAppMeta, setAppMeta, updateOfficer } from '../lib/db.js'
   import { isAdmin } from '../lib/auth.js'
   import { officers } from '../lib/officers.js'
+  import Dropdown from '../components/Dropdown.svelte'
 
   let meta = {}
   let loading = true
   let saved = ''
+  let editingId = null // officer.id being edited
+  let draft = null // {name, role, active} while editing
+  let officerErr = ''
 
   onMount(async () => {
     meta = await getAppMeta()
@@ -19,6 +23,23 @@
     saved = ''
     await setAppMeta(key, meta[key])
     saved = key
+  }
+
+  function startEditOfficer(o) {
+    editingId = o.id
+    draft = { name: o.name, role: o.role, active: o.active }
+    officerErr = ''
+  }
+
+  async function saveOfficer(id) {
+    officerErr = ''
+    try {
+      const updated = await updateOfficer(id, draft)
+      officers.update((list) => list.map((o) => (o.id === id ? updated : o)))
+      editingId = null
+    } catch (e) {
+      officerErr = e.message
+    }
   }
 </script>
 
@@ -48,15 +69,32 @@
 
   <div class="card officers-note">
     <h2>Officers</h2>
+    {#if officerErr}<p class="err">{officerErr}</p>{/if}
     <table>
-      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Active</th></tr></thead>
+      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Active</th><th></th></tr></thead>
       <tbody>
         {#each $officers as o (o.id)}
-          <tr><td>{o.name}</td><td>{o.email}</td><td>{o.role}</td><td>{o.active ? 'yes' : 'no'}</td></tr>
+          {#if editingId === o.id}
+            <tr>
+              <td><input type="text" bind:value={draft.name} /></td>
+              <td class="muted">{o.email}</td>
+              <td><Dropdown bind:value={draft.role} options={[['officer', 'officer'], ['admin', 'admin']]} /></td>
+              <td><input type="checkbox" bind:checked={draft.active} /></td>
+              <td>
+                <button class="btn-link" on:click={() => saveOfficer(o.id)}>Save</button>
+                <button class="btn-link" on:click={() => (editingId = null)}>Cancel</button>
+              </td>
+            </tr>
+          {:else}
+            <tr>
+              <td>{o.name}</td><td>{o.email}</td><td>{o.role}</td><td>{o.active ? 'yes' : 'no'}</td>
+              <td><button class="btn-link" on:click={() => startEditOfficer(o)}>Edit</button></td>
+            </tr>
+          {/if}
         {/each}
       </tbody>
     </table>
-    <p class="muted">Account creation/activation runs via local <code>tools/</code> scripts (out of web scope) — service key never touches the browser.</p>
+    <p class="muted">Full account deletion/password reset for others: local <code>tools/</code> scripts (service key never touches the browser).</p>
   </div>
 
   <div class="card">
