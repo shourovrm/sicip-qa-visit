@@ -21,6 +21,7 @@ docs/superpowers/
 *.xlsx
 *.csv
 tools/officers.json
+tools/activate_map.json
 tools/passwords.txt
 
 # android

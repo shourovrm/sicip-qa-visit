@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest'
 import {
   POINTS, CATEGORY_SPANS, CATEGORY_LABELS, points, suggestedNights, suggestedFood,
   totalPoints, rank, monthSummary, autoCategory, autoCategoryFromDates, daysAndNights,
+  lastDayOfPreviousMonth,
 } from './scoring.js'
 
 describe('autoCategory: Dhaka special-cases', () => {
@@ -155,4 +156,20 @@ it('suggestedFood full table', () => {
 it('suggestedNights/suggestedFood unknown category are zero', () => {
   expect(suggestedNights('bogus')).toBe(0)
   expect(suggestedFood('bogus')).toBeCloseTo(0, 4)
+})
+
+// same cases as android RankTest.kt's lastDayOfPreviousMonth suite
+describe('lastDayOfPreviousMonth', () => {
+  it('mid-year month lands on previous month\'s last day', () => expect(lastDayOfPreviousMonth('2026-07-10')).toBe('2026-06-30'))
+  it('january rolls back to dec 31 of prior year', () => expect(lastDayOfPreviousMonth('2026-01-15')).toBe('2025-12-31'))
+  it('march lands on last day of february, non-leap year', () => expect(lastDayOfPreviousMonth('2026-03-01')).toBe('2026-02-28'))
+  it('march lands on last day of february, leap year', () => expect(lastDayOfPreviousMonth('2024-03-15')).toBe('2024-02-29'))
+  it('respects short and long month lengths', () => {
+    expect(lastDayOfPreviousMonth('2026-05-01')).toBe('2026-04-30')
+    expect(lastDayOfPreviousMonth('2026-06-01')).toBe('2026-05-31')
+  })
+  it('cutoff is stable regardless of day of month', () => {
+    expect(lastDayOfPreviousMonth('2026-07-01')).toBe('2026-06-30')
+    expect(lastDayOfPreviousMonth('2026-07-31')).toBe('2026-06-30')
+  })
 })

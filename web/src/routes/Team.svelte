@@ -3,7 +3,8 @@
   import { onMount } from 'svelte'
   import { listTrips, listVisits, listLeaves } from '../lib/db.js'
   import { officers } from '../lib/officers.js'
-  import { rank } from '../lib/scoring.js'
+  import { officer } from '../lib/auth.js'
+  import { rank, lastDayOfPreviousMonth } from '../lib/scoring.js'
   import Pill from '../components/Pill.svelte'
 
   let trips = [], visits = [], leaves = []
@@ -12,6 +13,7 @@
   let period = 'overall' // overall | lastmonth
 
   const today = new Date().toISOString().slice(0, 10)
+  const lastMonthCutoff = lastDayOfPreviousMonth(today)
 
   onMount(async () => {
     ;[trips, visits, leaves] = await Promise.all([listTrips(), listVisits(), listLeaves()])
@@ -29,14 +31,10 @@
     return { tone: 'office', label: 'In office', detail: '', since: '' }
   }
 
-  function lastMonthKey() {
-    const d = new Date()
-    d.setMonth(d.getMonth() - 1)
-    return d.toISOString().slice(0, 7)
-  }
-
+  // "Last month" = cumulative standings as of the last day of the previous month, not points
+  // earned during that month alone -- mirrors android TeamScreen/Rank.kt exactly.
   $: rankVisits = visits
-    .filter((v) => period === 'overall' || v.start_date.slice(0, 7) === lastMonthKey())
+    .filter((v) => period === 'overall' || v.start_date <= lastMonthCutoff)
     .map((v) => ({ officerId: v.officer_id, category: v.category, deleted: v.deleted }))
   $: ranked = rank(rankVisits)
   $: rankedWithZeros = [
@@ -77,7 +75,7 @@
     <thead><tr><th>#</th><th>Officer</th><th>Points</th></tr></thead>
     <tbody>
       {#each rankedWithZeros.sort((a, b) => b[1] - a[1]) as [id, pts], i}
-        <tr><td>{i + 1}</td><td>{$officers.find((o) => o.id === id)?.name ?? '—'}</td><td>{pts}</td></tr>
+        <tr class:me={id === $officer?.id}><td>{i + 1}</td><td>{$officers.find((o) => o.id === id)?.name ?? '—'}</td><td>{pts}</td></tr>
       {/each}
     </tbody>
   </table>
@@ -88,4 +86,5 @@
   .seg { display: inline-flex; gap: 4px; background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-pill); padding: 3px; margin-bottom: 16px; }
   .seg button { border: none; background: none; padding: 6px 14px; border-radius: var(--radius-pill); cursor: pointer; font-weight: 700; color: var(--muted); }
   .seg button.active { background: var(--primary); color: var(--on-primary); }
+  tr.me td { background: var(--status-visit-bg); font-weight: 700; }
 </style>

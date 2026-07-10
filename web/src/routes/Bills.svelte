@@ -2,17 +2,18 @@
      Submit freezes a snapshot (bills row) + marks tours submitted. Previous bills: read-only,
      regenerate .xlsx from the frozen snapshot (never re-derives from live data). -->
 <script>
-  import { listTrips, listVisits, listLegsForTrips, listBills, createBill, updateTrip } from '../lib/db.js'
+  import { listTrips, listVisits, listLegsForTrips, listBills, createBill, updateTrip, updateVisit } from '../lib/db.js'
   import { officer } from '../lib/auth.js'
-  import { suggestedNights, suggestedFood } from '../lib/scoring.js'
+  import { CATEGORY_LABELS, suggestedNights, suggestedFood } from '../lib/scoring.js'
   import { leg as mkLeg, makeTrip, billTotals } from '../lib/billmath.js'
   import { toBillTrips, snapshotBill } from '../lib/billsnapshot.js'
   import { fillBillTemplate, downloadBuffer, fmtDate } from '../lib/xlsx.js'
+  import { buildBillHtml, printBillHtml } from '../lib/billhtml.js'
+  import Dropdown from '../components/Dropdown.svelte'
 
   let trips = [], visits = [], legs = [], bills = []
   let loading = true
   let selected = new Set()
-  let overrides = {} // tripId -> {nights, foodDays}
   let genErr = ''
   let busy = false
   let submittedMsg = ''
@@ -40,15 +41,22 @@
   }
 
   function toggle(tripId) {
-    const pv = primaryVisit(tripId)
     if (selected.has(tripId)) {
       selected.delete(tripId)
     } else {
       selected.add(tripId)
-      if (!overrides[tripId] && pv) overrides[tripId] = { nights: suggestedNights(pv.category), foodDays: suggestedFood(pv.category) }
     }
     selected = new Set(selected)
-    overrides = { ...overrides }
+  }
+
+  // category is the single source for nights/food (CATEGORY_SPANS, v1.5 policy) -- changing the
+  // dropdown writes back to the trip's primary visit so Visits/Tours pick it up too, same as
+  // Tours.svelte's per-tour dropdown. nights/food recompute live, read-only.
+  async function setCategory(tripId, category) {
+    const pv = primaryVisit(tripId)
+    if (!pv) return
+    const updated = await updateVisit(pv.id, { category, category_override: true })
+    visits = visits.map((v) => (v.id === updated.id ? updated : v))
   }
 
   function purposeLineFor(v) {
@@ -56,17 +64,17 @@
   }
 
   // build snapshot-shaped trips (same shape bills.data stores) from currently selected live trips.
-  // sel/ovr passed as args so svelte's $: dependency tracking sees them (body-only refs aren't tracked).
-  function buildSnapshotTrips(sel, ovr) {
+  // sel passed as arg so svelte's $: dependency tracking sees it (body-only refs aren't tracked).
+  // nights/foodDays derived from the primary visit's category, not user-edited.
+  function buildSnapshotTrips(sel) {
     return [...sel].map((tripId) => {
       const pv = primaryVisit(tripId)
       const tLegs = tripLegs(tripId)
-      const ov = ovr[tripId]
       return {
         tripId,
         purposeLine: purposeLineFor(pv),
-        nights: ov.nights,
-        foodDays: ov.foodDays,
+        nights: suggestedNights(pv.category),
+        foodDays: suggestedFood(pv.category),
         legs: tLegs.map((l) => ({
           dep_date: l.dep_date, dep_time: l.dep_time, dep_place: l.dep_place,
           arr_date: l.arr_date, arr_time: l.arr_time, arr_place: l.arr_place,
@@ -76,7 +84,7 @@
     })
   }
 
-  $: selectedTrips = buildSnapshotTrips(selected, overrides)
+  $: selectedTrips = buildSnapshotTrips(selected)
   $: billTripsPreview = toBillTrips({ billDate: new Date().toISOString().slice(0, 10), trips: selectedTrips })
   $: totals = billTotals(selectedTrips.map((t) => makeTrip(t.legs.map((l) => mkLeg(l.fare)), '', '', t.nights, t.foodDays)))
 
@@ -95,6 +103,12 @@
     busy = false
   }
 
+  function downloadPdf() {
+    const billDate = new Date().toISOString().slice(0, 10)
+    const html = buildBillHtml($officer.name, billDate, billTripsPreview, totals)
+    printBillHtml(html)
+  }
+
   async function submitBill() {
     if (!confirm(`Submit bill for ${selected.size} tour(s)? This freezes the amounts and marks them submitted.`)) return
     busy = true
@@ -106,7 +120,6 @@
       for (const tripId of selected) await updateTrip(tripId, { submitted: true })
       submittedMsg = 'Bill submitted.'
       selected = new Set()
-      overrides = {}
       await load()
     } catch (e) {
       genErr = e.message
@@ -120,6 +133,11 @@
     const trips = toBillTrips(bill.data)
     const out = await fillBillTemplate(buf, bill.data.officerName, bill.bill_date, trips, bill.data.totals)
     downloadBuffer(out, `TADA-${bill.data.officerName.replace(/\s+/g, '-')}-${bill.bill_date}.xlsx`)
+  }
+
+  function regeneratePdf(bill) {
+    const html = buildBillHtml(bill.data.officerName, bill.bill_date, toBillTrips(bill.data), bill.data.totals)
+    printBillHtml(html)
   }
 </script>
 
@@ -154,15 +172,12 @@
           {@const pv = primaryVisit(tripId)}
           <div class="preview-trip">
             <p><b>{purposeLineFor(pv)}</b></p>
-            <div class="row">
-              <div class="field" style="width:140px">
-                <label for="n-{tripId}">Nights</label>
-                <input id="n-{tripId}" type="number" min="0" bind:value={overrides[tripId].nights} />
+            <div class="row-wrap cat-row">
+              <div class="field" style="width:280px">
+                <label for="cat-{tripId}">Category</label>
+                <Dropdown id="cat-{tripId}" value={pv.category} options={Object.entries(CATEGORY_LABELS)} on:change={(e) => setCategory(tripId, e.target.value)} />
               </div>
-              <div class="field" style="width:140px">
-                <label for="f-{tripId}">Food days</label>
-                <input id="f-{tripId}" type="number" min="0" step="0.5" bind:value={overrides[tripId].foodDays} />
-              </div>
+              <div class="muted derived">Nights: {suggestedNights(pv.category)} · Food days: {suggestedFood(pv.category)}</div>
             </div>
             <table>
               <thead><tr><th>Dep</th><th>Arr</th><th>Mode</th><th>Fare</th></tr></thead>
@@ -180,6 +195,7 @@
         {#if submittedMsg}<p class="muted">{submittedMsg}</p>{/if}
         <div class="row">
           <button class="btn" disabled={busy} on:click={downloadXlsx}>Download .xlsx</button>
+          <button class="btn" disabled={busy} on:click={downloadPdf}>Download PDF</button>
           <button class="btn btn-primary" disabled={busy} on:click={submitBill}>Submit bill</button>
         </div>
       {/if}
@@ -199,7 +215,10 @@
               <td>{b.bill_date}</td>
               <td>{b.net}</td>
               <td>{b.data.trips.length}</td>
-              <td><button class="btn-link" on:click={() => regenerate(b)}>Download .xlsx</button></td>
+              <td>
+                <button class="btn-link" on:click={() => regenerate(b)}>Download .xlsx</button>
+                <button class="btn-link" on:click={() => regeneratePdf(b)}>Download PDF</button>
+              </td>
             </tr>
           {/each}
         </tbody>
@@ -214,5 +233,7 @@
   h3 { font-size: 13px; color: var(--muted); text-transform: uppercase; margin: 16px 0 8px; }
   .card { margin-bottom: 16px; }
   .preview-trip { border: 1px solid var(--outline); border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+  .cat-row { align-items: flex-end; margin: 8px 0; }
+  .derived { padding-bottom: 8px; }
   .totals { font-size: 14px; margin: 12px 0; }
 </style>

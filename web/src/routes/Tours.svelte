@@ -1,7 +1,8 @@
-<!-- own finished/active tours (trips): travel legs CRUD + per-tour category (writes to primary visit) -->
+<!-- tours (trips): travel details CRUD + per-tour category (writes to primary visit) -->
 <script>
-  import { listTrips, listVisits, listLegsForTrips, updateVisit, createLeg, updateLeg, softDeleteLeg } from '../lib/db.js'
-  import { officer } from '../lib/auth.js'
+  import { listTrips, listVisits, listLegsForTrips, listTravelPlaces, updateVisit, createLeg, updateLeg, softDeleteLeg } from '../lib/db.js'
+  import { officer, isAdmin } from '../lib/auth.js'
+  import { officers, officerName } from '../lib/officers.js'
   import { CATEGORY_LABELS, suggestedNights, suggestedFood } from '../lib/scoring.js'
   import { TRANSPORT } from '../lib/seeds.js'
   import Dropdown from '../components/Dropdown.svelte'
@@ -9,6 +10,7 @@
   let trips = []
   let visits = []
   let legs = []
+  let places = []
   let loading = true
   let openTripId = null
   let legForm = null // {trip_id, id?, ...} being added/edited
@@ -18,9 +20,12 @@
     loading = true
     const [allTrips, allVisits] = await Promise.all([listTrips(), listVisits()])
     const mine = $officer?.id
-    trips = allTrips.filter((t) => t.officer_id === mine).sort((a, b) => (b.started_at > a.started_at ? 1 : -1))
-    visits = allVisits.filter((v) => v.officer_id === mine)
+    // admins see every officer's tours (matches Admin.svelte's "edit any record here" note);
+    // everyone else sees only their own, same as android.
+    trips = allTrips.filter((t) => $isAdmin || t.officer_id === mine).sort((a, b) => (b.started_at > a.started_at ? 1 : -1))
+    visits = $isAdmin ? allVisits : allVisits.filter((v) => v.officer_id === mine)
     legs = await listLegsForTrips(trips.map((t) => t.id))
+    places = await listTravelPlaces()
     loading = false
   }
   // load waits for the officer row (hard refresh: mount fires before auth resolves)
@@ -32,6 +37,15 @@
   }
   function tripLegs(tripId) {
     return legs.filter((l) => l.trip_id === tripId)
+  }
+
+  // no primary visit: fall back to the officer's name for a tour viewed by someone else
+  // (admin), else the bare "Tour" placeholder. institute always wins when a primary exists.
+  function tripTitle(trip, pv) {
+    const isOthers = trip.officer_id !== $officer?.id
+    const name = isOthers ? officerName(trip.officer_id, $officers) : null
+    if (pv) return name ? `${pv.institute} — ${name}` : pv.institute
+    return name ?? 'Tour'
   }
 
   async function setCategory(trip, category) {
@@ -74,7 +88,7 @@
   }
 
   async function delLeg(l) {
-    if (!confirm('Delete this travel leg?')) return
+    if (!confirm('Delete this travel?')) return
     await softDeleteLeg(l.id)
     legs = legs.filter((x) => x.id !== l.id)
   }
@@ -92,7 +106,7 @@
     <div class="card trip">
       <div class="spread" on:click={() => (openTripId = openTripId === trip.id ? null : trip.id)} role="button" tabindex="0" on:keydown={() => {}}>
         <div>
-          <b>{pv?.institute ?? 'Tour'}</b>
+          <b>{tripTitle(trip, pv)}</b>
           <span class="muted"> — {trip.status} — started {new Date(trip.started_at).toLocaleDateString()}</span>
         </div>
         <span class="muted">{openTripId === trip.id ? '▲' : '▼'}</span>
@@ -112,11 +126,11 @@
             <p class="muted">No primary visit attached.</p>
           {/if}
 
-          <h3>Travel legs</h3>
+          <h3>Travel details</h3>
           <table>
             <thead><tr><th>Dep</th><th>Arr</th><th>Mode</th><th>Class</th><th>Fare</th><th>Remarks</th><th></th></tr></thead>
             <tbody>
-              {#if tripLegs(trip.id).length === 0}<tr><td colspan="7" class="muted">No legs yet.</td></tr>{/if}
+              {#if tripLegs(trip.id).length === 0}<tr><td colspan="7" class="muted">No travel yet.</td></tr>{/if}
               {#each tripLegs(trip.id) as l (l.id)}
                 <tr>
                   <td>{l.dep_date} {l.dep_time}<br /><span class="muted">{l.dep_place}</span></td>
@@ -130,7 +144,7 @@
               {/each}
             </tbody>
           </table>
-          <button class="btn" on:click={() => newLeg(trip.id)}>+ Add leg</button>
+          <button class="btn" on:click={() => newLeg(trip.id)}>+ Add travel</button>
         </div>
       {/if}
     </div>
@@ -142,17 +156,18 @@
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="modal-backdrop" on:click|self={() => (legForm = null)}>
     <form class="card modal" on:submit|preventDefault={saveLeg}>
-      <h2>{legForm.id ? 'Edit' : 'Add'} travel leg</h2>
+      <h2>{legForm.id ? 'Edit' : 'Add'} travel</h2>
       <div class="row">
         <div class="field"><label for="dd">Departure date</label><input id="dd" type="date" bind:value={legForm.dep_date} required /></div>
         <div class="field"><label for="dt">Time</label><input id="dt" type="time" bind:value={legForm.dep_time} required /></div>
       </div>
-      <div class="field"><label for="dp">Departure place</label><input id="dp" type="text" bind:value={legForm.dep_place} required /></div>
+      <div class="field"><label for="dp">Departure place</label><input id="dp" type="text" list="place-list" bind:value={legForm.dep_place} required /></div>
       <div class="row">
         <div class="field"><label for="ad">Arrival date</label><input id="ad" type="date" bind:value={legForm.arr_date} required /></div>
         <div class="field"><label for="at">Time</label><input id="at" type="time" bind:value={legForm.arr_time} required /></div>
       </div>
-      <div class="field"><label for="ap">Arrival place</label><input id="ap" type="text" bind:value={legForm.arr_place} required /></div>
+      <div class="field"><label for="ap">Arrival place</label><input id="ap" type="text" list="place-list" bind:value={legForm.arr_place} required /></div>
+      <datalist id="place-list">{#each places as p}<option value={p} />{/each}</datalist>
       <div class="field">
         <label for="md">Mode</label>
         <Dropdown id="md" bind:value={legForm.mode} options={[...Object.keys(TRANSPORT)]} />

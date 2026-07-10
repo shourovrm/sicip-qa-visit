@@ -120,6 +120,14 @@ function daysBetween(isoStart, isoEnd) {
   return Math.round((b - a) / 86400000)
 }
 
+// "Last month" rank cutoff: last day of the month before `today` (iso "yyyy-MM-dd"). day 0 of
+// the current month is the previous month's last day -- rolls Jan back into prior-year Dec 31,
+// leap Feb included, for free (no manual month-length table). mirrors Rank.kt 1:1.
+export function lastDayOfPreviousMonth(todayIso) {
+  const [y, m] = todayIso.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, 0)).toISOString().slice(0, 10)
+}
+
 // a return before this local time (24h "HH:mm") doesn't count as a working day.
 const RETURN_CUTOFF = '08:00'
 

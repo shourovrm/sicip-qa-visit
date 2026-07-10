@@ -70,6 +70,14 @@ export async function softDeleteLeg(id) {
   return updateLeg(id, { deleted: true })
 }
 
+// distinct dep/arr places across every synced travel leg (not just the caller's own trips) --
+// global autosuggest source, same reasoning as android's TravelLegDao.distinctPlaces().
+export async function listTravelPlaces() {
+  const { data, error } = await notDeleted(supabase.from('travel_legs').select('dep_place, arr_place'))
+  if (error) throw error
+  return [...new Set(data.flatMap((r) => [r.dep_place, r.arr_place]))].filter(Boolean).sort()
+}
+
 // ---- leaves ----
 export async function listLeaves() {
   const { data, error } = await notDeleted(supabase.from('leaves').select('*')).order('start_date', { ascending: false })

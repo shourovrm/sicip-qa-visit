@@ -6,11 +6,10 @@
 
 ## First login (needs internet once)
 - Email: your account email.
-- Password: temp passwords live on the dev machine in `tools/passwords.txt` (never in git). Find yours:
+- Password: the admin hands you a temp password (generated on the dev machine, never in git). Find it there via:
   ```
   grep <your-email> tools/passwords.txt
   ```
-  Admin (Riad): `grep shourovrm tools/passwords.txt`.
 - After login the app works fully offline; data syncs automatically every ~15 min when online, or tap the sync chip.
 - Change password anytime: Profile → Change password (needs internet).
 - Other 8 officers: accounts exist with placeholder emails — before rollout, admin activates each (real email + fresh temp password) and hands the password over in person/WhatsApp.
