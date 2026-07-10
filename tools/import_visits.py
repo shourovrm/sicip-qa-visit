@@ -15,8 +15,11 @@ def rows():
         if not r or not r[0]:
             continue
         start, end = r[6].date(), r[7].date()
+        remarks = str(r[9]).strip() if len(r) > 9 and r[9] else None
         if start > end:
             start, end = end, start  # 2 sheet rows have swapped start/end (data entry error)
+            # Mark that import corrected the dates
+            remarks = remarks + " [import: start/end swapped]" if remarks else "[import: start/end swapped]"
         data.append({
             "created_at":   r[0].isoformat(),
             "officer_name": str(r[1]).strip(),
@@ -27,7 +30,7 @@ def rows():
             "start_date":   start.isoformat(),
             "end_date":     end.isoformat(),
             "category":     str(r[8]).strip() if r[8] else "N/A",
-            "remarks":      str(r[9]).strip() if len(r) > 9 and r[9] else None,
+            "remarks":      remarks,
         })
     return data
 
