@@ -11,6 +11,13 @@
   let done = false
   let busy = false
 
+  // supabase puts failures in the url hash (e.g. otp_expired) — surface them
+  const hash = new URLSearchParams(location.hash.slice(1))
+  if (hash.get('error_code') === 'otp_expired')
+    error = 'That reset link was already used or expired — request a new one below.'
+  else if (hash.get('error_description'))
+    error = hash.get('error_description').replace(/\+/g, ' ')
+
   async function setPassword() {
     error = ''
     if (password.length < 8) { error = 'Password must be at least 8 characters.'; return }
