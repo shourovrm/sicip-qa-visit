@@ -136,6 +136,7 @@ fun AppShell(context: Context, officerId: String) {
                 HomeScreen(
                     officerId = officerId,
                     db = db,
+                    sessionStore = sessionStore,
                     onOpenTrip = { tripId -> navController.navigate("trip/$tripId") },
                     onLogVisit = { tripId, hasPrimary ->
                         navController.navigate("visit_form?tripId=$tripId&additional=$hasPrimary")

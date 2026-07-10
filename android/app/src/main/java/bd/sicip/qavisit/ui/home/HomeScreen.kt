@@ -3,6 +3,8 @@
 // that opens the start-tour sheet pre-checked for that visit. FAB schedules a new visit.
 package bd.sicip.qavisit.ui.home
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,15 +18,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -32,10 +37,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import bd.sicip.qavisit.data.auth.SessionStore
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Visit
+import bd.sicip.qavisit.data.remote.SupabaseClient
 import bd.sicip.qavisit.domain.dayNumber
 import bd.sicip.qavisit.domain.primaryVisit
 import bd.sicip.qavisit.ui.common.StatusPill
@@ -45,15 +53,19 @@ import bd.sicip.qavisit.ui.theme.LocalStatusColors
 fun HomeScreen(
     officerId: String,
     db: AppDb,
+    sessionStore: SessionStore,
     onOpenTrip: (String) -> Unit,
     onLogVisit: (tripId: String, hasPrimary: Boolean) -> Unit,
     onFinishTrip: (String) -> Unit,
     onStartTrip: (visitId: String?) -> Unit,
     onScheduleVisit: () -> Unit,
     onEditVisit: (String) -> Unit,
+    client: SupabaseClient = SupabaseClient(),
 ) {
-    val vm = remember(officerId, db) { HomeViewModel(officerId, db) }
+    val vm = remember(officerId, db) { HomeViewModel(officerId, db, sessionStore, client) }
     val state by vm.state.collectAsState(initial = HomeUiState())
+    val updateNotice by vm.updateNotice.collectAsState()
+    val context = LocalContext.current
 
     Scaffold(
         floatingActionButton = {
@@ -71,6 +83,16 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
+            updateNotice?.let { notice ->
+                item {
+                    UpdateBanner(
+                        version = notice.latestVersion,
+                        onGet = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(notice.apkUrl))) },
+                        onDismiss = { vm.dismissUpdateNotice() },
+                    )
+                }
+            }
+
             item {
                 Dashboard(
                     myPoints = state.myPoints,
@@ -131,6 +153,37 @@ private fun Dashboard(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+@Composable
+private fun UpdateBanner(version: String, onGet: () -> Unit, onDismiss: () -> Unit) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 20.dp, end = 4.dp, top = 4.dp, bottom = 4.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Update available — v$version",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onGet, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.tertiary)) {
+                    Text("Get")
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Filled.Close, contentDescription = "Dismiss", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
     }
 }
 

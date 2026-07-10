@@ -29,6 +29,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true // BuildConfig.VERSION_NAME feeds the update-notice banner (HomeViewModel)
     }
 
     compileOptions {
