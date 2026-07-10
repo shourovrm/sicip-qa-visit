@@ -1,19 +1,23 @@
-// TA/DA bill math: night/food span totals, multi-trip aggregation, amount-in-words
+// TA/DA bill math: trip/leg totals, multi-trip aggregation, amount-in-words. nights/food are
+// resolved by the caller (v1.5: from domain.suggestedNights/suggestedFood, keyed off the
+// primary visit's category -- see ScoringTest's span-table tests) and passed into Trip; BillMath
+// itself only sums what it's given.
 package bd.sicip.qavisit.domain
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class BillMathTest {
 
     // real sample: decoded official bill xlsx batches two finished trips —
     // trip1: 11 May same-day Dhaka (legs 441+482), claimed 0 nights/0 food ("-" on the sheet)
-    // trip2: 8-14 Jun Bhola (legs 176+1500), 6 nights, 6.5 food days
+    // trip2: 8-14 Jun Bhola (legs 176+1500), 6 nights, 6.5 food days (A** category span)
     private val trip2 = Trip(
         legs = listOf(Leg(fare = 176.0), Leg(fare = 1500.0)),
         startDate = "2026-06-08",
         endDate = "2026-06-14",
+        nights = 6,
+        food = 6.5,
     )
 
     @Test fun real_sample_bill_with_claimed_overrides() {
@@ -32,25 +36,12 @@ class BillMathTest {
         assertEquals("Twenty Four Thousand Three Hundred Forty Nine", amountInWords(totals.net.toLong()))
     }
 
-    // same two trips, but trip1 left at its span-rule defaults (single day -> 0 nights, 0.5 food)
-    // instead of the claimed override: proves the override path above is what matches the
-    // official doc, not the raw span rule.
-    @Test fun rule_default_bill_without_override_differs_from_real_sample() {
-        val trip1 = Trip(
-            legs = listOf(Leg(fare = 441.0), Leg(fare = 482.0)),
-            startDate = "2026-05-11",
-            endDate = "2026-05-11",
-        )
-        val totals = billTotals(listOf(trip1, trip2))
-        assertEquals(2599.0, totals.ta, 0.001)
-        assertEquals(12000.0, totals.accommodation, 0.001)
-        assertEquals(10500.0, totals.food, 0.001)
-        assertEquals(25099.0, totals.net, 0.001)
-    }
-
-    @Test fun trip_span_totals_match_sample_trip2() {
-        assertEquals(6, tripNights("2026-06-08", "2026-06-14"))
-        assertEquals(6.5, tripFoodDays("2026-06-08", "2026-06-14"), 0.0001)
+    // a Trip built without nights/food (null) resolves to 0/0 -- no more span-date default;
+    // only the frozen-snapshot/archive path relies on this, live bill prep always supplies both.
+    @Test fun unresolved_trip_defaults_to_zero() {
+        val trip1 = Trip(legs = listOf(Leg(fare = 441.0)), startDate = "2026-05-11", endDate = "2026-05-11")
+        assertEquals(0, trip1.resolvedNights)
+        assertEquals(0.0, trip1.resolvedFood, 0.0001)
     }
 
     // TA = sum of fares, sample values lifted from the real template
@@ -59,28 +50,11 @@ class BillMathTest {
         assertEquals(2117.0, ta(legs), 0.001)
     }
 
-    @Test fun single_day_trip_no_night_half_food() {
-        assertEquals(0, tripNights("2026-06-01", "2026-06-01"))
-        assertEquals(0.5, tripFoodDays("2026-06-01", "2026-06-01"), 0.0001)
-        val totals = billTotals(listOf(Trip(listOf(Leg(fare = 500.0)), "2026-06-01", "2026-06-01")))
+    @Test fun billTotals_sums_resolved_nights_and_food_across_trips() {
+        val totals = billTotals(listOf(Trip(listOf(Leg(fare = 500.0)), "2026-06-01", "2026-06-01", nights = 0, food = 0.5)))
         assertEquals(0.0, totals.accommodation, 0.001)
         assertEquals(750.0, totals.food, 0.001)
         assertEquals(500.0, totals.ta, 0.001)
-    }
-
-    // Dhaka-inside-metro day tour: no accommodation/food claimed, unlike the plain same-day rule.
-    @Test fun metro_day_tour_zero_nights_and_food() {
-        assertEquals(0, tripNights("2026-06-01", "2026-06-01", metro = true))
-        assertEquals(0.0, tripFoodDays("2026-06-01", "2026-06-01", metro = true), 0.0001)
-        val totals = billTotals(listOf(Trip(listOf(Leg(fare = 300.0)), "2026-06-01", "2026-06-01", metro = true)))
-        assertEquals(0.0, totals.accommodation, 0.001)
-        assertEquals(0.0, totals.food, 0.001)
-    }
-
-    @Test fun endDate_before_startDate_throws() {
-        assertThrows(IllegalArgumentException::class.java) {
-            tripNights("2026-06-14", "2026-06-08")
-        }
     }
 
     // per-leg defaults: day-grouped, first leg of a day carries the value, last day halved

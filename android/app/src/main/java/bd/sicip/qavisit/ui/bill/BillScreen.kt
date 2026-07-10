@@ -27,7 +27,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -40,7 +39,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -53,7 +51,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
@@ -65,7 +62,9 @@ import bd.sicip.qavisit.data.db.Visit
 import bd.sicip.qavisit.data.sync.SyncNow
 import bd.sicip.qavisit.domain.BillSnapshot
 import bd.sicip.qavisit.domain.BillTotals
+import bd.sicip.qavisit.domain.CATEGORY_LABELS
 import bd.sicip.qavisit.domain.Leg
+import bd.sicip.qavisit.domain.POINTS
 import bd.sicip.qavisit.domain.SnapshotLeg
 import bd.sicip.qavisit.domain.SnapshotTrip
 import bd.sicip.qavisit.domain.amountInWords
@@ -75,14 +74,15 @@ import bd.sicip.qavisit.domain.legDefaults
 import bd.sicip.qavisit.domain.primaryVisit
 import bd.sicip.qavisit.domain.renderableFromSnapshot
 import bd.sicip.qavisit.domain.snapshotBill
+import bd.sicip.qavisit.domain.suggestedFood
+import bd.sicip.qavisit.domain.suggestedNights
 import bd.sicip.qavisit.domain.toBillTrips
-import bd.sicip.qavisit.domain.tripFoodDays
-import bd.sicip.qavisit.domain.tripNights
 import bd.sicip.qavisit.pdf.BillLeg
 import bd.sicip.qavisit.pdf.BillTrip
 import bd.sicip.qavisit.pdf.buildBillHtml
 import bd.sicip.qavisit.pdf.purposeDate
 import bd.sicip.qavisit.pdf.renderBillPdf
+import bd.sicip.qavisit.ui.common.PickerDropdown
 import bd.sicip.qavisit.ui.common.TwoTabRow
 import bd.sicip.qavisit.ui.common.showDatePicker
 import bd.sicip.qavisit.ui.home.LegFormFields
@@ -103,6 +103,9 @@ private val BILL_DATE_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("dd M
 private const val FILE_PROVIDER_AUTHORITY = "bd.sicip.qavisit.fileprovider"
 
 private enum class Step { PICKER, PREVIEW, DETAIL }
+
+// full 17-category list, insertion order from POINTS (same order the label map follows).
+private val CATEGORIES = POINTS.keys.toList()
 
 // one finished trip with everything the bill needs pulled ahead of time -- purpose line
 // comes from the primary visit only (additional visits on the same trip don't get their own
@@ -321,18 +324,16 @@ private fun PreviousBillDetail(bill: Bill, onBack: () -> Unit) {
 
 private fun Bill.parseSnapshot(): BillSnapshot = renderableFromSnapshot(Json.parseToJsonElement(data).jsonObject)
 
-// per-selected-trip editable state: nights/food default from the span rule (BillMath), the
-// officer can override either (e.g. the official sample zeroed a same-day Dhaka trip, or a
-// Dhaka-inside-metro tour which always defaults to 0/0 regardless of span). legs start from
-// what was loaded but stay independently mutable so add/edit/delete in bill prep (the only
-// place travel rows are entered) reflects immediately in totals + the PDF.
+// per-selected-trip state: category is the single source for nights/food (CATEGORY_SPANS,
+// v1.5 policy) -- changing the dropdown writes the new category back to the trip's primary
+// visit in Room (so the Visits tab picks it up too) and nights/food recompute immediately, read-
+// only. legs stay independently mutable so add/edit/delete in bill prep (the only place travel
+// rows are entered) reflects immediately in totals + the PDF.
 private class TripEdit(val candidate: TripCandidate) {
-    private val metro = candidate.primary.district == "Dhaka" && candidate.primary.dhakaMetro == true
-    var nightsText by mutableStateOf(tripNights(candidate.primary.startDate, candidate.primary.endDate, metro).toString())
-    var foodText by mutableStateOf(numText(tripFoodDays(candidate.primary.startDate, candidate.primary.endDate, metro)))
+    var category by mutableStateOf(candidate.primary.category)
     var legs by mutableStateOf(candidate.legs)
-    val nights: Int get() = nightsText.toIntOrNull() ?: 0
-    val foodDays: Double get() = foodText.toDoubleOrNull() ?: 0.0
+    val nights: Int get() = suggestedNights(category)
+    val foodDays: Double get() = suggestedFood(category)
 }
 
 private fun numText(d: Double): String = if (d == d.toLong().toDouble()) d.toLong().toString() else d.toString()
@@ -460,6 +461,7 @@ private fun BillPreviewStep(
 
 @Composable
 private fun TripEditCard(edit: TripEdit, db: AppDb) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var editingLeg by remember { mutableStateOf<TravelLeg?>(null) }
     var showTravelForm by remember { mutableStateOf(false) }
@@ -479,22 +481,34 @@ private fun TripEditCard(edit: TripEdit, db: AppDb) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = edit.nightsText,
-                    onValueChange = { edit.nightsText = it },
-                    label = { Text("Nights") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                )
-                OutlinedTextField(
-                    value = edit.foodText,
-                    onValueChange = { edit.foodText = it },
-                    label = { Text("Food days") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f),
-                )
-            }
+            PickerDropdown(
+                label = "Category",
+                options = CATEGORIES,
+                selected = edit.category,
+                onSelect = { newCategory ->
+                    if (newCategory != edit.category) {
+                        edit.category = newCategory
+                        scope.launch {
+                            val now = Instant.now().toString()
+                            db.visitDao().upsert(
+                                edit.candidate.primary.copy(
+                                    category = newCategory,
+                                    categoryOverride = true,
+                                    updatedAt = now,
+                                    dirty = true,
+                                ),
+                            )
+                            SyncNow.enqueue(context)
+                        }
+                    }
+                },
+                displayLabel = { CATEGORY_LABELS[it] ?: it },
+            )
+            Text(
+                "Nights: ${edit.nights} · Food days: ${numText(edit.foodDays)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             Text("TRAVEL DETAILS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             edit.legs.forEach { leg ->

@@ -1,47 +1,30 @@
-// TA/DA bill math: night-stay/food-day span totals, TA sum, amount in words.
+// TA/DA bill math: TA sum, per-leg night-stay/food-day defaults, amount in words. nights/food
+// per trip are resolved by the caller (v1.5: domain.suggestedNights/suggestedFood, keyed off
+// category) -- see domain/Scoring.kt.
 // pure kotlin, no android deps.
 package bd.sicip.qavisit.domain
-
-import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 // one itinerary row; depDate used only for per-leg day-grouping defaults
 data class Leg(val fare: Double, val depDate: String = "")
 
 data class BillTotals(val ta: Double, val accommodation: Double, val food: Double, val net: Double)
 
-private fun spanDays(startDate: String, endDate: String): Long {
-    val start = LocalDate.parse(startDate)
-    val end = LocalDate.parse(endDate)
-    require(!end.isBefore(start)) { "endDate ($endDate) before startDate ($startDate)" }
-    return ChronoUnit.DAYS.between(start, end) + 1
-}
-
-// nights away = span days minus the last (no-stay) day. metro: Dhaka-inside-metro tours
-// claim no accommodation regardless of span (0 nights instead of the span default).
-fun tripNights(startDate: String, endDate: String, metro: Boolean = false): Int =
-    if (metro) 0 else (spanDays(startDate, endDate) - 1).toInt()
-
-// full day for every day except the last travel day, which is half. metro: same rule, no food claim.
-fun tripFoodDays(startDate: String, endDate: String, metro: Boolean = false): Double =
-    if (metro) 0.0 else (spanDays(startDate, endDate) - 1) + 0.5
-
 fun ta(legs: List<Leg>): Double = legs.sumOf { it.fare }
 
-// one finished trip batched into a bill. nights/food default to the span math above (or the
-// metro override); either can still be overridden explicitly to match what was actually
-// claimed on the official bill (e.g. a same-day trip claimed with 0 nights/0 food instead of
-// the 0/0.5 span default).
+// one finished trip batched into a bill. nights/food are set by the caller at build time --
+// UI derives them from the primary visit's category (domain.suggestedNights/suggestedFood);
+// archived bills freeze whatever values were resolved at submit time (BillSnapshot), so these
+// fields stay nullable/overridable for that snapshot-fidelity path even though the live UI
+// always supplies them now.
 data class Trip(
     val legs: List<Leg>,
     val startDate: String,
     val endDate: String,
     val nights: Int? = null,
     val food: Double? = null,
-    val metro: Boolean = false,
 ) {
-    val resolvedNights: Int get() = nights ?: tripNights(startDate, endDate, metro)
-    val resolvedFood: Double get() = food ?: tripFoodDays(startDate, endDate, metro)
+    val resolvedNights: Int get() = nights ?: 0
+    val resolvedFood: Double get() = food ?: 0.0
 }
 
 // a bill batches multiple finished trips: TA is every leg's fare, accommodation/food are

@@ -54,8 +54,12 @@ class ScoringTest {
         assertEquals("A**", autoCategory(7, 6, "Sylhet", null))
     }
 
-    @Test fun more_than_seven_days_still_Astarstar() {
-        assertEquals("A**", autoCategory(14, 13, "Sylhet", null))
+    @Test fun eight_days_classic_is_Astarstarstar() {
+        assertEquals("A***", autoCategory(8, 7, "Sylhet", null))
+    }
+
+    @Test fun more_than_eight_days_still_Astarstarstar() {
+        assertEquals("A***", autoCategory(14, 13, "Sylhet", null))
     }
 
     // ---- autoCategory: plus ladder (nights >= days) ----
@@ -83,8 +87,12 @@ class ScoringTest {
         assertEquals("A++*", autoCategory(6, 6, "Sylhet", null))
     }
 
-    @Test fun seven_plus_days_plus_nights_caps_at_Astarstar() {
-        assertEquals("A**", autoCategory(8, 8, "Sylhet", null))
+    @Test fun seven_days_seven_nights_is_Astarplus() {
+        assertEquals("A**+", autoCategory(7, 7, "Sylhet", null))
+    }
+
+    @Test fun eight_plus_days_plus_nights_caps_at_Astarstarstar() {
+        assertEquals("A***", autoCategory(8, 8, "Sylhet", null))
     }
 
     // ---- autoCategory: gaps (nights < days-1) fall back to the classic ladder, conservative ----
@@ -135,14 +143,16 @@ class ScoringTest {
         assertEquals("A", autoCategory(days, nights, "Sylhet", null))
     }
 
-    @Test fun eight_day_seven_night_trip_caps_at_Astarstar() {
+    @Test fun eight_day_seven_night_trip_caps_at_Astarstarstar() {
         val (days, nights) = daysAndNights("2026-06-01T09:00:00Z", "2026-06-08T17:00:00Z")
         assertEquals(8 to 7, days to nights)
-        assertEquals("A**", autoCategory(days, nights, "Sylhet", null))
+        assertEquals("A***", autoCategory(days, nights, "Sylhet", null))
     }
 
     // ---- points table ----
     @Test fun points_table_matches_fixed_scale() {
+        assertEquals(116, points("A***"))
+        assertEquals(112, points("A**+"))
         assertEquals(100, points("A**"))
         assertEquals(96, points("A++*"))
         assertEquals(84, points("A++"))
@@ -211,5 +221,57 @@ class ScoringTest {
 
     @Test fun monthSummary_empty_when_nothing_matches() {
         assertEquals(0 to 0, monthSummary(listOf(MonthVisit("2026-05-01", "A")), "2026-07"))
+    }
+
+    // ---- CATEGORY_SPANS / suggestedNights / suggestedFood: full 17-row table, v1.5 policy --
+    // category is the single source for bill allowances (BillMath no longer computes its own
+    // span defaults). food = nights + 0.5*(days-nights); table below is CATEGORIES.md's table.
+    private data class Row(val category: String, val days: Int, val nights: Int, val food: Double)
+
+    private val spanTable = listOf(
+        Row("A***", 8, 7, 7.5),
+        Row("A**+", 7, 7, 7.0),
+        Row("A**", 7, 6, 6.5),
+        Row("A++*", 6, 6, 6.0),
+        Row("A++", 6, 5, 5.5),
+        Row("A+*", 5, 5, 5.0),
+        Row("A+", 5, 4, 4.5),
+        Row("A*", 4, 4, 4.0),
+        Row("A", 4, 3, 3.5),
+        Row("B+", 3, 3, 3.0),
+        Row("B", 3, 2, 2.5),
+        Row("C+", 2, 2, 2.0),
+        Row("C", 2, 1, 1.5),
+        Row("D+", 1, 1, 1.0),
+        Row("D", 1, 0, 0.5),
+        Row("E", 0, 0, 0.0),
+        Row("N/A", 0, 0, 0.0),
+    )
+
+    @Test fun category_spans_cover_exactly_the_points_keys() {
+        assertEquals(POINTS.keys, CATEGORY_SPANS.keys)
+    }
+
+    @Test fun category_spans_full_table() {
+        spanTable.forEach { row ->
+            assertEquals("${row.category} span", row.days to row.nights, CATEGORY_SPANS[row.category])
+        }
+    }
+
+    @Test fun suggestedNights_full_table() {
+        spanTable.forEach { row ->
+            assertEquals("${row.category} nights", row.nights, suggestedNights(row.category))
+        }
+    }
+
+    @Test fun suggestedFood_full_table() {
+        spanTable.forEach { row ->
+            assertEquals("${row.category} food", row.food, suggestedFood(row.category), 0.0001)
+        }
+    }
+
+    @Test fun suggestedNights_and_suggestedFood_unknown_category_are_zero() {
+        assertEquals(0, suggestedNights("bogus"))
+        assertEquals(0.0, suggestedFood("bogus"), 0.0001)
     }
 }
