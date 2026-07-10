@@ -1,7 +1,7 @@
 # SICIP QA Visit — Startup Guide
 
 ## Install
-1. APK: `SICIP-QA-Visit-v1.2.0.apk` (repo root, also `android/app/build/outputs/apk/release/`).
+1. APK: `SICIP-QA-Visit-v1.3.0.apk` (repo root, also `android/app/build/outputs/apk/release/`).
 2. Copy to phone (USB / Drive / WhatsApp-to-self), tap it, allow "install unknown apps" when prompted. No Play Store, no Google services needed. Android 8+.
 
 ## First login (needs internet once)
@@ -23,7 +23,9 @@
 - **Team**: who's on visit / on leave / in office (derived — no check-in needed) + points leaderboard.
 - **Leaves**: Leaves tab → Add leave (Casual / Sick / Emergency / Others).
 - **TA/DA bill**: Visits → TA/DA Bill → New bill tab → tick finished tour(s) → add/edit travel rows, adjust nights/food (inside-metro tours default to 0/0) → **Generate PDF** for a draft, or **Submit bill** to finalize — submitting freezes the values, files it under **Previous bills** (read-only, view PDF anytime), and cannot be edited after.
-- **Ref numbers**: while editing a visit, typing in the ref box suggests refs colleagues already used; picking one auto-fills its date.
+- **Autosuggest**: institute names, travel places and ref numbers all suggest values anyone on the team saved before; picking a ref auto-fills its date. The bill's purpose line prints the ref date.
+- **Other transport**: pick "Other" as mode and type the actual mode (e.g. Own Car) — it prints on the bill.
+- **Reminders**: the app posts a notification each morning (~7:30) for visits scheduled today or tomorrow. If reminders don't appear, exclude the app from battery optimization in phone settings.
 - **Theme**: Profile → System / Light / Dark.
 - **Visits tabs**: Scheduled (upcoming + on-tour) and Completed (finished, with category). Category is set when you finish a tour — not before.
 - **Filters**: chips on both tabs — period (incl. custom range), district, category, purpose. Rank has Overall | Last month.
