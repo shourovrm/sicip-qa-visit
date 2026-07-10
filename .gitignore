@@ -11,6 +11,8 @@ supabase/.token
 CLAUDE.md
 .claude/
 DECISIONS.md
+PRODUCT.md
+DESIGN.md
 docs/superpowers/
 *.plan.md
 
