@@ -9,9 +9,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.AlertDialog
@@ -160,7 +163,15 @@ fun TripScreen(
         AlertDialog(
             onDismissRequest = { showAddLeg = false },
             title = { Text("Add leg") },
-            text = { LegFormFields(draft) },
+            // dialog height is capped by M3's AlertDialog; without a scroll container the
+            // Departure/Arrival/Mode/Class rows alone overflow it on phone-size screens, so
+            // Fare and Remarks get clipped out of the layout entirely (unreachable, so any
+            // value typed there is lost -- this is what silently zeroed leg fares).
+            text = {
+                Column(modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                    LegFormFields(draft)
+                }
+            },
             confirmButton = {
                 Button(
                     enabled = draft.valid,

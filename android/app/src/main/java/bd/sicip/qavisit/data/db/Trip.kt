@@ -8,6 +8,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
+import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "trips")
 data class Trip(
@@ -32,6 +33,10 @@ interface TripDao {
 
     @Query("SELECT * FROM trips WHERE officer_id = :officerId AND status = 'active' AND deleted = 0 LIMIT 1")
     suspend fun activeTrip(officerId: String): Trip?
+
+    // Home screen: reactive so a background sync write recomposes the hero card in place.
+    @Query("SELECT * FROM trips WHERE officer_id = :officerId AND status = 'active' AND deleted = 0 LIMIT 1")
+    fun activeTripFlow(officerId: String): Flow<Trip?>
 
     // TA/DA bill picker: own finished trips to batch onto a bill, newest first.
     @Query("SELECT * FROM trips WHERE officer_id = :officerId AND status = 'finished' AND deleted = 0 ORDER BY started_at DESC")

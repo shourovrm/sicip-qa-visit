@@ -37,6 +37,14 @@ private val DarkStatusColors = StatusColors(
 // fallback default so previews / missing-provider reads don't crash
 val LocalStatusColors = staticCompositionLocalOf { LightStatusColors }
 
+// M3's lightColorScheme()/darkColorScheme() derive surfaceContainer* tones from `primary`
+// when not given explicitly -- that's the lavender-tinted card bug (DESIGN.md wants flat
+// white/slate cards, not a primary-tinted surface). Pinning every surface* token stops most
+// of that, but `surfaceColorAtElevation()` (what tonal-elevation containers like Card actually
+// paint) separately composites `surfaceTint` -- which itself defaults to `primary` -- over
+// `surface`, so navy still bled through as a faint tint even with surfaceContainerLow pinned.
+// Setting surfaceTint = surface makes that composite a no-op, which is what "flat card, no
+// elevation tint" in DESIGN.md means.
 private val LightScheme = lightColorScheme(
     primary = LightPrimary,
     onPrimary = LightOnPrimary,
@@ -48,7 +56,14 @@ private val LightScheme = lightColorScheme(
     onBackground = LightInk,
     surface = LightSurface,
     onSurface = LightInk,
+    surfaceVariant = LightBackground,
     onSurfaceVariant = LightMuted,
+    surfaceContainer = LightSurface,
+    surfaceContainerLow = LightSurface,
+    surfaceContainerHigh = LightSurface,
+    surfaceContainerLowest = LightSurface,
+    surfaceContainerHighest = LightSurface,
+    surfaceTint = LightSurface,
     outline = LightOutline,
 )
 
@@ -63,7 +78,14 @@ private val DarkScheme = darkColorScheme(
     onBackground = DarkInk,
     surface = DarkSurface,
     onSurface = DarkInk,
+    surfaceVariant = DarkBackground,
     onSurfaceVariant = DarkMuted,
+    surfaceContainer = DarkNavBar,
+    surfaceContainerLow = DarkSurface,
+    surfaceContainerHigh = DarkSurface,
+    surfaceContainerLowest = DarkSurface,
+    surfaceContainerHighest = DarkSurface,
+    surfaceTint = DarkSurface,
     outline = DarkOutline,
 )
 

@@ -7,6 +7,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Upsert
+import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "officers")
 data class Officer(
@@ -26,6 +27,10 @@ interface OfficerDao {
 
     @Query("SELECT * FROM officers ORDER BY name")
     suspend fun all(): List<Officer>
+
+    // Home screen: reactive so a background sync write (new officer, rank changes) updates the rank card.
+    @Query("SELECT * FROM officers ORDER BY name")
+    fun allFlow(): Flow<List<Officer>>
 
     // sync uses this to look up the informing officer's name for the "informed you" notice.
     @Query("SELECT * FROM officers WHERE id = :id")

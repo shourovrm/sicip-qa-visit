@@ -17,6 +17,8 @@ fun StatusPill(text: String, colors: StatusPair, modifier: Modifier = Modifier) 
         text = text,
         color = colors.ink,
         style = MaterialTheme.typography.labelSmall,
+        maxLines = 1,
+        softWrap = false,
         modifier = modifier
             .background(colors.bg, RoundedCornerShape(99))
             .padding(horizontal = 12.dp, vertical = 4.dp),

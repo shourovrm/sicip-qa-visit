@@ -22,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Officer
@@ -91,9 +92,20 @@ fun TeamScreen(officerId: String, db: AppDb) {
 @Composable
 private fun TeamStatusCard(row: TeamRow) {
     Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
-        Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Column {
-                Text(row.officer.name, style = MaterialTheme.typography.titleMedium)
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            // weighted + ellipsized so a long officer name can never squeeze the pill's
+            // reserved width -- an unweighted Column here is what let "IN OFFICE" get pushed
+            // into a sliver of space and wrap to three lines.
+            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                Text(
+                    row.officer.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 row.subtitle?.let {
                     Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -118,7 +130,13 @@ private fun RankRowCard(row: RankRow, isMe: Boolean) {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("#${row.position} ${row.name}", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "#${row.position} ${row.name}",
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
+            )
             StatusPill("${row.points} pts", LocalStatusColors.current.success)
         }
     }

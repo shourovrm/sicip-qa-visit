@@ -8,6 +8,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
+import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "visits")
 data class Visit(
@@ -51,6 +52,16 @@ interface VisitDao {
     // trip detail: every visit attached to one trip (primary + any ad-hoc adds).
     @Query("SELECT * FROM visits WHERE trip_id = :tripId AND deleted = 0 ORDER BY start_date")
     suspend fun byTrip(tripId: String): List<Visit>
+
+    // Home screen: reactive so a background sync write recomposes the summary cards in place.
+    @Query("SELECT * FROM visits WHERE officer_id = :officerId AND deleted = 0 ORDER BY start_date DESC")
+    fun byOfficerFlow(officerId: String): Flow<List<Visit>>
+
+    @Query("SELECT * FROM visits WHERE deleted = 0 ORDER BY start_date DESC")
+    fun allFlow(): Flow<List<Visit>>
+
+    @Query("SELECT * FROM visits WHERE trip_id = :tripId AND deleted = 0 ORDER BY start_date")
+    fun byTripFlow(tripId: String): Flow<List<Visit>>
 
     // sync needs this to check "already had this row?" and "is it locally dirty?" before overwriting.
     @Query("SELECT * FROM visits WHERE id = :id")

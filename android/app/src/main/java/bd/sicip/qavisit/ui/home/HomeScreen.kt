@@ -26,7 +26,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -54,8 +53,7 @@ fun HomeScreen(
     onEditVisit: (String) -> Unit,
 ) {
     val vm = remember(officerId, db) { HomeViewModel(officerId, db) }
-    val state by vm.state.collectAsState()
-    LaunchedEffect(Unit) { vm.refresh() }
+    val state by vm.state.collectAsState(initial = HomeUiState())
 
     Scaffold(
         floatingActionButton = {

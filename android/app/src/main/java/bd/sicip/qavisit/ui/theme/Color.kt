@@ -28,6 +28,7 @@ val DarkOnTertiary = Color(0xFF3A1B00)
 val DarkOutline = Color(0xFF44465C)
 val DarkInk = Color(0xFFE4E2F0)
 val DarkMuted = Color(0xFFB4B6CE)
+val DarkNavBar = Color(0xFF1A1C2B) // bottom NavigationBar container, distinct from card surface
 
 // -- status pills: bg/ink pairs, derived state only, no manual controls --
 data class StatusPair(val bg: Color, val ink: Color)

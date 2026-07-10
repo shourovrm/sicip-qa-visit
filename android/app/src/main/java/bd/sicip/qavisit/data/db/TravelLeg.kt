@@ -8,6 +8,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
+import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "travel_legs")
 data class TravelLeg(
@@ -40,6 +41,10 @@ interface TravelLegDao {
 
     @Query("SELECT * FROM travel_legs WHERE trip_id = :tripId AND deleted = 0 ORDER BY dep_date, dep_time")
     suspend fun byTrip(tripId: String): List<TravelLeg>
+
+    // Home screen: reactive so a background sync write recomposes the active-trip legs/fare line.
+    @Query("SELECT * FROM travel_legs WHERE trip_id = :tripId AND deleted = 0 ORDER BY dep_date, dep_time")
+    fun byTripFlow(tripId: String): Flow<List<TravelLeg>>
 
     // sync needs this to check "already had this row?" and "is it locally dirty?" before overwriting.
     @Query("SELECT * FROM travel_legs WHERE id = :id")
