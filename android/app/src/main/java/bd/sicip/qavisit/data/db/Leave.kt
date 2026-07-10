@@ -42,6 +42,10 @@ interface LeaveDao {
     @Query("SELECT * FROM leaves WHERE officer_id = :officerId AND deleted = 0 ORDER BY start_date DESC")
     suspend fun byOfficer(officerId: String): List<Leave>
 
+    // Team tab: every officer's leaves, newest-first (mirrors VisitDao.all()).
+    @Query("SELECT * FROM leaves WHERE deleted = 0 ORDER BY start_date DESC")
+    suspend fun all(): List<Leave>
+
     // sync needs this to check "already had this row?" and "is it locally dirty?" before overwriting.
     @Query("SELECT * FROM leaves WHERE id = :id")
     suspend fun byId(id: String): Leave?

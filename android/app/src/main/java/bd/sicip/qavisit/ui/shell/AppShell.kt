@@ -36,14 +36,17 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import bd.sicip.qavisit.data.auth.SessionStore
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.sync.SyncNow
 import bd.sicip.qavisit.data.sync.SyncStateStore
+import bd.sicip.qavisit.settings.ThemePrefs
 import bd.sicip.qavisit.ui.home.HomeScreen
 import bd.sicip.qavisit.ui.home.StartTrip
 import bd.sicip.qavisit.ui.home.TripScreen
-import bd.sicip.qavisit.ui.screens.LeavesScreen
-import bd.sicip.qavisit.ui.screens.ProfileScreen
+import bd.sicip.qavisit.ui.leaves.LeaveForm
+import bd.sicip.qavisit.ui.leaves.LeavesScreen
+import bd.sicip.qavisit.ui.profile.ProfileScreen
 import bd.sicip.qavisit.ui.team.TeamScreen
 import bd.sicip.qavisit.ui.visits.VisitForm
 import bd.sicip.qavisit.ui.visits.VisitsScreen
@@ -66,6 +69,8 @@ private val NAV_ITEMS = listOf(
 @Composable
 fun AppShell(context: Context, officerId: String) {
     val db = remember { AppDb.get(context) }
+    val sessionStore = remember { SessionStore(context) }
+    val themePrefs = remember { ThemePrefs(context) }
     val syncState = remember { SyncStateStore(context) }
     val lastSyncAt by syncState.lastSyncAt.collectAsState(initial = null)
     val lastError by syncState.lastError.collectAsState(initial = null)
@@ -149,8 +154,31 @@ fun AppShell(context: Context, officerId: String) {
                     onEditVisit = { visitId -> navController.navigate("visit_form?visitId=$visitId") },
                 )
             }
-            composable("leaves") { LeavesScreen() }
-            composable("profile") { ProfileScreen() }
+            composable("leaves") {
+                LeavesScreen(
+                    officerId = officerId,
+                    db = db,
+                    onAddLeave = { navController.navigate("leave_form") },
+                    onEditLeave = { leaveId -> navController.navigate("leave_form?leaveId=$leaveId") },
+                )
+            }
+            composable("profile") {
+                ProfileScreen(officerId = officerId, db = db, themePrefs = themePrefs, sessionStore = sessionStore)
+            }
+
+            composable(
+                "leave_form?leaveId={leaveId}",
+                arguments = listOf(
+                    navArgument("leaveId") { type = NavType.StringType; nullable = true; defaultValue = null },
+                ),
+            ) { entry ->
+                LeaveForm(
+                    officerId = officerId,
+                    db = db,
+                    leaveId = entry.arguments?.getString("leaveId"),
+                    onDone = { navController.popBackStack() },
+                )
+            }
 
             composable(
                 "visit_form?visitId={visitId}&tripId={tripId}&additional={additional}",
