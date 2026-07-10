@@ -52,9 +52,12 @@ data class BillTrip(
     val foodDays: Double,
 )
 
-// A4 portrait in points -- PdfDocument's native unit, 1/72in.
-private const val PAGE_W = 595f
-private const val PAGE_H = 842f
+// A4 LANDSCAPE in points -- PdfDocument's native unit, 1/72in. the template's own
+// xl/worksheets/sheet1.xml pageSetup says orientation="landscape" paperSize="9" (A4) --
+// portrait was the root cause of the Fare/Time column squeeze (defects #4/#6): every
+// column had ~46% less width to work with than the template gives it.
+private const val PAGE_W = 842f
+private const val PAGE_H = 595f
 private const val MARGIN = 32f
 private const val TABLE_W = PAGE_W - 2 * MARGIN
 
@@ -62,7 +65,7 @@ private const val ROW_H = 15f
 private const val HEADER_ROW_H = 17f
 // bottom-of-page space reserved for the totals block (4 rows) + submitted/recommended
 // footer, so that block always lands on the same page as the itinerary's last row.
-private const val RESERVED_FOOTER_H = 170f
+private const val RESERVED_FOOTER_H = 195f
 
 // xlsx <cols> widths (character units) for A..L, kept proportional to the original.
 private val COL_WEIGHTS = floatArrayOf(8.63f, 8.37f, 25.82f, 9.09f, 8.54f, 24.54f, 5.91f, 8.18f, 10.54f, 9.82f, 12.18f, 11.54f)
@@ -113,22 +116,29 @@ fun generateBillPdf(
         }
 
         val tableTop = y
-        val rowYs = mutableListOf(tableTop, tableTop + HEADER_ROW_H, tableTop + 2 * HEADER_ROW_H)
+        val headerMid = tableTop + HEADER_ROW_H
+        val headerBottom = tableTop + 2 * HEADER_ROW_H
+        val bands = mutableListOf<RowBand>(RowBand.Header(tableTop, headerMid, headerBottom))
         drawTableHeader(canvas, tableTop)
-        y = rowYs.last()
+        y = headerBottom
 
         val fit = rowsPerPage(bottomLimit, y, ROW_H)
         val chunkEnd = minOf(idx + fit, rows.size)
         for (i in idx until chunkEnd) {
             val bottom = y + ROW_H
             when (val row = rows[i]) {
-                is PdfRow.Purpose -> drawPurposeRow(canvas, row.text, y, bottom)
-                is PdfRow.Leg -> drawLegRow(canvas, row.leg, row.showDate, y, bottom)
+                is PdfRow.Purpose -> {
+                    drawPurposeRow(canvas, row.text, y, bottom)
+                    bands.add(RowBand.Purpose(y, bottom))
+                }
+                is PdfRow.Leg -> {
+                    drawLegRow(canvas, row.leg, row.showDate, y, bottom)
+                    bands.add(RowBand.Cells(y, bottom))
+                }
             }
             y = bottom
-            rowYs.add(y)
         }
-        drawGrid(canvas, rowYs)
+        drawGrid(canvas, bands)
         idx = chunkEnd
 
         val isLast = idx >= rows.size
@@ -187,22 +197,26 @@ private fun drawLetterhead(canvas: Canvas, seal: Bitmap?, sicip: Bitmap?, y0: Fl
     return y
 }
 
+// bug that produced defects #1/#2: textPaint()'s align param defaults to CENTER (right for
+// the org header lines below, wrong here) -- every raw canvas.drawText call in this file
+// must pass align = LEFT explicitly, or the label centers *on* colL(0) and half of it bleeds
+// off the left edge of the page, jumbled together with whatever's centered next to it.
 private fun drawNameDate(canvas: Canvas, officerName: String, billDate: String, y0: Float): Float {
     val y = y0 + 9f
-    canvas.drawText("Name & Designation:", colL(0), y, textPaint(8f, bold = true))
-    canvas.drawText("$officerName, Program Officer (QA)", colL(0) + 82f, y, textPaint(8f, bold = false))
-    canvas.drawText("Date:", colL(9), y, textPaint(8f, bold = true))
-    canvas.drawText(formatDisplayDate(billDate), colL(10), y, textPaint(8f, bold = false))
+    canvas.drawText("Name & Designation:", colL(0), y, textPaint(8f, bold = true, Paint.Align.LEFT))
+    canvas.drawText("$officerName, Program Officer (QA)", colL(0) + 82f, y, textPaint(8f, bold = false, Paint.Align.LEFT))
+    canvas.drawText("Date:", colL(9), y, textPaint(8f, bold = true, Paint.Align.LEFT))
+    canvas.drawText(formatDisplayDate(billDate), colL(10), y, textPaint(8f, bold = false, Paint.Align.LEFT))
     return y0 + 16f
 }
 
 private fun drawItineraryLabel(canvas: Canvas, y0: Float): Float {
-    canvas.drawText("Detailed Travel Itinerary:", colL(0), y0 + 9f, textPaint(8f, bold = true))
+    canvas.drawText("Detailed Travel Itinerary:", colL(0), y0 + 9f, textPaint(8f, bold = true, Paint.Align.LEFT))
     return y0 + 13f
 }
 
 private fun drawContinuationNote(canvas: Canvas, y0: Float, page: Int): Float {
-    canvas.drawText("TA/DA Bill (continued) — page $page", colL(0), y0 + 9f, textPaint(8f, bold = true))
+    canvas.drawText("TA/DA Bill (continued) — page $page", colL(0), y0 + 9f, textPaint(8f, bold = true, Paint.Align.LEFT))
     return y0 + 13f
 }
 
@@ -283,16 +297,19 @@ private fun drawTotalsBlock(canvas: Canvas, trips: List<BillTrip>, totals: BillT
 // only Submitted By gets pre-filled -- Recommended By is a human supervisor's signature,
 // left blank same as the template. --
 
+// gaps measured off the template PDF (pdftotext -bbox-layout on the xlsx export): "Net
+// claim..." row to "Submitted By:" is ~22pt, "Submitted By:" to the name line below it is
+// ~61pt (room for an actual pen signature) -- not the cramped ~8pt/~42pt this used to be.
 private fun drawFooterBlock(canvas: Canvas, officerName: String, y0: Float) {
-    var y = y0 + 8f
-    canvas.drawText("Submitted By:", colL(0), y, textPaint(8f, bold = true))
-    canvas.drawText("Recommended By:", colL(9), y, textPaint(8f, bold = true))
-    y += 42f
-    canvas.drawText(officerName, colL(0), y, textPaint(8f, bold = false))
+    var y = y0 + 12f
+    canvas.drawText("Submitted By:", colL(0), y, textPaint(8f, bold = true, Paint.Align.LEFT))
+    canvas.drawText("Recommended By:", colL(9), y, textPaint(8f, bold = true, Paint.Align.LEFT))
+    y += 60f
+    canvas.drawText(officerName, colL(0), y, textPaint(8f, bold = false, Paint.Align.LEFT))
     y += 11f
-    canvas.drawText("Program Officer (QA)", colL(0), y, textPaint(8f, bold = false))
+    canvas.drawText("Program Officer (QA)", colL(0), y, textPaint(8f, bold = false, Paint.Align.LEFT))
     y += 10f
-    canvas.drawText("SICIP", colL(0), y, textPaint(8f, bold = false))
+    canvas.drawText("SICIP", colL(0), y, textPaint(8f, bold = false, Paint.Align.LEFT))
 }
 
 // -- drawing primitives --
@@ -350,15 +367,45 @@ private fun wrapText(text: String, maxWidth: Float, paint: Paint): List<String> 
     return lines
 }
 
-// full-width gridlines at every row boundary plus a vertical line per column boundary --
-// ponytail: this is a plain grid, not a true spreadsheet merge; continuation legs blank
-// their date/night/food text but the horizontal rule between them still prints, unlike the
-// template's merged cells. purely cosmetic, noted in the task report.
-private fun drawGrid(canvas: Canvas, rowYs: List<Float>) {
-    val top = rowYs.first(); val bottom = rowYs.last()
+// one row-band of the table, tagged by what's actually drawn in it, so the grid can skip
+// lines that would cut through a merged cell instead of bordering one:
+//  - Header: two sub-rows: Departure/Arrival's Date|Time|Place split (mid line, cols 0..5
+//    only) sits next to Night/Food/Mode/Class/Fare/Remarks, which span both sub-rows and
+//    must NOT get that mid line (was defect #4's "line struck through the header").
+//  - Purpose: one cell spanning every column -- no interior verticals (defect #3).
+//  - Cells: a normal itinerary/totals row -- full column verticals as usual.
+private sealed class RowBand(val top: Float, val bottom: Float) {
+    class Header(top: Float, val mid: Float, bottom: Float) : RowBand(top, bottom)
+    class Purpose(top: Float, bottom: Float) : RowBand(top, bottom)
+    class Cells(top: Float, bottom: Float) : RowBand(top, bottom)
+}
+
+// cell-aware gridlines: horizontal rule under every band (partial under Header's mid line),
+// vertical rules per column boundary but only spanning Header/Cells bands -- Purpose bands
+// are skipped so a purpose row prints as one merged cell, borders only, never through text.
+private fun drawGrid(canvas: Canvas, bands: List<RowBand>) {
+    val top = bands.first().top; val bottom = bands.last().bottom
     val thin = Paint().apply { color = Color.BLACK; strokeWidth = 0.5f }
-    for (x in COL_X) canvas.drawLine(x, top, x, bottom, thin)
-    rowYs.forEach { y -> canvas.drawLine(MARGIN, y, PAGE_W - MARGIN, y, thin) }
+
+    canvas.drawLine(MARGIN, top, PAGE_W - MARGIN, top, thin)
+    bands.forEach { band ->
+        if (band is RowBand.Header) canvas.drawLine(colL(0), band.mid, colR(5), band.mid, thin)
+        canvas.drawLine(MARGIN, band.bottom, PAGE_W - MARGIN, band.bottom, thin)
+    }
+
+    for (x in COL_X) {
+        var segTop: Float? = null
+        for (band in bands) {
+            if (band is RowBand.Purpose) {
+                if (segTop != null) canvas.drawLine(x, segTop, x, band.top, thin)
+                segTop = null
+            } else if (segTop == null) {
+                segTop = band.top
+            }
+        }
+        if (segTop != null) canvas.drawLine(x, segTop, x, bottom, thin)
+    }
+
     val thick = Paint().apply { color = Color.BLACK; strokeWidth = 1.2f; style = Paint.Style.STROKE }
     canvas.drawRect(MARGIN, top, PAGE_W - MARGIN, bottom, thick)
 }
