@@ -1,7 +1,7 @@
 # SICIP QA Visit — Startup Guide
 
 ## Install
-1. APK: `SICIP-QA-Visit-v1.0.0.apk` (repo root, also `android/app/build/outputs/apk/release/`).
+1. APK: `SICIP-QA-Visit-v1.1.0.apk` (repo root, also `android/app/build/outputs/apk/release/`).
 2. Copy to phone (USB / Drive / WhatsApp-to-self), tap it, allow "install unknown apps" when prompted. No Play Store, no Google services needed. Android 8+.
 
 ## First login (needs internet once)
@@ -17,12 +17,14 @@
 
 ## Daily use
 - **Schedule a visit**: Home → orange + button. District Dhaka asks inside/outside metro (affects points: E=1 / D=4).
-- **Trip**: Home → Start trip → attach scheduled visit(s) → optionally inform a colleague → add travel legs (mode, class, fare) as you go → add activities/ad-hoc visits during → Finish trip. Category + points auto-computed from dates (override offered at finish).
-- **Multiple visits in one trip**: first visit scores, others auto N/A — matches the office scoring sheet.
+- **Tour**: tap **Start** on an upcoming visit card → confirm start time (add more visits or inform a colleague if you like) → during the tour add activities or ad-hoc visits → **End tour** (end date+time; category auto-suggested, override allowed). Travel and fares are NOT entered during the tour.
+- **Travel & fares**: added later in Visits → TA/DA Bill → select tour(s) → "Add travel" rows (any movement: bus stand→institute, hotel→ghat; mode, class, fare) → totals update live.
+- **Multiple visits in one tour**: first visit scores, others auto N/A — matches the office scoring sheet.
 - **Team**: who's on visit / on leave / in office (derived — no check-in needed) + points leaderboard.
 - **Leaves**: Leaves tab → Add leave (Casual / Sick / Emergency / Others).
-- **TA/DA bill**: Visits → TA/DA Bill → tick the finished trip(s) for the claim → adjust nights/food per trip if needed (e.g. zero out a same-day Dhaka trip) → Generate → PDF saved to Downloads + share sheet. Layout matches the official template exactly.
+- **TA/DA bill**: Visits → TA/DA Bill → tick the finished tour(s) for the claim → add/edit travel rows → adjust nights/food per tour if needed (e.g. zero out a same-day Dhaka tour) → Generate → PDF saved to Downloads + share sheet. Layout matches the official template exactly.
 - **Theme**: Profile → System / Light / Dark.
+- **Filters**: Visits tab chips — period (incl. custom range), district, category, purpose.
 - **Visit Scores sheet**: Profile → opens the Google Sheet (view-only) in browser.
 
 ## Admin notes (Riad)
