@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
 import bd.sicip.qavisit.data.auth.SessionStore
 import bd.sicip.qavisit.data.db.AppDb
+import bd.sicip.qavisit.data.reminder.ReminderScheduler
 import bd.sicip.qavisit.data.sync.SyncNow
 import bd.sicip.qavisit.data.sync.SyncWorker
 import bd.sicip.qavisit.settings.ThemePrefs
@@ -54,6 +55,7 @@ class MainActivity : ComponentActivity() {
                         LaunchedEffect(Unit) {
                             SyncWorker.schedulePeriodic(applicationContext)
                             SyncNow.enqueue(applicationContext)
+                            ReminderScheduler.schedule(applicationContext)
                         }
                         AppShell(context = applicationContext, officerId = currentSession.userId)
                     } else {
