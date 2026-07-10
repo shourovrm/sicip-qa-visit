@@ -191,10 +191,11 @@ function writeRankingTab(sh, rankRows) {
 function writeBreakdownTab(ss, rankRows) {
   var sh = getOrCreateSheet(ss, BREAKDOWN_TAB);
   sh.clear();
-  var header = ['Officer'].concat(CATEGORY_CODES);
+  // Total Points comes from the same rank_summary row the Ranking tab uses — matches by construction
+  var header = ['Officer'].concat(CATEGORY_CODES).concat(['Total Points']);
   var rows = rankRows.map(function (r) {
     var cc = r.cat_counts || {};
-    return [r.name].concat(CATEGORY_CODES.map(function (c) { return cc[c] || 0; }));
+    return [r.name].concat(CATEGORY_CODES.map(function (c) { return cc[c] || 0; })).concat([r.total_points]);
   });
   var all = [header].concat(rows);
   sh.getRange(1, 1, all.length, header.length).setValues(all);
