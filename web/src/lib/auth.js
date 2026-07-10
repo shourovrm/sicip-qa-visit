@@ -35,6 +35,9 @@ export async function requestPasswordReset(email) {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${location.origin}/reset`,
   })
+  // gotrue empty-body failures surface as message "{}" — translate to something human
+  if (error && (!error.message || error.message === '{}'))
+    error.message = 'Could not send the email. Likely a mail (SMTP) configuration problem — tell the admin.'
   return error
 }
 
