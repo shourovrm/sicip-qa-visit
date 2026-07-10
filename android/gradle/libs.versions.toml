@@ -7,6 +7,7 @@ activityCompose = "1.10.1"
 coreKtx = "1.16.0"
 material3 = "1.4.0"
 kotlinxSerializationJson = "1.11.0"
+datastorePreferences = "1.2.1"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -25,3 +26,4 @@ compose-material3 = { module = "androidx.compose.material3:material3", version.r
 activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
 core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
+datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
