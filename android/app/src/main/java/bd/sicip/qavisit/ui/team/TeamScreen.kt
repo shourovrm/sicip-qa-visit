@@ -1,4 +1,5 @@
-// Team screen: per-officer derived status (on visit / on leave / in office) + points leaderboard.
+// Team screen: two tabs -- Status (per-officer derived status: on tour / on leave / in office)
+// and Rank (points leaderboard).
 package bd.sicip.qavisit.ui.team
 
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +37,7 @@ import bd.sicip.qavisit.domain.primaryVisit
 import bd.sicip.qavisit.domain.rank
 import bd.sicip.qavisit.domain.teamStatus
 import bd.sicip.qavisit.ui.common.StatusPill
+import bd.sicip.qavisit.ui.common.TwoTabRow
 import bd.sicip.qavisit.ui.theme.LocalStatusColors
 import java.time.LocalDate
 
@@ -43,6 +45,7 @@ private data class TeamRow(val officer: Officer, val status: TeamStatus, val sub
 
 @Composable
 fun TeamScreen(officerId: String, db: AppDb) {
+    var statusTab by remember { mutableStateOf(true) }
     var rows by remember { mutableStateOf<List<TeamRow>>(emptyList()) }
     var ranked by remember { mutableStateOf<List<RankRow>>(emptyList()) }
 
@@ -75,17 +78,20 @@ fun TeamScreen(officerId: String, db: AppDb) {
         ranked = rank(officers.map { RankOfficer(it.id, it.name) }, scores)
     }
 
-    LazyColumn(
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        items(rows) { row -> TeamStatusCard(row) }
+    Column(modifier = Modifier.fillMaxSize()) {
+        TwoTabRow("Status", "Rank", statusTab, { statusTab = it })
 
-        item {
-            Text("RANK", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            if (statusTab) {
+                items(rows) { row -> TeamStatusCard(row) }
+            } else {
+                items(ranked) { row -> RankRowCard(row, isMe = row.officerId == officerId) }
+            }
         }
-        items(ranked) { row -> RankRowCard(row, isMe = row.officerId == officerId) }
     }
 }
 
@@ -111,7 +117,7 @@ private fun TeamStatusCard(row: TeamRow) {
                 }
             }
             val (label, colors) = when (row.status) {
-                is TeamStatus.OnVisit -> "ON VISIT" to LocalStatusColors.current.onVisit
+                is TeamStatus.OnVisit -> "ON TOUR" to LocalStatusColors.current.onVisit
                 is TeamStatus.OnLeave -> "ON LEAVE" to LocalStatusColors.current.onLeave
                 TeamStatus.InOffice -> "IN OFFICE" to LocalStatusColors.current.office
             }

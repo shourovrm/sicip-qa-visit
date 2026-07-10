@@ -3,10 +3,19 @@
 // need it, short lists (purpose, transport mode/class) don't but it's harmless either way.
 package bd.sicip.qavisit.ui.common
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,6 +62,47 @@ fun PickerDropdown(
                     text = { Text(option) },
                     onClick = { onSelect(option); query = option; expanded = false },
                 )
+            }
+        }
+    }
+}
+
+// filter-row chip: shows [label] while at its default (allValue), or the current value with a
+// trailing X to clear once picked. tap opens a plain dropdown menu of the options -- used for the
+// Visits filter row (district/category/purpose/officer), one instance per filter.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FilterChipDropdown(
+    label: String,
+    options: List<String>,
+    selected: String,
+    onSelect: (String) -> Unit,
+    allValue: String = "All",
+    displayText: String = selected,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val active = selected != allValue
+    Box(modifier) {
+        FilterChip(
+            selected = active,
+            onClick = { expanded = true },
+            label = { Text(if (active) displayText else label) },
+            trailingIcon = if (active) {
+                {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Clear $label",
+                        modifier = Modifier.size(FilterChipDefaults.IconSize).clickable { onSelect(allValue) },
+                    )
+                }
+            } else {
+                null
+            },
+        )
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(text = { Text(option) }, onClick = { onSelect(option); expanded = false })
             }
         }
     }
