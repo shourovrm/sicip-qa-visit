@@ -37,9 +37,8 @@ fun rank(visits: List<VisitScore>): List<Pair<String, Int>> =
 // district=Dhaka -> metro sub-option decides; else category from date span.
 fun autoCategory(startDate: String, endDate: String, district: String, dhakaMetro: Boolean?): String {
     if (district == "Dhaka") {
-        if (dhakaMetro == true) return "E"
-        if (dhakaMetro == false) return "D"
-        // metro flag unset for a Dhaka visit: fall through to span rule as best-effort
+        // metro flag unset (null) for a Dhaka visit: treat as outside metro -> "D"
+        return if (dhakaMetro == true) "E" else "D"
     }
     val days = ChronoUnit.DAYS.between(LocalDate.parse(startDate), LocalDate.parse(endDate)) + 1
     return when {

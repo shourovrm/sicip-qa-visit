@@ -20,6 +20,11 @@ class ScoringTest {
         assertEquals("D", autoCategory("2026-06-01", "2026-06-05", "Dhaka", false))
     }
 
+    @Test fun dhaka_metro_unset_is_D() {
+        // metro flag unset (null) for a Dhaka visit is treated as non-metro
+        assertEquals("D", autoCategory("2026-06-01", "2026-06-01", "Dhaka", null))
+    }
+
     // ---- autoCategory: 1-day outside Dhaka ----
     @Test fun one_day_outside_dhaka_is_D() {
         assertEquals("D", autoCategory("2026-06-01", "2026-06-01", "Sylhet", null))
@@ -52,6 +57,11 @@ class ScoringTest {
 
     @Test fun more_than_seven_days_still_Astarstar() {
         assertEquals("A**", autoCategory("2026-06-01", "2026-06-14", "Sylhet", null))
+    }
+
+    @Test fun span_crossing_month_boundary_is_Aplus() {
+        // 28 Jun - 2 Jul = 5 days, must count correctly across the month boundary
+        assertEquals("A+", autoCategory("2026-06-28", "2026-07-02", "Sylhet", null))
     }
 
     // ---- points table ----

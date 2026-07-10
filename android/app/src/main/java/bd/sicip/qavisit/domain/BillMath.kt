@@ -10,8 +10,12 @@ data class Leg(val fare: Double, val depDate: String = "")
 
 data class BillTotals(val ta: Double, val accommodation: Double, val food: Double, val net: Double)
 
-private fun spanDays(startDate: String, endDate: String): Long =
-    ChronoUnit.DAYS.between(LocalDate.parse(startDate), LocalDate.parse(endDate)) + 1
+private fun spanDays(startDate: String, endDate: String): Long {
+    val start = LocalDate.parse(startDate)
+    val end = LocalDate.parse(endDate)
+    require(!end.isBefore(start)) { "endDate ($endDate) before startDate ($startDate)" }
+    return ChronoUnit.DAYS.between(start, end) + 1
+}
 
 // nights away = span days minus the last (no-stay) day
 fun tripNights(startDate: String, endDate: String): Int = (spanDays(startDate, endDate) - 1).toInt()
@@ -21,17 +25,33 @@ fun tripFoodDays(startDate: String, endDate: String): Double = (spanDays(startDa
 
 fun ta(legs: List<Leg>): Double = legs.sumOf { it.fare }
 
-fun billTotals(legs: List<Leg>, startDate: String, endDate: String): BillTotals {
-    val taTotal = ta(legs)
-    val accommodation = tripNights(startDate, endDate) * 2000.0
-    val food = tripFoodDays(startDate, endDate) * 1500.0
+// one finished trip batched into a bill. nights/food default to the span math above;
+// either can be overridden to match what was actually claimed on the official bill
+// (e.g. a same-day trip claimed with 0 nights/0 food instead of the 0/0.5 span default).
+data class Trip(
+    val legs: List<Leg>,
+    val startDate: String,
+    val endDate: String,
+    val nights: Int? = null,
+    val food: Double? = null,
+) {
+    val resolvedNights: Int get() = nights ?: tripNights(startDate, endDate)
+    val resolvedFood: Double get() = food ?: tripFoodDays(startDate, endDate)
+}
+
+// a bill batches multiple finished trips: TA is every leg's fare, accommodation/food are
+// summed per-trip nights/food (resolved defaults or preview overrides) times the fixed rate.
+fun billTotals(trips: List<Trip>): BillTotals {
+    val taTotal = trips.sumOf { ta(it.legs) }
+    val accommodation = trips.sumOf { it.resolvedNights * 2000.0 }
+    val food = trips.sumOf { it.resolvedFood * 1500.0 }
     return BillTotals(taTotal, accommodation, food, taTotal + accommodation + food)
 }
 
 // per-leg (nightStay, foodDay) defaults for the itinerary preview, day-grouped like the
 // official bill: only the first leg of a calendar day carries that day's value, so summing
 // them double-counts nothing; last day of the trip is halved/zeroed.
-fun legDefaults(legs: List<Leg>, startDate: String, endDate: String): List<Pair<Int, Double>> {
+fun legDefaults(legs: List<Leg>, endDate: String): List<Pair<Int, Double>> {
     val seenDays = mutableSetOf<String>()
     return legs.map { leg ->
         if (!seenDays.add(leg.depDate)) return@map 0 to 0.0
