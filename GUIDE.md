@@ -1,7 +1,7 @@
 # SICIP QA Visit — Startup Guide
 
 ## Install
-1. APK: `SICIP-QA-Visit-v1.4.0.apk` (repo root, also `android/app/build/outputs/apk/release/`).
+1. APK: `SICIP-QA-Visit-v1.5.0.apk` (repo root, also `android/app/build/outputs/apk/release/`).
 2. Copy to phone (USB / Drive / WhatsApp-to-self), tap it, allow "install unknown apps" when prompted. No Play Store, no Google services needed. Android 8+.
 
 ## First login (needs internet once)
@@ -17,13 +17,13 @@
 
 ## Daily use
 - **Schedule a visit**: Home → orange + button. District Dhaka asks inside/outside metro (E=1 / D=4).
-- **Scoring** (Day=4, Night=12 pts): D 1D=4 · D+ 1D1N=16 · C 2D1N=20 · C+ 2D2N=32 · B 3D2N=36 · B+ 3D3N=48 · A 4D3N=52 · A* 4D4N=64 · A+ 5D4N=68 · A+* 5D5N=80 · A++ 6D5N=84 · A++* 6D6N=96 · A** 7D6N=100 (cap) · E=1 · N/A=0. Returning before 8am doesn't count that day as a working day (that's how 1D1N happens). Update the Google Sheet Summary cells: 53→52, 69→68, 85→84.
+- **Scoring**: see CATEGORIES.md — 17 categories, Day=4 / Night=12 pts, cap A*** (8D7N=116). Category also fixes bill allowances: accommodation = nights × 2000, food = (nights + 0.5 × extra day) × 1500.
 - **Tour**: tap **Start** on an upcoming visit card → confirm start time (add more visits or inform a colleague if you like) → during the tour add activities or ad-hoc visits → **End tour** (end date+time; category auto-suggested, override allowed). Travel and fares are NOT entered during the tour.
 - **Travel & fares**: added later in Visits → TA/DA Bill → select tour(s) → "Add travel" rows (any movement: bus stand→institute, hotel→ghat; mode, class, fare) → totals update live.
 - **Multiple visits in one tour**: first visit scores, others auto N/A — matches the office scoring sheet.
 - **Team**: who's on visit / on leave / in office (derived — no check-in needed) + points leaderboard.
 - **Leaves**: Leaves tab → Add leave (Casual / Sick / Emergency / Others).
-- **TA/DA bill**: Visits → TA/DA Bill → New bill tab → tick finished tour(s) → add/edit travel rows, adjust nights/food (inside-metro tours default to 0/0) → **Generate PDF** for a draft, or **Submit bill** to finalize — submitting freezes the values, files it under **Previous bills** (read-only, view PDF anytime), and cannot be edited after.
+- **TA/DA bill**: Visits → TA/DA Bill → New bill tab → tick finished tour(s) → each tour shows its category (editable — changing it updates the visit itself and re-derives allowances) with read-only nights/food, plus travel rows → **Generate PDF** for a draft, or **Submit bill** to finalize — submitting freezes the values, files it under **Previous bills** (read-only, view PDF anytime), and cannot be edited after.
 - **Autosuggest**: institute names, travel places and ref numbers all suggest values anyone on the team saved before; picking a ref auto-fills its date. The bill's purpose line prints the ref date.
 - **Other transport**: pick "Other" as mode and type the actual mode (e.g. Own Car) — it prints on the bill.
 - **Reminders**: the app posts a notification each morning (~7:30) for visits scheduled today or tomorrow. If reminders don't appear, exclude the app from battery optimization in phone settings.
