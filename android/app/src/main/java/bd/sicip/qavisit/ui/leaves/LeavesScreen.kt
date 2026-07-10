@@ -112,11 +112,18 @@ private fun LeaveRow(leave: Leave, officerName: String?, today: LocalDate, onCli
     val shape = RoundedCornerShape(16.dp)
     val body: @Composable () -> Unit = {
         Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Column {
+            // weighted + ellipsized so a long officer name/reason can never squeeze the pill offscreen.
+            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                 if (officerName != null) {
-                    Text(officerName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        officerName,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
-                Text(leave.type, style = MaterialTheme.typography.titleMedium)
+                Text(leave.type, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 leave.reason?.takeIf { it.isNotBlank() }?.let {
                     Text(
                         it,

@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.auth.SessionStore
 import bd.sicip.qavisit.data.db.AppDb
@@ -146,7 +147,14 @@ private fun ProfileHeaderCard(officer: Officer?, sessionEmail: String?) {
     Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Text(officer?.name ?: "—", style = MaterialTheme.typography.titleLarge)
+                // weighted + ellipsized so a long officer name can never squeeze the pill offscreen.
+                Text(
+                    officer?.name ?: "—",
+                    style = MaterialTheme.typography.titleLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f).padding(end = 8.dp),
+                )
                 if (officer?.role == "admin") {
                     StatusPill("ADMIN", LocalStatusColors.current.onVisit)
                 }

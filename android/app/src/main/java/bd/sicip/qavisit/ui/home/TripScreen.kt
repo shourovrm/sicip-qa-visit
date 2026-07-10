@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.Activity
 import bd.sicip.qavisit.data.db.AppDb
@@ -91,9 +92,15 @@ fun TripScreen(
         items(visits) { visit ->
             Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth(), onClick = { onEditVisit(visit.id) }) {
                 Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Column {
-                        Text(visit.institute, style = MaterialTheme.typography.titleMedium)
-                        Text("${visit.purpose} · ${visit.district}", style = MaterialTheme.typography.bodySmall)
+                    // weighted + ellipsized so a long institute name can never squeeze the pill offscreen.
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(visit.institute, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            "${visit.purpose} · ${visit.district}",
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     }
                     if (visit.isAdditional) StatusPill("N/A", LocalStatusColors.current.office)
                 }

@@ -31,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Visit
@@ -223,12 +224,15 @@ private fun UpcomingVisitCard(visit: Visit, onClick: () -> Unit) {
             modifier = Modifier.padding(16.dp).fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Column {
-                Text(visit.institute, style = MaterialTheme.typography.titleMedium)
+            // weighted + ellipsized so a long institute name can never squeeze the pill offscreen.
+            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                Text(visit.institute, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     "${visit.purpose} · ${visit.district} · ${visit.startDate}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             Box(contentAlignment = Alignment.Center) {

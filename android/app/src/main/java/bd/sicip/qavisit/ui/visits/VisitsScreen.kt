@@ -26,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Officer
@@ -122,15 +123,24 @@ private fun VisitRow(visit: Visit, officerName: String?, onClick: (() -> Unit)?)
     val shape = RoundedCornerShape(16.dp)
     val body: @Composable () -> Unit = {
         Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Column {
+            // weighted + ellipsized so a long institute name can never squeeze the pill offscreen.
+            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                 if (officerName != null) {
-                    Text(officerName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        officerName,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
-                Text(visit.institute, style = MaterialTheme.typography.titleMedium)
+                Text(visit.institute, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     "${visit.purpose} · ${visit.district} · ${visit.startDate} – ${visit.endDate}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             val scored = visit.category != "N/A"
