@@ -28,7 +28,5 @@ private fun EmptyState(message: String) {
     }
 }
 
-@Composable fun TeamScreen() = EmptyState("No officers synced yet — your team will show up here")
-@Composable fun VisitsScreen() = EmptyState("No visits logged yet — check in once you reach a site")
 @Composable fun LeavesScreen() = EmptyState("No leave requests yet")
 @Composable fun ProfileScreen() = EmptyState("Profile details will show up here")

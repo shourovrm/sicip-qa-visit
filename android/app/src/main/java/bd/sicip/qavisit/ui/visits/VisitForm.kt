@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -20,6 +21,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -68,6 +70,7 @@ fun VisitForm(
     var startDate by remember { mutableStateOf(Instant.now().toString().take(10)) }
     var endDate by remember { mutableStateOf(Instant.now().toString().take(10)) }
     var remarks by remember { mutableStateOf("") }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     LaunchedEffect(visitId) {
         if (visitId != null) {
@@ -184,6 +187,39 @@ fun VisitForm(
             shape = RoundedCornerShape(99),
             modifier = Modifier.fillMaxWidth().height(48.dp),
         ) { Text("Save") }
+
+        // delete only makes sense on an existing row -- new/unsaved visits have nothing to soft-delete.
+        if (existing != null) {
+            OutlinedButton(
+                onClick = { showDeleteConfirm = true },
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+            ) { Text("Delete visit") }
+        }
+    }
+
+    if (showDeleteConfirm) {
+        val target = existing ?: return
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete visit?") },
+            text = { Text("This removes \"${target.institute}\" from your visit list. This can't be undone from the app.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            visitDao.softDelete(target.id, Instant.now().toString())
+                            onDone()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    ),
+                ) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") } },
+        )
     }
 }
 

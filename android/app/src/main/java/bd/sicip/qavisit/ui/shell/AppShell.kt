@@ -44,9 +44,9 @@ import bd.sicip.qavisit.ui.home.StartTrip
 import bd.sicip.qavisit.ui.home.TripScreen
 import bd.sicip.qavisit.ui.screens.LeavesScreen
 import bd.sicip.qavisit.ui.screens.ProfileScreen
-import bd.sicip.qavisit.ui.screens.TeamScreen
-import bd.sicip.qavisit.ui.screens.VisitsScreen
+import bd.sicip.qavisit.ui.team.TeamScreen
 import bd.sicip.qavisit.ui.visits.VisitForm
+import bd.sicip.qavisit.ui.visits.VisitsScreen
 import java.time.Duration
 import java.time.Instant
 
@@ -141,8 +141,14 @@ fun AppShell(context: Context, officerId: String) {
                     onEditVisit = { visitId -> navController.navigate("visit_form?visitId=$visitId") },
                 )
             }
-            composable("team") { TeamScreen() }
-            composable("visits") { VisitsScreen() }
+            composable("team") { TeamScreen(officerId = officerId, db = db) }
+            composable("visits") {
+                VisitsScreen(
+                    officerId = officerId,
+                    db = db,
+                    onEditVisit = { visitId -> navController.navigate("visit_form?visitId=$visitId") },
+                )
+            }
             composable("leaves") { LeavesScreen() }
             composable("profile") { ProfileScreen() }
 
