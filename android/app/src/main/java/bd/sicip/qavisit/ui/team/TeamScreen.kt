@@ -1,5 +1,8 @@
 // Team screen: two tabs -- Status (per-officer derived status: on tour / on leave / in office)
-// and Rank (points leaderboard).
+// and Rank (points leaderboard). Rank has its own Overall | Last month sub-filter: Overall is the
+// current all-time rank, Last month re-runs the same rank() over a cumulative snapshot -- every
+// visit that started on or before the last day of the previous month (e.g. 30 June when today is
+// in July) -- so it reads "where the team stood as of last month," not just that month's visits.
 package bd.sicip.qavisit.ui.team
 
 import androidx.compose.foundation.layout.Arrangement
@@ -27,12 +30,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Officer
+import bd.sicip.qavisit.data.db.Visit
 import bd.sicip.qavisit.domain.LeaveFlag
 import bd.sicip.qavisit.domain.RankOfficer
 import bd.sicip.qavisit.domain.RankRow
 import bd.sicip.qavisit.domain.TeamStatus
 import bd.sicip.qavisit.domain.TripFlag
 import bd.sicip.qavisit.domain.VisitScore
+import bd.sicip.qavisit.domain.lastDayOfPreviousMonth
 import bd.sicip.qavisit.domain.primaryVisit
 import bd.sicip.qavisit.domain.rank
 import bd.sicip.qavisit.domain.teamStatus
@@ -46,8 +51,10 @@ private data class TeamRow(val officer: Officer, val status: TeamStatus, val sub
 @Composable
 fun TeamScreen(officerId: String, db: AppDb) {
     var statusTab by remember { mutableStateOf(true) }
+    var rankOverall by remember { mutableStateOf(true) } // true = Overall, false = Last month
     var rows by remember { mutableStateOf<List<TeamRow>>(emptyList()) }
-    var ranked by remember { mutableStateOf<List<RankRow>>(emptyList()) }
+    var rankedOverall by remember { mutableStateOf<List<RankRow>>(emptyList()) }
+    var rankedLastMonth by remember { mutableStateOf<List<RankRow>>(emptyList()) }
 
     LaunchedEffect(Unit) {
         val officers = db.officerDao().all() // dao already orders by name -- alphabetical for free
@@ -74,12 +81,21 @@ fun TeamScreen(officerId: String, db: AppDb) {
             TeamRow(officer, status, subtitle)
         }
 
-        val scores = db.visitDao().all().map { VisitScore(it.officerId, it.category, it.deleted) }
-        ranked = rank(officers.map { RankOfficer(it.id, it.name) }, scores)
+        val rankOfficers = officers.map { RankOfficer(it.id, it.name) }
+        val allVisits = db.visitDao().all()
+        rankedOverall = rank(rankOfficers, allVisits.toScores())
+        // cumulative snapshot: only visits that had already started by the end of last month,
+        // fed through the same rank() -- "where the team stood as of last month."
+        val cutoff = lastDayOfPreviousMonth(today)
+        rankedLastMonth = rank(rankOfficers, allVisits.filter { LocalDate.parse(it.startDate) <= cutoff }.toScores())
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
         TwoTabRow("Status", "Rank", statusTab, { statusTab = it })
+
+        if (!statusTab) {
+            TwoTabRow("Overall", "Last month", rankOverall, { rankOverall = it })
+        }
 
         LazyColumn(
             contentPadding = PaddingValues(16.dp),
@@ -89,6 +105,7 @@ fun TeamScreen(officerId: String, db: AppDb) {
             if (statusTab) {
                 items(rows) { row -> TeamStatusCard(row) }
             } else {
+                val ranked = if (rankOverall) rankedOverall else rankedLastMonth
                 items(ranked) { row -> RankRowCard(row, isMe = row.officerId == officerId) }
             }
         }
@@ -147,3 +164,5 @@ private fun RankRowCard(row: RankRow, isMe: Boolean) {
         }
     }
 }
+
+private fun List<Visit>.toScores(): List<VisitScore> = map { VisitScore(it.officerId, it.category, it.deleted) }

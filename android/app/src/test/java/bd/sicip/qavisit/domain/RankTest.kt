@@ -3,6 +3,7 @@ package bd.sicip.qavisit.domain
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.time.LocalDate
 
 class RankTest {
 
@@ -59,5 +60,33 @@ class RankTest {
         val byId = rows.associateBy { it.officerId }
         assertEquals(0, byId.getValue("b").points)
         assertEquals(2, byId.getValue("b").position)
+    }
+
+    // ---- lastDayOfPreviousMonth: cumulative "Last month" rank snapshot cutoff ----
+
+    @Test fun mid_year_month_lands_on_previous_months_last_day() {
+        assertEquals(LocalDate.parse("2026-06-30"), lastDayOfPreviousMonth(LocalDate.parse("2026-07-10")))
+    }
+
+    @Test fun january_rolls_back_to_dec_31_of_prior_year() {
+        assertEquals(LocalDate.parse("2025-12-31"), lastDayOfPreviousMonth(LocalDate.parse("2026-01-15")))
+    }
+
+    @Test fun march_lands_on_last_day_of_february_non_leap_year() {
+        assertEquals(LocalDate.parse("2026-02-28"), lastDayOfPreviousMonth(LocalDate.parse("2026-03-01")))
+    }
+
+    @Test fun march_lands_on_last_day_of_february_leap_year() {
+        assertEquals(LocalDate.parse("2024-02-29"), lastDayOfPreviousMonth(LocalDate.parse("2024-03-15")))
+    }
+
+    @Test fun respects_short_and_long_month_lengths() {
+        assertEquals(LocalDate.parse("2026-04-30"), lastDayOfPreviousMonth(LocalDate.parse("2026-05-01"))) // Apr = 30
+        assertEquals(LocalDate.parse("2026-05-31"), lastDayOfPreviousMonth(LocalDate.parse("2026-06-01"))) // May = 31
+    }
+
+    @Test fun cutoff_is_stable_regardless_of_day_of_month() {
+        assertEquals(LocalDate.parse("2026-06-30"), lastDayOfPreviousMonth(LocalDate.parse("2026-07-01")))
+        assertEquals(LocalDate.parse("2026-06-30"), lastDayOfPreviousMonth(LocalDate.parse("2026-07-31")))
     }
 }

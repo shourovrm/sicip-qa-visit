@@ -2,6 +2,8 @@
 // competition ranking. pure kotlin, no android deps -- same rule as Scoring.kt/TripMath.kt.
 package bd.sicip.qavisit.domain
 
+import java.time.LocalDate
+
 // minimal shape rank needs from an officer -- keeps this file free of the Room Officer entity.
 data class RankOfficer(val id: String, val name: String)
 
@@ -29,3 +31,8 @@ fun rank(officers: List<RankOfficer>, visits: List<VisitScore>): List<RankRow> {
         RankRow(officer.id, officer.name, pts, position)
     }
 }
+
+// "Last month" rank snapshot cutoff: the last day of the month before `today`. Jan rolls back
+// into Dec 31 of the prior year; every other month lands on its own last day (28/29/30/31) --
+// withDayOfMonth(1).minusDays(1) gets both for free, leap Feb included, no manual month-length table.
+fun lastDayOfPreviousMonth(today: LocalDate): LocalDate = today.withDayOfMonth(1).minusDays(1)

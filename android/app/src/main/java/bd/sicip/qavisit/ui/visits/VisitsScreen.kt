@@ -1,7 +1,10 @@
-// visits list: Personal (own, tap to edit) / Team (everyone, read-only + officer filter).
-// grouped by month header, newest first; category pill colored by whether it's actually scored.
-// below the tabs, a scrollable FilterChip row narrows by period/district/category/purpose
-// (VisitFilter.kt, pure fn) plus -- Team only -- the existing officer filter.
+// visits list: top level Scheduled|Completed, each with the Personal (own, tap to edit) / Team
+// (everyone, read-only + officer filter) subtabs. Completed is grouped by month header, newest
+// first, with a category pill (colored by whether it's actually scored). Scheduled has no
+// category yet (only assigned at trip finish) -- rows get a SCHEDULED or ON TOUR status pill
+// instead, flat list, no month grouping. Below the subtabs, a scrollable FilterChip row narrows
+// by period/district/category/purpose (VisitFilter.kt, pure fn) plus -- Team only -- the
+// existing officer filter; shared across both top-level tabs.
 package bd.sicip.qavisit.ui.visits
 
 import androidx.compose.foundation.clickable
@@ -52,6 +55,7 @@ import bd.sicip.qavisit.ui.common.StatusPill
 import bd.sicip.qavisit.ui.common.TwoTabRow
 import bd.sicip.qavisit.ui.common.showDatePicker
 import bd.sicip.qavisit.ui.theme.LocalStatusColors
+import bd.sicip.qavisit.ui.theme.StatusPair
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
@@ -63,6 +67,7 @@ private val PURPOSE_OPTIONS = listOf(FILTER_ALL) + PURPOSES
 
 @Composable
 fun VisitsScreen(officerId: String, db: AppDb, onEditVisit: (String) -> Unit, onOpenBill: () -> Unit) {
+    var scheduledTab by remember { mutableStateOf(true) } // true = Scheduled, false = Completed
     var personal by remember { mutableStateOf(true) }
     var myVisits by remember { mutableStateOf<List<Visit>>(emptyList()) }
     var allVisits by remember { mutableStateOf<List<Visit>>(emptyList()) }
@@ -82,13 +87,19 @@ fun VisitsScreen(officerId: String, db: AppDb, onEditVisit: (String) -> Unit, on
     } else {
         allVisits.filter { officerFilter == ALL_OFFICERS || nameById[it.officerId] == officerFilter }
     }
-    val visits = filterVisits(tabVisits, filter)
+    // a visit's tripId is only ever set while it's attached to the trip that's currently active
+    // (finishTrip flips every one of a trip's visits to status=done in the same write it closes
+    // the trip), so status=scheduled + tripId!=null already means "on an active tour" -- no
+    // second trips query needed to tell SCHEDULED from ON TOUR.
+    val statusVisits = tabVisits.filter { it.status == if (scheduledTab) "scheduled" else "done" }
+    val visits = filterVisits(statusVisits, filter)
     val totalPts = visits.sumOf { points(it.category) }
     // both lists already come back start_date DESC from the dao -- groupBy keeps first-seen
     // order for its keys, so month headers land newest-first too, for free.
     val grouped = visits.groupBy { monthLabel(it.startDate) }
 
     Column(modifier = Modifier.fillMaxSize()) {
+        TwoTabRow("Scheduled", "Completed", scheduledTab, { scheduledTab = it })
         TwoTabRow("Personal", "Team", personal, { personal = it })
 
         LazyRow(
@@ -156,20 +167,37 @@ fun VisitsScreen(officerId: String, db: AppDb, onEditVisit: (String) -> Unit, on
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
-            grouped.forEach { (month, rows) ->
-                item {
-                    Text(
-                        month,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                items(rows) { visit ->
+            if (scheduledTab) {
+                // not scored yet -- flat list (no month grouping), status pill instead of category.
+                items(visits) { visit ->
+                    val onTour = visit.tripId != null
                     VisitRow(
                         visit = visit,
                         officerName = if (personal) null else nameById[visit.officerId],
                         onClick = if (personal) ({ onEditVisit(visit.id) }) else null,
+                        pillLabel = if (onTour) "ON TOUR" else "SCHEDULED",
+                        pillColors = LocalStatusColors.current.onVisit,
                     )
+                }
+            } else {
+                grouped.forEach { (month, rows) ->
+                    item {
+                        Text(
+                            month,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    items(rows) { visit ->
+                        val scored = visit.category != "N/A"
+                        VisitRow(
+                            visit = visit,
+                            officerName = if (personal) null else nameById[visit.officerId],
+                            onClick = if (personal) ({ onEditVisit(visit.id) }) else null,
+                            pillLabel = visit.category,
+                            pillColors = if (scored) LocalStatusColors.current.success else LocalStatusColors.current.office,
+                        )
+                    }
                 }
             }
         }
@@ -229,7 +257,7 @@ private fun PeriodFilterChip(period: Period, onChange: (Period) -> Unit) {
 }
 
 @Composable
-private fun VisitRow(visit: Visit, officerName: String?, onClick: (() -> Unit)?) {
+private fun VisitRow(visit: Visit, officerName: String?, onClick: (() -> Unit)?, pillLabel: String, pillColors: StatusPair) {
     val shape = RoundedCornerShape(16.dp)
     val body: @Composable () -> Unit = {
         Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -253,11 +281,7 @@ private fun VisitRow(visit: Visit, officerName: String?, onClick: (() -> Unit)?)
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            val scored = visit.category != "N/A"
-            StatusPill(
-                visit.category,
-                if (scored) LocalStatusColors.current.success else LocalStatusColors.current.office,
-            )
+            StatusPill(pillLabel, pillColors)
         }
     }
     // read-only (Team) rows get the plain Card; own (Personal) rows get the clickable overload.

@@ -1,6 +1,8 @@
 // schedule/edit a visit. same screen both ways: visitId != null -> prefill + update in place.
-// mirrors every field on the original paper/Google Form, including category (auto-suggested,
-// overridable) and the office-order ref no/date pair.
+// mirrors every field on the original paper/Google Form. Category only exists once a visit is
+// done (assigned by the finish-trip flow) -- the dropdown only shows when editing a done visit;
+// scheduled/new visits keep computing the autoCategory suggestion silently and save it, same as
+// before, they just don't surface it until there's something to review.
 package bd.sicip.qavisit.ui.visits
 
 import androidx.compose.foundation.layout.Arrangement
@@ -188,17 +190,22 @@ fun VisitForm(
             ) { Text("End: $endDate") }
         }
 
-        PickerDropdown(
-            label = "Category",
-            options = CATEGORY_OPTIONS,
-            selected = category,
-            onSelect = { category = it; categoryTouched = true },
-        )
-        Text(
-            "Auto: $auto — change to override",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        // category only exists once a visit is done -- finish-trip assigns it. scheduled/new
+        // visits keep computing+saving the auto suggestion (LaunchedEffect(auto) above), just
+        // without a field to show it in.
+        if (existing?.status == "done") {
+            PickerDropdown(
+                label = "Category",
+                options = CATEGORY_OPTIONS,
+                selected = category,
+                onSelect = { category = it; categoryTouched = true },
+            )
+            Text(
+                "Auto: $auto — change to override",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
 
         OutlinedTextField(
             value = remarks,
