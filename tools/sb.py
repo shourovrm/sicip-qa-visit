@@ -13,7 +13,10 @@ def _mgmt(method, path, body=None):
            f"https://api.supabase.com{path}"]
     if body is not None:
         cmd += ["-d", json.dumps(body)]
-    out = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout
+    try:
+        out = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"management API curl failed (exit {e.returncode}): {e.stderr[:200]}") from None
     return json.loads(out) if out else None
 
 def service_key():
