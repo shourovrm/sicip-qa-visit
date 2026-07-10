@@ -40,9 +40,9 @@ class RankTest {
     }
 
     @Test fun tie_breaks_by_name_asc() {
-        val visits = listOf(VisitScore("c", "A"), VisitScore("a", "A")) // both 53
+        val visits = listOf(VisitScore("c", "A"), VisitScore("a", "A")) // both 52
         val rows = rank(officers.take(3), visits)
-        assertEquals(listOf("a", "c"), rows.filter { it.points == 53 }.map { it.officerId })
+        assertEquals(listOf("a", "c"), rows.filter { it.points == 52 }.map { it.officerId })
     }
 
     @Test fun deleted_visits_excluded() {

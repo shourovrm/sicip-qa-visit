@@ -2,17 +2,27 @@
 // pure kotlin, no android deps.
 package bd.sicip.qavisit.domain
 
+import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 
-// fixed points scale per category
+// fixed points scale per category. classic ladder (nights = days-1) vs plus ladder
+// (nights >= days, i.e. an extra night beyond the classic span) -- see autoCategory.
 val POINTS: Map<String, Int> = mapOf(
     "A**" to 100,
-    "A++" to 85,
-    "A+" to 69,
-    "A" to 53,
+    "A++*" to 96,
+    "A++" to 84,
+    "A+*" to 80,
+    "A+" to 68,
+    "A*" to 64,
+    "A" to 52,
+    "B+" to 48,
     "B" to 36,
+    "C+" to 32,
     "C" to 20,
+    "D+" to 16,
     "D" to 4,
     "E" to 1,
     "N/A" to 0,
@@ -24,11 +34,17 @@ fun points(category: String): Int = POINTS[category] ?: 0
 // the bare code (POINTS key) -- this map is display-only.
 val CATEGORY_LABELS: Map<String, String> = mapOf(
     "A**" to "A** — 7D6N (100 pts)",
-    "A++" to "A++ — 6D5N (85 pts)",
-    "A+" to "A+ — 5D4N (69 pts)",
-    "A" to "A — 4D3N (53 pts)",
+    "A++*" to "A++* — 6D6N (96 pts)",
+    "A++" to "A++ — 6D5N (84 pts)",
+    "A+*" to "A+* — 5D5N (80 pts)",
+    "A+" to "A+ — 5D4N (68 pts)",
+    "A*" to "A* — 4D4N (64 pts)",
+    "A" to "A — 4D3N (52 pts)",
+    "B+" to "B+ — 3D3N (48 pts)",
     "B" to "B — 3D2N (36 pts)",
+    "C+" to "C+ — 2D2N (32 pts)",
     "C" to "C — 2D1N (20 pts)",
+    "D+" to "D+ — 1D1N (16 pts)",
     "D" to "D — 1 day / Dhaka non-metro (4 pts)",
     "E" to "E — Dhaka metro (1 pt)",
     "N/A" to "N/A — Additional (0 pts)",
@@ -58,20 +74,59 @@ fun monthSummary(visits: List<MonthVisit>, yearMonth: String): Pair<Int, Int> {
     return inMonth.size to inMonth.sumOf { points(it.category) }
 }
 
-// district=Dhaka -> metro sub-option decides; else category from date span.
-fun autoCategory(startDate: String, endDate: String, district: String, dhakaMetro: Boolean?): String {
+// classic ladder: days worked == nights + 1 (leave morning, work every day, home same evening).
+private fun classicLadder(days: Int): String = when {
+    days <= 1 -> "D"
+    days == 2 -> "C"
+    days == 3 -> "B"
+    days == 4 -> "A"
+    days == 5 -> "A+"
+    days == 6 -> "A++"
+    else -> "A**" // 7+ days
+}
+
+// plus ladder: an extra night tacked onto the span (nights >= days) -- one rung above classic.
+private fun plusLadder(days: Int): String = when {
+    days <= 1 -> "D+"
+    days == 2 -> "C+"
+    days == 3 -> "B+"
+    days == 4 -> "A*"
+    days == 5 -> "A+*"
+    days == 6 -> "A++*"
+    else -> "A**" // 7+ days, same cap as classic
+}
+
+// district=Dhaka -> metro sub-option decides; else category from days/nights via the ladders
+// above. computed from category at display time (not stored) so ranks auto-recalculate if the
+// formula ever changes again.
+fun autoCategory(days: Int, nights: Int, district: String, dhakaMetro: Boolean?): String {
     if (district == "Dhaka") {
         // metro flag unset (null) for a Dhaka visit: treat as outside metro -> "D"
         return if (dhakaMetro == true) "E" else "D"
     }
-    val days = ChronoUnit.DAYS.between(LocalDate.parse(startDate), LocalDate.parse(endDate)) + 1
-    return when {
-        days <= 1 -> "D"     // 1-day trip outside Dhaka
-        days == 2L -> "C"
-        days == 3L -> "B"
-        days == 4L -> "A"
-        days == 5L -> "A+"
-        days == 6L -> "A++"
-        else -> "A**"        // 7+ days
-    }
+    val d = maxOf(days, 1)
+    return if (nights >= d) plusLadder(d) else classicLadder(d)
+}
+
+// date-only overload for the scheduling preview, where there's no time-of-return yet to derive
+// nights from the 08:00 cutoff -- assumes the classic (nights = days-1) shape.
+fun autoCategory(startDate: String, endDate: String, district: String, dhakaMetro: Boolean?): String {
+    val days = (ChronoUnit.DAYS.between(LocalDate.parse(startDate), LocalDate.parse(endDate)) + 1).toInt()
+    return autoCategory(days, maxOf(days - 1, 0), district, dhakaMetro)
+}
+
+// a return before this local time doesn't count as a working day (e.g. leave 9pm, home 7am the
+// next morning never actually worked that day) -- office-tunable, change here if the cutoff moves.
+private val RETURN_CUTOFF: LocalTime = LocalTime.of(8, 0)
+
+// days/nights for FinishTrip: nights = midnights crossed between the two instants; days = dates
+// touched, minus one (min 1) if the return lands before RETURN_CUTOFF -- that's what turns a
+// leave-9pm/return-7am trip into 1D1N instead of 2D1N.
+fun daysAndNights(startIso: String, endIso: String): Pair<Int, Int> {
+    val startDate = Instant.parse(startIso).atZone(ZoneOffset.UTC).toLocalDate()
+    val end = Instant.parse(endIso).atZone(ZoneOffset.UTC)
+    val nights = ChronoUnit.DAYS.between(startDate, end.toLocalDate()).toInt()
+    var days = nights + 1
+    if (end.toLocalTime() < RETURN_CUTOFF) days -= 1
+    return maxOf(days, 1) to nights
 }

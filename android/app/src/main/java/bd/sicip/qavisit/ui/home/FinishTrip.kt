@@ -26,7 +26,9 @@ import bd.sicip.qavisit.data.db.Trip
 import bd.sicip.qavisit.data.db.Visit
 import bd.sicip.qavisit.data.sync.SyncNow
 import bd.sicip.qavisit.domain.CATEGORY_LABELS
+import bd.sicip.qavisit.domain.POINTS
 import bd.sicip.qavisit.domain.autoCategory
+import bd.sicip.qavisit.domain.daysAndNights
 import bd.sicip.qavisit.domain.points
 import bd.sicip.qavisit.domain.primaryVisit
 import bd.sicip.qavisit.ui.common.PickerDropdown
@@ -36,7 +38,7 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalTime
 
-private val CATEGORIES = listOf("A**", "A++", "A+", "A", "B", "C", "D", "E", "N/A")
+private val CATEGORIES = POINTS.keys.toList()
 
 @Composable
 fun FinishTripDialog(trip: Trip, visits: List<Visit>, db: AppDb, onDismiss: () -> Unit, onFinished: () -> Unit) {
@@ -45,7 +47,11 @@ fun FinishTripDialog(trip: Trip, visits: List<Visit>, db: AppDb, onDismiss: () -
     val primary = remember(visits) { primaryVisit(visits) { it.isAdditional } }
     var endDate by remember { mutableStateOf(Instant.now().toString().take(10)) }
     var endTime by remember { mutableStateOf(String.format("%02d:%02d:00", LocalTime.now().hour, LocalTime.now().minute)) }
-    val autoCat = primary?.let { autoCategory(it.startDate, endDate, it.district, it.dhakaMetro) } ?: "N/A"
+    val finishedAt = "${endDate}T${endTime}Z"
+    val autoCat = primary?.let {
+        val (days, nights) = daysAndNights(trip.startedAt, finishedAt)
+        autoCategory(days, nights, it.district, it.dhakaMetro)
+    } ?: "N/A"
     var overrideCategory by remember { mutableStateOf<String?>(null) }
     val finalCategory = overrideCategory ?: autoCat
 
@@ -80,7 +86,7 @@ fun FinishTripDialog(trip: Trip, visits: List<Visit>, db: AppDb, onDismiss: () -
         confirmButton = {
             Button(onClick = {
                 scope.launch {
-                    finishTrip(db, trip, visits, primary, endDate, finalCategory, overrideCategory != null, "${endDate}T${endTime}Z")
+                    finishTrip(db, trip, visits, primary, endDate, finalCategory, overrideCategory != null, finishedAt)
                     SyncNow.enqueue(context)
                     onFinished()
                 }
