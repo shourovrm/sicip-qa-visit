@@ -2,7 +2,6 @@
      Submit freezes a snapshot (bills row) + marks tours submitted. Previous bills: read-only,
      regenerate .xlsx from the frozen snapshot (never re-derives from live data). -->
 <script>
-  import { onMount } from 'svelte'
   import { listTrips, listVisits, listLegsForTrips, listBills, createBill, updateTrip } from '../lib/db.js'
   import { officer } from '../lib/auth.js'
   import { suggestedNights, suggestedFood } from '../lib/scoring.js'
@@ -18,6 +17,10 @@
   let busy = false
   let submittedMsg = ''
 
+  // load waits for the officer row (hard refresh: onMount fires before auth resolves)
+  let loadStarted = false
+  $: if ($officer && !loadStarted) { loadStarted = true; load() }
+
   async function load() {
     loading = true
     const mine = $officer?.id
@@ -28,7 +31,6 @@
     bills = await listBills(mine)
     loading = false
   }
-  onMount(load)
 
   function primaryVisit(tripId) {
     return visits.find((v) => v.trip_id === tripId && !v.is_additional)
@@ -53,12 +55,13 @@
     return `${v.purpose} - ${v.association} (Ref: ${v.ref_no || '—'}, ${fmtDate(v.ref_date || v.start_date)})`
   }
 
-  // build snapshot-shaped trips (same shape bills.data stores) from currently selected live trips
-  function buildSnapshotTrips() {
-    return [...selected].map((tripId) => {
+  // build snapshot-shaped trips (same shape bills.data stores) from currently selected live trips.
+  // sel/ovr passed as args so svelte's $: dependency tracking sees them (body-only refs aren't tracked).
+  function buildSnapshotTrips(sel, ovr) {
+    return [...sel].map((tripId) => {
       const pv = primaryVisit(tripId)
       const tLegs = tripLegs(tripId)
-      const ov = overrides[tripId]
+      const ov = ovr[tripId]
       return {
         tripId,
         purposeLine: purposeLineFor(pv),
@@ -73,7 +76,7 @@
     })
   }
 
-  $: selectedTrips = buildSnapshotTrips()
+  $: selectedTrips = buildSnapshotTrips(selected, overrides)
   $: billTripsPreview = toBillTrips({ billDate: new Date().toISOString().slice(0, 10), trips: selectedTrips })
   $: totals = billTotals(selectedTrips.map((t) => makeTrip(t.legs.map((l) => mkLeg(l.fare)), '', '', t.nights, t.foodDays)))
 

@@ -5,7 +5,8 @@
 // ported 1:1 from android/app/src/main/java/bd/sicip/qavisit/domain/BillSnapshot.kt
 import { legDefaults, amountInWords } from './billmath.js'
 
-// build the frozen JSON blob stored in bills.data
+// build the frozen JSON blob stored in bills.data. trips arrive already in the stored shape
+// (snake_case leg keys, as built by Bills.svelte buildSnapshotTrips) and are frozen as-is.
 export function snapshotBill(billDate, officerName, trips, totals) {
   return {
     billDate,
@@ -16,9 +17,9 @@ export function snapshotBill(billDate, officerName, trips, totals) {
       nights: t.nights,
       foodDays: t.foodDays,
       legs: t.legs.map((l) => ({
-        dep_date: l.depDate, dep_time: l.depTime, dep_place: l.depPlace,
-        arr_date: l.arrDate, arr_time: l.arrTime, arr_place: l.arrPlace,
-        mode: l.mode, class: l.travelClass ?? null, fare: l.fare, remarks: l.remarks ?? null,
+        dep_date: l.dep_date, dep_time: l.dep_time, dep_place: l.dep_place,
+        arr_date: l.arr_date, arr_time: l.arr_time, arr_place: l.arr_place,
+        mode: l.mode, class: l.class ?? null, fare: l.fare, remarks: l.remarks ?? null,
       })),
     })),
     totals: {
@@ -34,7 +35,8 @@ export function snapshotBill(billDate, officerName, trips, totals) {
 export function toBillTrips(snapshot) {
   return snapshot.trips.map((t) => {
     const mathLegs = t.legs.map((l) => ({ fare: l.fare, depDate: l.dep_date }))
-    const endDate = t.legs.reduce((max, l) => (l.dep_date > max ? l.dep_date : max), snapshot.billDate)
+    // max dep_date; billDate only as the empty-legs fallback (kotlin: maxOfOrNull ?: billDate)
+    const endDate = t.legs.length ? t.legs.reduce((max, l) => (l.dep_date > max ? l.dep_date : max), t.legs[0].dep_date) : snapshot.billDate
     const defaults = legDefaults(mathLegs, endDate)
     const zeroed = t.nights === 0 && t.foodDays === 0
     const legs = t.legs.map((l, i) => {

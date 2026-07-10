@@ -2,7 +2,6 @@
 // on disk is itself a real filled sample bill (used as the style source) -- we capture its row
 // styles up front, wipe the sample itinerary rows (13-32), then rewrite them for the actual trips
 // passed in, growing/shrinking the block as needed and shifting the Total/footer rows to match.
-import ExcelJS from 'exceljs'
 import { DESIGNATION } from './seeds.js'
 import { amountInWords } from './billmath.js'
 
@@ -18,14 +17,14 @@ function fmtDate(iso) {
 }
 
 function cloneStyle(cell) {
-  return JSON.parse(JSON.stringify(cell.style))
+  return JSON.parse(JSON.stringify(cell.style ?? {}))
 }
 
 // capture per-column styles (A..L) from a template row, before we overwrite anything
 function captureRowStyle(ws, rowNum) {
   const row = ws.getRow(rowNum)
   const styles = []
-  for (let c = 1; c <= COLS; c++) styles.push(cloneStyle(row.getCell(c).style))
+  for (let c = 1; c <= COLS; c++) styles.push(cloneStyle(row.getCell(c)))
   return styles
 }
 
@@ -36,15 +35,19 @@ function applyRowStyle(ws, rowNum, styles) {
 
 // unmerge every merge range fully inside [fromRow, toRow] -- required before splice/clear so
 // exceljs doesn't leave dangling merge refs (spliceRows warns it's not merge-safe otherwise).
-function unmergeRange(ws, fromRow, toRow) {
-  const ranges = [...ws._merges ? Object.keys(ws._merges) : []]
-  for (const key of ranges) {
+// reads the private _merges map -- exceljs has no public merge-listing API.
+function listMerges(ws) {
+  return Object.keys(ws._merges ?? {}).map((key) => {
     const m = ws._merges[key]
-    if (!m) continue
-    const top = m.top ?? m.model?.top
-    const bottom = m.bottom ?? m.model?.bottom
-    if (top >= fromRow && bottom <= toRow) {
-      try { ws.unMergeCells(key) } catch { /* already gone */ }
+    const model = m?.model ?? m ?? {}
+    return { key, top: model.top, left: model.left, bottom: model.bottom, right: model.right }
+  })
+}
+
+function unmergeAllFrom(ws, fromRow) {
+  for (const m of listMerges(ws)) {
+    if (m.top >= fromRow) {
+      try { ws.unMergeCells(m.key) } catch { /* already gone */ }
     }
   }
 }
@@ -66,6 +69,8 @@ function planRows(trips) {
 }
 
 export async function fillBillTemplate(templateBuffer, officerName, billDate, trips, totals) {
+  // lazy import: exceljs is ~900KB minified, only bill generation needs it
+  const ExcelJS = (await import('exceljs')).default
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(templateBuffer)
   const ws = wb.getWorksheet('TA') ?? wb.worksheets[0]
@@ -83,8 +88,13 @@ export async function fillBillTemplate(templateBuffer, officerName, billDate, tr
   const needed = plan.length
   const delta = needed - ITIN_TEMPLATE_ROWS
 
-  // wipe the sample itinerary block's merges + values, keep the row slots
-  unmergeRange(ws, ITIN_START, ITIN_START + ITIN_TEMPLATE_ROWS - 1)
+  // splice/insert are not merge-safe: remember the footer merges (Total/net/signature bands,
+  // below the itinerary block) so they can be re-merged shifted by delta afterwards, then
+  // unmerge everything from the itinerary start down before touching row structure.
+  const footerMerges = listMerges(ws).filter((m) => m.top >= ITIN_START + ITIN_TEMPLATE_ROWS)
+  unmergeAllFrom(ws, ITIN_START)
+
+  // wipe the sample itinerary block's values, keep the row slots
   for (let r = ITIN_START; r < ITIN_START + ITIN_TEMPLATE_ROWS; r++) {
     const row = ws.getRow(r)
     for (let c = 1; c <= COLS; c++) row.getCell(c).value = null
@@ -95,8 +105,12 @@ export async function fillBillTemplate(templateBuffer, officerName, billDate, tr
     const blanks = Array.from({ length: delta }, () => [])
     ws.insertRows(ITIN_START + ITIN_TEMPLATE_ROWS, blanks, 'n')
   } else if (delta < 0) {
-    unmergeRange(ws, ITIN_START + needed, ITIN_START + ITIN_TEMPLATE_ROWS - 1)
     ws.spliceRows(ITIN_START + needed, -delta)
+  }
+
+  // restore footer merges at their shifted positions
+  for (const m of footerMerges) {
+    try { ws.mergeCells(m.top + delta, m.left, m.bottom + delta, m.right) } catch { /* overlap */ }
   }
 
   // write each planned row + merges for day-group spans (A/D/G/H)
