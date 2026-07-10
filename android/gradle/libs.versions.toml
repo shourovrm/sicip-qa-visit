@@ -10,6 +10,7 @@ kotlinxSerializationJson = "1.11.0"
 datastorePreferences = "1.2.1"
 room = "2.8.4"
 work = "2.11.2"
+navigationCompose = "2.9.7"
 junit = "4.13.2"
 
 [plugins]
@@ -34,4 +35,6 @@ room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
+navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
+compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 junit = { module = "junit:junit", version.ref = "junit" }

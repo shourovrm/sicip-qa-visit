@@ -1,0 +1,150 @@
+// post-login shell: navy app bar + sync chip on top, orange-tinted bottom nav, 5 tabs.
+package bd.sicip.qavisit.ui.shell
+
+import android.content.Context
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.EventBusy
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import bd.sicip.qavisit.data.sync.SyncNow
+import bd.sicip.qavisit.data.sync.SyncStateStore
+import bd.sicip.qavisit.ui.screens.HomeScreen
+import bd.sicip.qavisit.ui.screens.LeavesScreen
+import bd.sicip.qavisit.ui.screens.ProfileScreen
+import bd.sicip.qavisit.ui.screens.TeamScreen
+import bd.sicip.qavisit.ui.screens.VisitsScreen
+import java.time.Duration
+import java.time.Instant
+
+private data class NavItem(val route: String, val label: String, val icon: ImageVector)
+
+private val NAV_ITEMS = listOf(
+    NavItem("home", "Home", Icons.Filled.Home),
+    NavItem("team", "Team", Icons.Filled.Groups),
+    NavItem("visits", "Visits", Icons.Filled.Checklist),
+    NavItem("leaves", "Leaves", Icons.Filled.EventBusy),
+    NavItem("profile", "Profile", Icons.Filled.Person),
+)
+
+// TopAppBar is the experimental bit here (assist chip / nav-bar items are stable); this
+// screen-level shell composable is the natural opt-in boundary.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppShell(context: Context) {
+    val syncState = remember { SyncStateStore(context) }
+    val lastSyncAt by syncState.lastSyncAt.collectAsState(initial = null)
+    val lastError by syncState.lastError.collectAsState(initial = null)
+
+    val navController = rememberNavController()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route ?: NAV_ITEMS.first().route
+    val currentTitle = NAV_ITEMS.firstOrNull { it.route == currentRoute }?.label ?: "SICIP QA Visit"
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(currentTitle) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+                actions = {
+                    AssistChip(
+                        onClick = { SyncNow.enqueue(context) },
+                        label = { Text(syncChipText(lastSyncAt, lastError)) },
+                        colors = AssistChipDefaults.assistChipColors(
+                            labelColor = MaterialTheme.colorScheme.onPrimary,
+                        ),
+                        modifier = Modifier.padding(end = 12.dp),
+                    )
+                },
+            )
+        },
+        bottomBar = {
+            NavigationBar {
+                NAV_ITEMS.forEach { item ->
+                    NavigationBarItem(
+                        selected = currentRoute == item.route,
+                        onClick = {
+                            navController.navigate(item.route) {
+                                // one instance of each tab, back button unwinds to home instead
+                                // of stacking every tab visit -- standard bottom-nav behavior.
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        icon = { Icon(item.icon, contentDescription = item.label) },
+                        label = { Text(item.label) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.tertiary,
+                            selectedTextColor = MaterialTheme.colorScheme.tertiary,
+                            indicatorColor = Color.Transparent,
+                        ),
+                    )
+                }
+            }
+        },
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = NAV_ITEMS.first().route,
+            modifier = Modifier.padding(innerPadding),
+        ) {
+            composable("home") { HomeScreen() }
+            composable("team") { TeamScreen() }
+            composable("visits") { VisitsScreen() }
+            composable("leaves") { LeavesScreen() }
+            composable("profile") { ProfileScreen() }
+        }
+    }
+}
+
+// pure so it's unit-testable without touching compose/android.
+// ponytail: "syncing" only covers the pre-first-sync window (no lastSyncAt/lastError yet).
+// a manual retry tap while already synced won't flip this back to "Syncing…" -- add a
+// WorkManager work-info flow if live feedback on manual retries is ever needed.
+fun syncChipText(lastSyncAt: String?, lastError: String?, now: Instant = Instant.now()): String = when {
+    lastError != null -> "⚠ Offline"
+    lastSyncAt != null -> "✓ Synced ${relativeTime(lastSyncAt, now)}"
+    else -> "Syncing…"
+}
+
+fun relativeTime(iso: String, now: Instant = Instant.now()): String {
+    val then = runCatching { Instant.parse(iso) }.getOrNull() ?: return "just now"
+    val seconds = Duration.between(then, now).seconds.coerceAtLeast(0)
+    return when {
+        seconds < 60 -> "just now"
+        seconds < 3600 -> "${seconds / 60}m"
+        seconds < 86400 -> "${seconds / 3600}h"
+        else -> "${seconds / 86400}d"
+    }
+}
