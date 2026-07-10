@@ -27,6 +27,10 @@ interface OfficerDao {
     @Query("SELECT * FROM officers ORDER BY name")
     suspend fun all(): List<Officer>
 
+    // sync uses this to look up the informing officer's name for the "informed you" notice.
+    @Query("SELECT * FROM officers WHERE id = :id")
+    suspend fun byId(id: String): Officer?
+
     @Query("SELECT * FROM officers WHERE dirty = 1")
     suspend fun dirtyRows(): List<Officer>
 

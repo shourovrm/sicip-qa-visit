@@ -34,6 +34,10 @@ interface ActivityDao {
     @Query("SELECT * FROM activities WHERE visit_id = :visitId AND deleted = 0 ORDER BY at")
     suspend fun byVisit(visitId: String): List<Activity>
 
+    // sync needs this to check "already had this row?" and "is it locally dirty?" before overwriting.
+    @Query("SELECT * FROM activities WHERE id = :id")
+    suspend fun byId(id: String): Activity?
+
     @Query("SELECT * FROM activities WHERE dirty = 1")
     suspend fun dirtyRows(): List<Activity>
 

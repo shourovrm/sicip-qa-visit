@@ -40,6 +40,10 @@ interface TravelLegDao {
     @Query("SELECT * FROM travel_legs WHERE trip_id = :tripId AND deleted = 0 ORDER BY dep_date, dep_time")
     suspend fun byTrip(tripId: String): List<TravelLeg>
 
+    // sync needs this to check "already had this row?" and "is it locally dirty?" before overwriting.
+    @Query("SELECT * FROM travel_legs WHERE id = :id")
+    suspend fun byId(id: String): TravelLeg?
+
     @Query("SELECT * FROM travel_legs WHERE dirty = 1")
     suspend fun dirtyRows(): List<TravelLeg>
 

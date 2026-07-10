@@ -9,6 +9,7 @@ material3 = "1.4.0"
 kotlinxSerializationJson = "1.11.0"
 datastorePreferences = "1.2.1"
 room = "2.8.4"
+work = "2.11.2"
 junit = "4.13.2"
 
 [plugins]
@@ -32,4 +33,5 @@ datastore-preferences = { module = "androidx.datastore:datastore-preferences", v
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
+work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 junit = { module = "junit:junit", version.ref = "junit" }

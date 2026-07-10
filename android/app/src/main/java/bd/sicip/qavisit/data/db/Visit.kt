@@ -47,6 +47,10 @@ interface VisitDao {
     @Query("SELECT * FROM visits WHERE deleted = 0 ORDER BY start_date DESC")
     suspend fun all(): List<Visit>
 
+    // sync needs this to check "already had this row?" and "is it locally dirty?" before overwriting.
+    @Query("SELECT * FROM visits WHERE id = :id")
+    suspend fun byId(id: String): Visit?
+
     @Query("SELECT * FROM visits WHERE dirty = 1")
     suspend fun dirtyRows(): List<Visit>
 

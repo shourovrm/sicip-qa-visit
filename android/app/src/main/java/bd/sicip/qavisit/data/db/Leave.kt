@@ -41,6 +41,10 @@ interface LeaveDao {
     @Query("SELECT * FROM leaves WHERE officer_id = :officerId AND deleted = 0 ORDER BY start_date DESC")
     suspend fun byOfficer(officerId: String): List<Leave>
 
+    // sync needs this to check "already had this row?" and "is it locally dirty?" before overwriting.
+    @Query("SELECT * FROM leaves WHERE id = :id")
+    suspend fun byId(id: String): Leave?
+
     @Query("SELECT * FROM leaves WHERE dirty = 1")
     suspend fun dirtyRows(): List<Leave>
 
