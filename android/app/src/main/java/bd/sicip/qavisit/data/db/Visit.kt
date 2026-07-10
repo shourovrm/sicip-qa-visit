@@ -94,4 +94,9 @@ interface VisitDao {
     // reuses an existing office order.
     @Query("SELECT ref_date FROM visits WHERE ref_no = :refNo AND ref_date IS NOT NULL ORDER BY updated_at DESC LIMIT 1")
     suspend fun refDateFor(refNo: String): String?
+
+    // institutes are shared/synced across officers -- global autosuggest, same reasoning as
+    // distinctRefs above.
+    @Query("SELECT DISTINCT institute FROM visits WHERE deleted = 0 AND institute != '' ORDER BY institute")
+    suspend fun distinctInstitutes(): List<String>
 }

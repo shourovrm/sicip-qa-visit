@@ -28,6 +28,18 @@ import bd.sicip.qavisit.ui.common.showTimePicker
 import java.time.Instant
 import java.util.UUID
 
+// resolves the mode dropdown + free-text "Other" field into the value actually stored on the
+// leg: dropdown value as-is, unless it's "Other" -- then the typed name (falling back to
+// "Other" itself if left blank).
+fun resolveMode(dropdownValue: String, otherText: String): String =
+    if (dropdownValue == "Other") otherText.ifBlank { "Other" } else dropdownValue
+
+// inverse, for edit prefill: a stored mode that's one of the seed options selects itself with
+// no free text; anything else (an old "Other" leg) selects "Other" with the stored value as
+// the prefilled free text.
+fun modeDropdownFor(storedMode: String, seedModes: Set<String> = TRANSPORT.keys): Pair<String, String> =
+    if (storedMode in seedModes) storedMode to "" else "Other" to storedMode
+
 // mutable draft the form edits in place; caller reads it back on save.
 class LegDraft {
     var depDate by mutableStateOf(Instant.now().toString().take(10))
@@ -37,6 +49,7 @@ class LegDraft {
     var arrTime by mutableStateOf("09:00:00")
     var arrPlace by mutableStateOf("")
     var mode by mutableStateOf(TRANSPORT.keys.first())
+    var otherModeText by mutableStateOf("") // free text when mode == "Other"
     var travelClass by mutableStateOf(TRANSPORT.values.first().firstOrNull())
     var fareText by mutableStateOf("")
     var remarks by mutableStateOf("")
@@ -61,7 +74,9 @@ fun rememberLegDraft(existing: TravelLeg): LegDraft = remember(existing.id) {
         d.arrDate = existing.arrDate
         d.arrTime = existing.arrTime
         d.arrPlace = existing.arrPlace
-        d.mode = existing.mode
+        val (dropdownMode, otherText) = modeDropdownFor(existing.mode)
+        d.mode = dropdownMode
+        d.otherModeText = otherText
         d.travelClass = existing.travelClass
         d.fareText = fareToText(existing.fare)
         d.remarks = existing.remarks ?: ""
@@ -69,7 +84,13 @@ fun rememberLegDraft(existing: TravelLeg): LegDraft = remember(existing.id) {
 }
 
 @Composable
-fun LegFormFields(draft: LegDraft) {
+fun LegFormFields(
+    draft: LegDraft,
+    // dep/arr place autosuggest source (distinct places across every synced leg). Defaults to
+    // empty so the existing BillScreen call site keeps compiling untouched -- it can pass the
+    // real list once it's ready to wire TravelLegDao.distinctPlaces() through.
+    places: List<String> = emptyList(),
+) {
     val context = LocalContext.current
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Departure")
@@ -81,11 +102,13 @@ fun LegFormFields(draft: LegDraft) {
                 Text(draft.depTime.take(5))
             }
         }
-        OutlinedTextField(
-            value = draft.depPlace,
-            onValueChange = { draft.depPlace = it },
-            label = { Text("Departure place") },
-            modifier = Modifier.fillMaxWidth(),
+        PickerDropdown(
+            label = "Departure place",
+            options = places,
+            selected = draft.depPlace,
+            onSelect = { draft.depPlace = it },
+            onTextChange = { draft.depPlace = it },
+            searchable = true,
         )
 
         Text("Arrival")
@@ -97,11 +120,13 @@ fun LegFormFields(draft: LegDraft) {
                 Text(draft.arrTime.take(5))
             }
         }
-        OutlinedTextField(
-            value = draft.arrPlace,
-            onValueChange = { draft.arrPlace = it },
-            label = { Text("Arrival place") },
-            modifier = Modifier.fillMaxWidth(),
+        PickerDropdown(
+            label = "Arrival place",
+            options = places,
+            selected = draft.arrPlace,
+            onSelect = { draft.arrPlace = it },
+            onTextChange = { draft.arrPlace = it },
+            searchable = true,
         )
 
         PickerDropdown(
@@ -110,6 +135,14 @@ fun LegFormFields(draft: LegDraft) {
             selected = draft.mode,
             onSelect = { draft.mode = it; draft.travelClass = TRANSPORT[it]?.firstOrNull() },
         )
+        if (draft.mode == "Other") {
+            OutlinedTextField(
+                value = draft.otherModeText,
+                onValueChange = { draft.otherModeText = it },
+                label = { Text("Mode name") },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         val classes = TRANSPORT[draft.mode].orEmpty()
         if (classes.isNotEmpty()) {
             PickerDropdown(
@@ -147,7 +180,7 @@ fun LegDraft.toEntity(tripId: String, id: String = UUID.randomUUID().toString())
         arrDate = arrDate,
         arrTime = arrTime,
         arrPlace = arrPlace,
-        mode = mode,
+        mode = resolveMode(mode, otherModeText),
         travelClass = travelClass,
         fare = fare,
         remarks = remarks.ifBlank { null },

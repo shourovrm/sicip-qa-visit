@@ -83,8 +83,10 @@ fun VisitForm(
     var remarks by remember { mutableStateOf("") }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var refOptions by remember { mutableStateOf(emptyList<String>()) }
+    var instituteOptions by remember { mutableStateOf(emptyList<String>()) }
 
     LaunchedEffect(Unit) { refOptions = visitDao.distinctRefs() }
+    LaunchedEffect(Unit) { instituteOptions = visitDao.distinctInstitutes() }
 
     LaunchedEffect(visitId) {
         if (visitId != null) {
@@ -128,11 +130,15 @@ fun VisitForm(
             style = MaterialTheme.typography.titleLarge,
         )
 
-        OutlinedTextField(
-            value = institute,
-            onValueChange = { institute = it },
-            label = { Text("Institute") },
-            modifier = Modifier.fillMaxWidth(),
+        // institute: type-to-filter over every institute ever visited (any officer, synced),
+        // free typing still commits (onTextChange) -- same pattern as the ref-no picker below.
+        PickerDropdown(
+            label = "Institute",
+            options = instituteOptions,
+            selected = institute,
+            onSelect = { institute = it },
+            onTextChange = { institute = it },
+            searchable = true,
         )
 
         PickerDropdown("Association", ASSOCIATIONS, association, { association = it }, searchable = true)

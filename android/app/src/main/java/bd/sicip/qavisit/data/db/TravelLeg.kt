@@ -66,4 +66,13 @@ interface TravelLegDao {
 
     @Query("SELECT MAX(updated_at) FROM travel_legs")
     suspend fun maxUpdatedAt(): String?
+
+    // places are shared/synced across trips -- global autosuggest for dep/arr fields. UNION
+    // dedups across both columns in one query.
+    @Query(
+        "SELECT dep_place AS place FROM travel_legs WHERE deleted = 0 AND dep_place != '' " +
+            "UNION SELECT arr_place FROM travel_legs WHERE deleted = 0 AND arr_place != '' " +
+            "ORDER BY place",
+    )
+    suspend fun distinctPlaces(): List<String>
 }
