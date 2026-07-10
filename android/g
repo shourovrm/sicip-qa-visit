@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# ponytail: no gradle wrapper here — resolve the cached distribution binary directly.
+set -euo pipefail
+GRADLE_BIN=$(find "$HOME/.gradle/wrapper/dists/gradle-8.13-bin"/*/gradle-8.13/bin/gradle 2>/dev/null | head -1)
+if [ -z "$GRADLE_BIN" ]; then
+    echo "gradle-8.13 distribution not found under ~/.gradle/wrapper/dists" >&2
+    exit 1
+fi
+exec "$GRADLE_BIN" -p "$(dirname "$(readlink -f "$0")")" "$@"
