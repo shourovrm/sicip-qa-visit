@@ -1,0 +1,22 @@
+{
+  "name": "sicip-qa-visit-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "cp ../assets/tada-template.xlsx public/tada-template.xlsx && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2",
+    "exceljs": "^4"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^3",
+    "svelte": "^4",
+    "vite": "^5",
+    "vitest": "^2"
+  }
+}
