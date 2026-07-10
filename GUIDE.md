@@ -1,7 +1,7 @@
 # SICIP QA Visit — Startup Guide
 
 ## Install
-1. APK: `SICIP-QA-Visit-v1.3.0.apk` (repo root, also `android/app/build/outputs/apk/release/`).
+1. APK: `SICIP-QA-Visit-v1.4.0.apk` (repo root, also `android/app/build/outputs/apk/release/`).
 2. Copy to phone (USB / Drive / WhatsApp-to-self), tap it, allow "install unknown apps" when prompted. No Play Store, no Google services needed. Android 8+.
 
 ## First login (needs internet once)
@@ -16,7 +16,8 @@
 - Other 8 officers: accounts exist with placeholder emails — before rollout, admin activates each (real email + fresh temp password) and hands the password over in person/WhatsApp.
 
 ## Daily use
-- **Schedule a visit**: Home → orange + button. District Dhaka asks inside/outside metro (affects points: E=1 / D=4).
+- **Schedule a visit**: Home → orange + button. District Dhaka asks inside/outside metro (E=1 / D=4).
+- **Scoring** (Day=4, Night=12 pts): D 1D=4 · D+ 1D1N=16 · C 2D1N=20 · C+ 2D2N=32 · B 3D2N=36 · B+ 3D3N=48 · A 4D3N=52 · A* 4D4N=64 · A+ 5D4N=68 · A+* 5D5N=80 · A++ 6D5N=84 · A++* 6D6N=96 · A** 7D6N=100 (cap) · E=1 · N/A=0. Returning before 8am doesn't count that day as a working day (that's how 1D1N happens). Update the Google Sheet Summary cells: 53→52, 69→68, 85→84.
 - **Tour**: tap **Start** on an upcoming visit card → confirm start time (add more visits or inform a colleague if you like) → during the tour add activities or ad-hoc visits → **End tour** (end date+time; category auto-suggested, override allowed). Travel and fares are NOT entered during the tour.
 - **Travel & fares**: added later in Visits → TA/DA Bill → select tour(s) → "Add travel" rows (any movement: bus stand→institute, hotel→ghat; mode, class, fare) → totals update live.
 - **Multiple visits in one tour**: first visit scores, others auto N/A — matches the office scoring sheet.
