@@ -178,7 +178,7 @@ private fun ActiveTripHero(
                     ),
                     shape = RoundedCornerShape(99),
                     modifier = Modifier.weight(1f).height(48.dp),
-                ) { Text("Finish trip") }
+                ) { Text("Finish") }
             }
         }
     }
