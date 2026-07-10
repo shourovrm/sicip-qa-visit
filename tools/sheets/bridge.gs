@@ -16,6 +16,28 @@ var CATEGORY_CODES = ['A***', 'A**+', 'A**', 'A++*', 'A++', 'A+*', 'A+', 'A*',
 var VISITS_TAB = 'Visits';
 var RANKING_TAB = 'Ranking';
 var BREAKDOWN_TAB = 'Breakdown';
+var CATEGORIES_TAB = 'Categories';
+
+// static reference: [code, description, points, nights allowance, food allowance]
+var CATEGORY_TABLE = [
+  ['A***', '8 days 7 nights', 116, 7, 7.5],
+  ['A**+', '7 days 7 nights', 112, 7, 7.0],
+  ['A**',  '7 days 6 nights', 100, 6, 6.5],
+  ['A++*', '6 days 6 nights',  96, 6, 6.0],
+  ['A++',  '6 days 5 nights',  84, 5, 5.5],
+  ['A+*',  '5 days 5 nights',  80, 5, 5.0],
+  ['A+',   '5 days 4 nights',  68, 4, 4.5],
+  ['A*',   '4 days 4 nights',  64, 4, 4.0],
+  ['A',    '4 days 3 nights',  52, 3, 3.5],
+  ['B+',   '3 days 3 nights',  48, 3, 3.0],
+  ['B',    '3 days 2 nights',  36, 2, 2.5],
+  ['C+',   '2 days 2 nights',  32, 2, 2.0],
+  ['C',    '2 days 1 night',   20, 1, 1.5],
+  ['D+',   '1 day 1 night',    16, 1, 1.0],
+  ['D',    'Single day / Dhaka outside metro', 4, 0, 0.5],
+  ['E',    'Dhaka inside metro', 1, 0, 0.0],
+  ['N/A',  'Additional visit in same tour', 0, 0, 0.0]
+];
 
 function syncAll() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -34,12 +56,31 @@ function syncAll() {
       { order: 'total_points.desc' });
     writeRankingTab(rankSheet, rankRows);
     writeBreakdownTab(ss, rankRows);
+    writeCategoriesTab(ss);
 
     setStatus(rankSheet, 'OK — ' + new Date().toISOString());
   } catch (err) {
     setStatus(rankSheet, 'ERROR — ' + err.message);
     Logger.log(err);
   }
+}
+
+// web-app endpoint: deploying this script as a web app lets a curl hit trigger a sync remotely.
+// returns plain-text status; no data exposed, action is idempotent.
+function doGet() {
+  syncAll();
+  var f1 = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(RANKING_TAB).getRange('F1').getValue();
+  return ContentService.createTextOutput(String(f1));
+}
+
+function writeCategoriesTab(ss) {
+  var sh = getOrCreateSheet(ss, CATEGORIES_TAB);
+  sh.clearContents();
+  var header = ['Category', 'Description', 'Points', 'Nights allowance', 'Food allowance (days)'];
+  sh.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight('bold');
+  sh.getRange(2, 1, CATEGORY_TABLE.length, header.length).setValues(CATEGORY_TABLE);
+  sh.getRange(CATEGORY_TABLE.length + 3, 1).setValue(
+    'Points: 4 per day + 12 per night. Accommodation = nights × 2,000 BDT. Food = food-days × 1,500 BDT.');
 }
 
 // ---------- config + fetch ----------
