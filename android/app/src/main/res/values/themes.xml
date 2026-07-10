@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose (SicipTheme) owns all real theming; this just kills the platform ActionBar so
+         we don't get a second navy bar stacked above AppShell's own TopAppBar. -->
+    <style name="AppTheme" parent="android:Theme.DeviceDefault.NoActionBar" />
+</resources>

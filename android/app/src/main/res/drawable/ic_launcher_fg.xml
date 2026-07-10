@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DESIGN.md icon A: orange location pin, white check inside, centered in the 108dp adaptive safe zone -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:translateX="18"
+        android:translateY="18"
+        android:scaleX="3"
+        android:scaleY="3">
+        <!-- pin (material "place" teardrop, no hole) -->
+        <path
+            android:fillColor="#E8690A"
+            android:pathData="M12,2C8.13,2 5,5.13 5,9c0,5.25 7,13 7,13s7,-7.75 7,-13C19,5.13 15.87,2 12,2z" />
+        <!-- check mark, stroked, sits in the pin's head -->
+        <path
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="1.3"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M10.08,9.24 L11.44,10.6 L14.08,7.56" />
+    </group>
+</vector>
