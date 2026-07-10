@@ -4,6 +4,7 @@
 *.keystore
 *.jks
 keystore.properties
+android/keystore/
 service-account*.json
 supabase/.token
 

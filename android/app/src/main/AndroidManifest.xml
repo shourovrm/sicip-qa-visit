@@ -8,6 +8,7 @@
 
     <application
         android:label="SICIP QA Visit"
+        android:icon="@mipmap/ic_launcher"
         android:allowBackup="true"
         android:supportsRtl="true">
         <activity
