@@ -37,7 +37,9 @@
 - Keystore `android/keystore/` (gitignored) — BACK IT UP; same key must sign every future update (valid ~27 years, signing is automatic on build).
 - Rebuild APK: `cd android && ./g :app:assembleRelease`.
 - Rotate temp passwords before rollout: re-run activation per officer (fresh script when web app milestone lands, or ask the assistant).
-- DB: Supabase project `twpehiqfdjfprtwsiwqp` (Singapore). Web admin app + Sheets auto-export = upcoming milestones.
+- DB: Supabase project `twpehiqfdjfprtwsiwqp` (Singapore).
+- **Web app** (`web/`): all officers log in with same credentials — visits/tours editing, real-template .xlsx bills (editable after download), previous bills, rank, password reset page; admin extra: edit anyone's data, update-banner settings. Deploy: see `web/DEPLOY.md` (Cloudflare Pages + Supabase reset-URL + Brevo SMTP, ~15 min once).
+- **Google Sheet bridge** (`tools/sheets/`): paste bridge.gs per SETUP.md → hourly sync writes Ranking (one screen), Visits mirror, Breakdown tabs; old tabs untouched; ranks always match the app.
 
 ## Troubleshooting
 - "No connection — try again" at login: needs internet for the FIRST login only.
