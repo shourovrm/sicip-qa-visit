@@ -59,6 +59,7 @@ class SyncEngine(
             pushed["travel_legs"] = pushTravelLegs(token)
             pushed["activities"] = pushActivities(token)
             pushed["leaves"] = pushLeaves(token)
+            pushed["bills"] = pushBills(token)
 
             pulled["officers"] = pullOfficers(token)
             pulled["trips"] = pullTrips(token, session.userId)
@@ -66,6 +67,7 @@ class SyncEngine(
             pulled["travel_legs"] = pullTravelLegs(token)
             pulled["activities"] = pullActivities(token)
             pulled["leaves"] = pullLeaves(token)
+            pulled["bills"] = pullBills(token)
 
             syncState.recordSuccess(Instant.now().toString())
             SyncResult(pushed, pulled)
@@ -119,6 +121,15 @@ class SyncEngine(
         val dirty = dao.dirtyRows()
         if (dirty.isEmpty()) return 0
         client.upsert("leaves", JsonArray(dirty.map { it.toJson() }), token)
+        dao.clearDirty(dirty.map { it.id to it.updatedAt })
+        return dirty.size
+    }
+
+    private suspend fun pushBills(token: String): Int {
+        val dao = db.billDao()
+        val dirty = dao.dirtyRows()
+        if (dirty.isEmpty()) return 0
+        client.upsert("bills", JsonArray(dirty.map { it.toJson() }), token)
         dao.clearDirty(dirty.map { it.id to it.updatedAt })
         return dirty.size
     }
@@ -259,6 +270,30 @@ class SyncEngine(
             }
         }
         syncState.setWatermark("leaves", advanceWatermark(watermark, remoteRows.map { it.updatedAt }))
+        return applied
+    }
+
+    // RLS scopes bills to officer_id = auth.uid() (or admin), so a plain watermark pull already
+    // only ever sees our own rows -- same pattern as visits/travel_legs, no extra filter needed.
+    private suspend fun pullBills(token: String): Int {
+        val dao = db.billDao()
+        val watermark = syncState.watermark("bills")
+        val rows = client.select(
+            "bills",
+            mapOf("updated_at" to "gt.$watermark", "order" to "updated_at.asc"),
+            token,
+        )
+        if (rows.isEmpty()) return 0
+        val remoteRows = rows.map { it.jsonObject.toBill() }
+        var applied = 0
+        for (remote in remoteRows) {
+            val local = dao.byId(remote.id)
+            if (shouldApplyRemote(localDirty = local?.dirty ?: false)) {
+                dao.upsert(remote)
+                applied++
+            }
+        }
+        syncState.setWatermark("bills", advanceWatermark(watermark, remoteRows.map { it.updatedAt }))
         return applied
     }
 

@@ -9,8 +9,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [Officer::class, Trip::class, Visit::class, TravelLeg::class, Activity::class, Leave::class],
-    version = 2,
+    entities = [Officer::class, Trip::class, Visit::class, TravelLeg::class, Activity::class, Leave::class, Bill::class],
+    version = 3,
     exportSchema = false,
 )
 abstract class AppDb : RoomDatabase() {
@@ -20,6 +20,7 @@ abstract class AppDb : RoomDatabase() {
     abstract fun travelLegDao(): TravelLegDao
     abstract fun activityDao(): ActivityDao
     abstract fun leaveDao(): LeaveDao
+    abstract fun billDao(): BillDao
 
     companion object {
         // mirrors supabase/migrations/002_ref_date_submitted.sql. existing installs must
@@ -32,13 +33,28 @@ abstract class AppDb : RoomDatabase() {
             }
         }
 
+        // mirrors supabase/migrations/003_bills_appmeta.sql -- immutable submitted-bill archive.
+        // CREATE TABLE matches Room's own generated DDL for the Bill entity exactly (verified
+        // against the ksp-generated AppDb_Impl before commit): TEXT/REAL/INTEGER per Kotlin
+        // type, NOT NULL for every non-nullable property, in declaration order.
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `bills` (`id` TEXT NOT NULL, `officer_id` TEXT NOT NULL, " +
+                        "`bill_date` TEXT NOT NULL, `data` TEXT NOT NULL, `net` REAL NOT NULL, " +
+                        "`created_at` TEXT NOT NULL, `updated_at` TEXT NOT NULL, `deleted` INTEGER NOT NULL, " +
+                        "`dirty` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+                )
+            }
+        }
+
         // single instance per process (room recommends this); double-checked lock avoids
         // two screens racing to open the db file at once.
         @Volatile private var instance: AppDb? = null
 
         fun get(context: Context): AppDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, AppDb::class.java, "app.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
                 .also { instance = it }
         }

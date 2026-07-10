@@ -10,11 +10,13 @@
 package bd.sicip.qavisit.data.sync
 
 import bd.sicip.qavisit.data.db.Activity
+import bd.sicip.qavisit.data.db.Bill
 import bd.sicip.qavisit.data.db.Leave
 import bd.sicip.qavisit.data.db.Officer
 import bd.sicip.qavisit.data.db.TravelLeg
 import bd.sicip.qavisit.data.db.Trip
 import bd.sicip.qavisit.data.db.Visit
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
@@ -193,6 +195,33 @@ fun JsonObject.toLeave(): Leave = Leave(
     startDate = str("start_date"),
     endDate = str("end_date"),
     status = str("status"),
+    updatedAt = str("updated_at"),
+    deleted = bool("deleted"),
+    dirty = false,
+)
+
+// ============ bills ============
+// data is stored locally as a JSON string but must land in the real jsonb column, not a
+// quoted string -- parse it back to a JsonElement before pushing. created_at/updated_at
+// dropped on push per the file-header convention (server owns both via default/trigger).
+fun Bill.toJson(): JsonObject = buildJsonObject {
+    put("id", id)
+    put("officer_id", officerId)
+    put("bill_date", billDate)
+    put("data", Json.parseToJsonElement(data))
+    put("net", net)
+    put("deleted", deleted)
+}
+
+// the reverse: data comes back from postgrest as real jsonb (a nested object), stringify it
+// for local TEXT storage. JsonElement.toString() renders valid JSON, so this round-trips.
+fun JsonObject.toBill(): Bill = Bill(
+    id = str("id"),
+    officerId = str("officer_id"),
+    billDate = str("bill_date"),
+    data = getValue("data").toString(),
+    net = num("net"),
+    createdAt = str("created_at"),
     updatedAt = str("updated_at"),
     deleted = bool("deleted"),
     dirty = false,

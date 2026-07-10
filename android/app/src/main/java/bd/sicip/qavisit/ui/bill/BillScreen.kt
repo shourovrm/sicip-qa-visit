@@ -1,7 +1,10 @@
-// TA/DA bill flow: pick own finished trips (step 1), edit night/food per trip + preview live
-// totals (step 2), generate the official-template PDF (pdf/BillPdf.kt) and hand it to the
-// share sheet + a copy in Downloads. everything here is plain material3 -- only the PDF
-// itself is styled to look like the government form.
+// TA/DA bill flow: New bill (pick own finished trips (step 1), edit night/food per trip +
+// preview live totals (step 2), Submit bill freezes a snapshot into the immutable archive) and
+// Previous bills (read-only list + detail of everything already submitted). The official-
+// template PDF (pdf/BillPdf.kt) is generated either from the live preview (Generate PDF, still
+// editable up to that point) or deterministically from a frozen snapshot (Submit bill / View
+// PDF on a previous bill) -- see domain/BillSnapshot.kt. everything here is plain material3 --
+// only the PDF itself is styled to look like the government form.
 package bd.sicip.qavisit.ui.bill
 
 import android.content.ContentValues
@@ -31,7 +34,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -56,16 +58,24 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import bd.sicip.qavisit.data.db.AppDb
+import bd.sicip.qavisit.data.db.Bill
 import bd.sicip.qavisit.data.db.Trip
 import bd.sicip.qavisit.data.db.TravelLeg
 import bd.sicip.qavisit.data.db.Visit
+import bd.sicip.qavisit.data.sync.SyncNow
+import bd.sicip.qavisit.domain.BillSnapshot
 import bd.sicip.qavisit.domain.BillTotals
 import bd.sicip.qavisit.domain.Leg
+import bd.sicip.qavisit.domain.SnapshotLeg
+import bd.sicip.qavisit.domain.SnapshotTrip
 import bd.sicip.qavisit.domain.amountInWords
 import bd.sicip.qavisit.domain.billTotals
 import bd.sicip.qavisit.domain.formatFare
 import bd.sicip.qavisit.domain.legDefaults
 import bd.sicip.qavisit.domain.primaryVisit
+import bd.sicip.qavisit.domain.renderableFromSnapshot
+import bd.sicip.qavisit.domain.snapshotBill
+import bd.sicip.qavisit.domain.toBillTrips
 import bd.sicip.qavisit.domain.tripFoodDays
 import bd.sicip.qavisit.domain.tripNights
 import bd.sicip.qavisit.pdf.BillLeg
@@ -77,6 +87,8 @@ import bd.sicip.qavisit.ui.home.LegFormFields
 import bd.sicip.qavisit.ui.home.rememberLegDraft
 import bd.sicip.qavisit.ui.home.toEntity
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -88,38 +100,34 @@ import bd.sicip.qavisit.domain.Trip as DomainTrip
 private val BILL_DATE_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.US)
 private const val FILE_PROVIDER_AUTHORITY = "bd.sicip.qavisit.fileprovider"
 
+private enum class Step { PICKER, PREVIEW, DETAIL }
+
 // one finished trip with everything the bill needs pulled ahead of time -- purpose line
 // comes from the primary visit only (additional visits on the same trip don't get their own
 // bill line, matching how the official sample batches per-trip, not per-visit).
 private data class TripCandidate(val trip: Trip, val primary: Visit, val legs: List<TravelLeg>)
 
-private suspend fun loadCandidates(db: AppDb, officerId: String, submitted: Boolean): List<TripCandidate> {
-    val trips = if (submitted) {
-        db.tripDao().finishedSubmittedByOfficer(officerId)
-    } else {
-        db.tripDao().finishedUnsubmittedByOfficer(officerId)
-    }
-    return trips.mapNotNull { trip ->
+private suspend fun loadUnsubmitted(db: AppDb, officerId: String): List<TripCandidate> =
+    db.tripDao().finishedUnsubmittedByOfficer(officerId).mapNotNull { trip ->
         val visits = db.visitDao().byTrip(trip.id)
         val primary = primaryVisit(visits) { it.isAdditional } ?: return@mapNotNull null
         TripCandidate(trip, primary, db.travelLegDao().byTrip(trip.id))
     }
-}
 
 @Composable
 fun BillScreen(officerId: String, db: AppDb, onDone: () -> Unit) {
     val scope = rememberCoroutineScope()
-    var step by remember { mutableStateOf(1) }
-    var showSubmittedTab by remember { mutableStateOf(false) }
+    var step by remember { mutableStateOf(Step.PICKER) }
+    var showPrevious by remember { mutableStateOf(false) }
     var unsubmitted by remember { mutableStateOf<List<TripCandidate>>(emptyList()) }
-    var submitted by remember { mutableStateOf<List<TripCandidate>>(emptyList()) }
+    var bills by remember { mutableStateOf<List<Bill>>(emptyList()) }
     var officerName by remember { mutableStateOf("") }
     val selected = remember { mutableStateOf(setOf<String>()) }
-    var showMarkConfirm by remember { mutableStateOf(false) }
+    var viewingBill by remember { mutableStateOf<Bill?>(null) }
 
     suspend fun reload() {
-        unsubmitted = loadCandidates(db, officerId, submitted = false)
-        submitted = loadCandidates(db, officerId, submitted = true)
+        unsubmitted = loadUnsubmitted(db, officerId)
+        bills = db.billDao().byOfficer(officerId)
     }
 
     LaunchedEffect(officerId) {
@@ -128,70 +136,53 @@ fun BillScreen(officerId: String, db: AppDb, onDone: () -> Unit) {
     }
 
     when (step) {
-        1 -> TripPickerStep(
-            candidates = if (showSubmittedTab) submitted else unsubmitted,
-            showSubmittedTab = showSubmittedTab,
-            onTabChange = { showSubmittedTab = it },
-            selected = selected.value,
-            onToggle = { id, on -> selected.value = if (on) selected.value + id else selected.value - id },
-            onNext = { step = 2 },
-            onMarkSubmitted = { showMarkConfirm = true },
-        )
-        else -> BillPreviewStep(
+        Step.PICKER -> Column(modifier = Modifier.fillMaxSize()) {
+            TwoTabRow(
+                leftLabel = "New bill",
+                rightLabel = "Previous bills",
+                leftSelected = !showPrevious,
+                onSelect = { left -> showPrevious = !left },
+            )
+            if (showPrevious) {
+                PreviousBillsList(bills = bills, onOpen = { viewingBill = it; step = Step.DETAIL })
+            } else {
+                NewBillPicker(
+                    candidates = unsubmitted,
+                    selected = selected.value,
+                    onToggle = { id, on -> selected.value = if (on) selected.value + id else selected.value - id },
+                    onNext = { step = Step.PREVIEW },
+                )
+            }
+        }
+        Step.PREVIEW -> BillPreviewStep(
+            officerId = officerId,
             officerName = officerName,
-            trips = (unsubmitted + submitted).filter { it.trip.id in selected.value },
+            trips = unsubmitted.filter { it.trip.id in selected.value },
             db = db,
-            onBack = { step = 1 },
-            onGenerated = onDone,
-        )
-    }
-
-    // "Mark N tour(s) as submitted?" -- reachable standalone from the Unsubmitted tab, no need
-    // to generate a bill first. markSubmitted per trip, then the batch drops off that tab.
-    if (showMarkConfirm) {
-        AlertDialog(
-            onDismissRequest = { showMarkConfirm = false },
-            title = { Text("Mark as submitted?") },
-            text = { Text("Mark ${selected.value.size} tour(s) as submitted? They move to the Submitted tab.") },
-            confirmButton = {
-                Button(onClick = {
-                    scope.launch {
-                        val now = Instant.now().toString()
-                        selected.value.forEach { id -> db.tripDao().markSubmitted(id, now) }
-                        selected.value = emptySet()
-                        reload()
-                        showMarkConfirm = false
-                    }
-                }) { Text("Mark submitted") }
+            onBack = { step = Step.PICKER },
+            onGeneratedPreview = onDone,
+            onSubmitted = {
+                scope.launch {
+                    selected.value = emptySet()
+                    reload()
+                }
+                step = Step.PICKER
             },
-            dismissButton = { TextButton(onClick = { showMarkConfirm = false }) { Text("Cancel") } },
         )
+        Step.DETAIL -> PreviousBillDetail(bill = viewingBill!!, onBack = { step = Step.PICKER })
     }
 }
 
 @Composable
-private fun TripPickerStep(
+private fun NewBillPicker(
     candidates: List<TripCandidate>,
-    showSubmittedTab: Boolean,
-    onTabChange: (Boolean) -> Unit,
     selected: Set<String>,
     onToggle: (String, Boolean) -> Unit,
     onNext: () -> Unit,
-    onMarkSubmitted: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-        TwoTabRow(
-            leftLabel = "Unsubmitted",
-            rightLabel = "Submitted",
-            leftSelected = !showSubmittedTab,
-            onSelect = { left -> onTabChange(!left) },
-        )
         Text(
-            if (showSubmittedTab) {
-                "Already-submitted tours -- select to re-bill."
-            } else {
-                "Select finished tours to batch onto one TA/DA bill."
-            },
+            "Select finished tours to batch onto one TA/DA bill.",
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
@@ -220,26 +211,110 @@ private fun TripPickerStep(
                     }
                 }
             }
-        }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-        ) {
-            if (!showSubmittedTab) {
-                OutlinedButton(
-                    onClick = onMarkSubmitted,
-                    enabled = selected.isNotEmpty(),
-                    modifier = Modifier.weight(1f).height(48.dp),
-                ) { Text("Mark submitted") }
+            if (candidates.isEmpty()) {
+                item {
+                    Text(
+                        "No finished, unsubmitted tours right now.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 8.dp),
+                    )
+                }
             }
-            Button(
-                onClick = onNext,
-                enabled = selected.isNotEmpty(),
-                modifier = Modifier.weight(1f).height(48.dp),
-            ) { Text("Next (${selected.size} selected)") }
+        }
+        Button(
+            onClick = onNext,
+            enabled = selected.isNotEmpty(),
+            modifier = Modifier.fillMaxWidth().padding(16.dp).height(48.dp),
+        ) { Text("Next (${selected.size} selected)") }
+    }
+}
+
+@Composable
+private fun PreviousBillsList(bills: List<Bill>, onOpen: (Bill) -> Unit) {
+    if (bills.isEmpty()) {
+        Text(
+            "No submitted bills yet.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(16.dp),
+        )
+        return
+    }
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        items(bills, key = { it.id }) { bill ->
+            val tourCount = remember(bill.id) { bill.parseSnapshot().trips.size }
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { onOpen(bill) },
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(bill.billDate.format(), style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "${formatFare(bill.net)} · $tourCount tour(s)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }
+
+// read-only: totals + per-tour nights/food as plain text, no edit fields -- this bill is
+// frozen. PDF is re-rendered from the same snapshot on demand (domain.toBillTrips), never
+// recalculated from the live trip/leg tables.
+@Composable
+private fun PreviousBillDetail(bill: Bill, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val snapshot = remember(bill.id) { bill.parseSnapshot() }
+    Column(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.weight(1f),
+        ) {
+            item { Text("Bill date: ${snapshot.billDate.format()}", style = MaterialTheme.typography.titleMedium) }
+            items(snapshot.trips, key = { it.tripId }) { t ->
+                Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(t.purposeLine, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "Nights: ${t.nights}   Food days: ${numText(t.foodDays)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            item { TotalsCard(snapshot.totals) }
+        }
+        Button(
+            onClick = {
+                val file = generateBillPdf(
+                    context = context,
+                    officerName = snapshot.officerName,
+                    billDate = snapshot.billDate,
+                    trips = snapshot.toBillTrips(),
+                    totals = snapshot.totals,
+                )
+                shareBillPdf(context, file)
+            },
+            modifier = Modifier.fillMaxWidth().padding(16.dp).height(48.dp),
+        ) { Text("View PDF") }
+        OutlinedButton(
+            onClick = onBack,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp),
+        ) { Text("Back") }
+    }
+}
+
+private fun Bill.parseSnapshot(): BillSnapshot = renderableFromSnapshot(Json.parseToJsonElement(data).jsonObject)
 
 // per-selected-trip editable state: nights/food default from the span rule (BillMath), the
 // officer can override either (e.g. the official sample zeroed a same-day Dhaka trip, or a
@@ -259,14 +334,18 @@ private fun numText(d: Double): String = if (d == d.toLong().toDouble()) d.toLon
 
 @Composable
 private fun BillPreviewStep(
+    officerId: String,
     officerName: String,
     trips: List<TripCandidate>,
     db: AppDb,
     onBack: () -> Unit,
-    onGenerated: () -> Unit,
+    onGeneratedPreview: () -> Unit,
+    onSubmitted: () -> Unit,
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var billDate by remember { mutableStateOf(LocalDate.now().toString()) }
+    var showSubmitConfirm by remember { mutableStateOf(false) }
     val edits = remember(trips) { trips.map { TripEdit(it) } }
 
     val domainTrips = edits.map {
@@ -310,13 +389,65 @@ private fun BillPreviewStep(
                     Toast.LENGTH_SHORT,
                 ).show()
                 shareBillPdf(context, file)
-                onGenerated()
+                onGeneratedPreview()
             },
             modifier = Modifier.fillMaxWidth().padding(16.dp).height(48.dp),
         ) { Text("Generate PDF") }
-        OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
-            Text("Back")
-        }
+        Button(
+            onClick = { showSubmitConfirm = true },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(48.dp),
+        ) { Text("Submit bill") }
+        OutlinedButton(
+            onClick = onBack,
+            modifier = Modifier.fillMaxWidth().padding(16.dp).padding(bottom = 0.dp),
+        ) { Text("Back") }
+    }
+
+    // freezes the current preview into an immutable bills row + marks every batched trip
+    // submitted, then prints the final PDF from that same frozen snapshot (not the live
+    // editable state) so the archived PDF and the archived data can never drift apart.
+    if (showSubmitConfirm) {
+        AlertDialog(
+            onDismissRequest = { showSubmitConfirm = false },
+            title = { Text("Submit bill?") },
+            text = { Text("Submit this bill? Values freeze and the tours move to Previous bills. This cannot be edited later.") },
+            confirmButton = {
+                Button(onClick = {
+                    scope.launch {
+                        val now = Instant.now().toString()
+                        val snapshotTrips = edits.map { it.toSnapshotTrip() }
+                        val json = snapshotBill(billDate, officerName, snapshotTrips, totals)
+                        val snapshot = BillSnapshot(billDate, officerName, snapshotTrips, totals)
+                        db.billDao().upsert(
+                            Bill(
+                                id = UUID.randomUUID().toString(),
+                                officerId = officerId,
+                                billDate = billDate,
+                                data = json.toString(),
+                                net = totals.net,
+                                createdAt = now,
+                                updatedAt = now,
+                                dirty = true,
+                            ),
+                        )
+                        edits.forEach { db.tripDao().markSubmitted(it.candidate.trip.id, now) }
+                        SyncNow.enqueue(context) // push the new bill + submitted trips promptly, don't wait for the 15-min periodic job
+                        val file = generateBillPdf(
+                            context = context,
+                            officerName = officerName,
+                            billDate = billDate,
+                            trips = snapshot.toBillTrips(),
+                            totals = totals,
+                        )
+                        saveToDownloads(context, file)
+                        shareBillPdf(context, file)
+                        showSubmitConfirm = false
+                        onSubmitted()
+                    }
+                }) { Text("Submit bill") }
+            },
+            dismissButton = { TextButton(onClick = { showSubmitConfirm = false }) { Text("Cancel") } },
+        )
     }
 }
 
@@ -460,6 +591,22 @@ private fun TripEdit.toBillTrip(): BillTrip {
     }
     return BillTrip(purposeLine = purposeLine(candidate.primary), legs = billLegs, nights = nights, foodDays = foodDays)
 }
+
+// same trip, shaped for the frozen archive instead of a live PDF render -- raw leg fields
+// only, no derived night/food-per-leg (see domain/BillSnapshot.kt doc comment).
+private fun TripEdit.toSnapshotTrip(): SnapshotTrip = SnapshotTrip(
+    tripId = candidate.trip.id,
+    purposeLine = purposeLine(candidate.primary),
+    nights = nights,
+    foodDays = foodDays,
+    legs = legs.map { leg ->
+        SnapshotLeg(
+            depDate = leg.depDate, depTime = leg.depTime, depPlace = leg.depPlace,
+            arrDate = leg.arrDate, arrTime = leg.arrTime, arrPlace = leg.arrPlace,
+            mode = leg.mode, travelClass = leg.travelClass, fare = leg.fare, remarks = leg.remarks,
+        )
+    },
+)
 
 private fun shareBillPdf(context: Context, file: File) {
     val uri = FileProvider.getUriForFile(context, FILE_PROVIDER_AUTHORITY, file)

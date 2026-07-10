@@ -9,6 +9,7 @@
 package bd.sicip.qavisit.data.sync
 
 import bd.sicip.qavisit.data.db.Activity
+import bd.sicip.qavisit.data.db.Bill
 import bd.sicip.qavisit.data.db.Leave
 import bd.sicip.qavisit.data.db.TravelLeg
 import bd.sicip.qavisit.data.db.Trip
@@ -258,6 +259,39 @@ class MappersTest {
         val json = leave.toJson()
         assertFalse(json.containsKey("updated_at"))
         assertEquals(leave, json.withColumn("updated_at", leave.updatedAt).toLeave())
+    }
+
+    @Test
+    fun `bill round trips, data string becomes a real json element on push`() {
+        val snapshotJson = buildJsonObject {
+            put("billDate", "2026-06-01")
+            put("officerName", "Jane Officer")
+            put("net", 24349.0)
+        }
+        val bill = Bill(
+            id = "b1",
+            officerId = "o1",
+            billDate = "2026-06-01",
+            data = snapshotJson.toString(),
+            net = 24349.0,
+            createdAt = "2024-01-01T00:00:00Z",
+            updatedAt = "2024-01-02T00:00:00Z",
+            deleted = true,
+            dirty = false,
+        )
+        val json = bill.toJson()
+        assertFalse(json.containsKey("updated_at"))
+        assertFalse(json.containsKey("created_at"))
+        assertEquals(snapshotJson, json.getValue("data")) // real jsonb payload, not a quoted string
+
+        // simulate a pull: postgrest hands back `data` as that same nested json object.
+        val pulled = JsonObject(
+            json.toMutableMap().also {
+                it["updated_at"] = JsonPrimitive(bill.updatedAt)
+                it["created_at"] = JsonPrimitive(bill.createdAt)
+            },
+        )
+        assertEquals(bill, pulled.toBill())
     }
 
     @Test
