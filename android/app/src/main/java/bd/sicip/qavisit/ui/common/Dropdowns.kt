@@ -38,10 +38,13 @@ fun PickerDropdown(
     // ref no -- every keystroke commits to the caller's state, tapping a suggestion still goes
     // through onSelect so callers can attach extra side effects (autofill) to the tap only.
     onTextChange: ((String) -> Unit)? = null,
+    // options/selected stay the stored value (e.g. a category code); this only controls what's
+    // shown for them (e.g. the category's full "code — span (pts)" explanation).
+    displayLabel: (String) -> String = { it },
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    var query by remember(selected) { mutableStateOf(selected) }
+    var query by remember(selected) { mutableStateOf(displayLabel(selected)) }
     val filtered = if (searchable && query.isNotBlank()) {
         options.filter { it.contains(query, ignoreCase = true) }
     } else {
@@ -60,11 +63,11 @@ fun PickerDropdown(
             label = { Text(label) },
             modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable, true).fillMaxWidth(),
         )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false; query = selected }) {
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false; query = displayLabel(selected) }) {
             filtered.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(option) },
-                    onClick = { onSelect(option); query = option; expanded = false },
+                    text = { Text(displayLabel(option)) },
+                    onClick = { onSelect(option); query = displayLabel(option); expanded = false },
                 )
             }
         }
@@ -83,6 +86,8 @@ fun FilterChipDropdown(
     onSelect: (String) -> Unit,
     allValue: String = "All",
     displayText: String = selected,
+    // options/selected stay the stored value; this only controls what's shown for them.
+    displayLabel: (String) -> String = { it },
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -91,7 +96,7 @@ fun FilterChipDropdown(
         FilterChip(
             selected = active,
             onClick = { expanded = true },
-            label = { Text(if (active) displayText else label) },
+            label = { Text(if (active) displayLabel(displayText) else label) },
             trailingIcon = if (active) {
                 {
                     Icon(
@@ -106,7 +111,7 @@ fun FilterChipDropdown(
         )
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             options.forEach { option ->
-                DropdownMenuItem(text = { Text(option) }, onClick = { onSelect(option); expanded = false })
+                DropdownMenuItem(text = { Text(displayLabel(option)) }, onClick = { onSelect(option); expanded = false })
             }
         }
     }

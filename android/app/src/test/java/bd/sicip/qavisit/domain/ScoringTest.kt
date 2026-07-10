@@ -81,6 +81,10 @@ class ScoringTest {
         assertEquals(0, points("bogus"))
     }
 
+    @Test fun category_labels_cover_exactly_the_points_keys() {
+        assertEquals(POINTS.keys, CATEGORY_LABELS.keys)
+    }
+
     // ---- totalPoints: skip deleted ----
     @Test fun totalPoints_sums_skipping_deleted() {
         val visits = listOf(

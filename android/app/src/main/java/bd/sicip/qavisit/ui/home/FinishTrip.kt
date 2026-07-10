@@ -25,6 +25,7 @@ import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Trip
 import bd.sicip.qavisit.data.db.Visit
 import bd.sicip.qavisit.data.sync.SyncNow
+import bd.sicip.qavisit.domain.CATEGORY_LABELS
 import bd.sicip.qavisit.domain.autoCategory
 import bd.sicip.qavisit.domain.points
 import bd.sicip.qavisit.domain.primaryVisit
@@ -70,6 +71,7 @@ fun FinishTripDialog(trip: Trip, visits: List<Visit>, db: AppDb, onDismiss: () -
                         options = CATEGORIES,
                         selected = finalCategory,
                         onSelect = { overrideCategory = if (it == autoCat) null else it },
+                        displayLabel = { CATEGORY_LABELS[it] ?: it },
                     )
                     Text("Points: ${points(finalCategory)}")
                 }

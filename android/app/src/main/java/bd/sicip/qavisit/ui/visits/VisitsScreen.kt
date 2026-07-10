@@ -48,6 +48,7 @@ import bd.sicip.qavisit.data.db.Officer
 import bd.sicip.qavisit.data.db.Visit
 import bd.sicip.qavisit.data.seed.DISTRICTS
 import bd.sicip.qavisit.data.seed.PURPOSES
+import bd.sicip.qavisit.domain.CATEGORY_LABELS
 import bd.sicip.qavisit.domain.POINTS
 import bd.sicip.qavisit.domain.points
 import bd.sicip.qavisit.ui.common.FilterChipDropdown
@@ -124,6 +125,7 @@ fun VisitsScreen(officerId: String, db: AppDb, onEditVisit: (String) -> Unit, on
                     selected = filter.category,
                     onSelect = { filter = filter.copy(category = it) },
                     allValue = FILTER_ALL,
+                    displayLabel = { CATEGORY_LABELS[it] ?: it },
                 )
             }
             item {

@@ -43,6 +43,7 @@ import bd.sicip.qavisit.data.db.VisitDao
 import bd.sicip.qavisit.data.seed.ASSOCIATIONS
 import bd.sicip.qavisit.data.seed.DISTRICTS
 import bd.sicip.qavisit.data.seed.PURPOSES
+import bd.sicip.qavisit.domain.CATEGORY_LABELS
 import bd.sicip.qavisit.domain.POINTS
 import bd.sicip.qavisit.domain.autoCategory
 import bd.sicip.qavisit.ui.common.PickerDropdown
@@ -205,6 +206,7 @@ fun VisitForm(
                 options = CATEGORY_OPTIONS,
                 selected = category,
                 onSelect = { category = it; categoryTouched = true },
+                displayLabel = { CATEGORY_LABELS[it] ?: it },
             )
             Text(
                 "Auto: $auto — change to override",

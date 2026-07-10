@@ -20,6 +20,20 @@ val POINTS: Map<String, Int> = mapOf(
 
 fun points(category: String): Int = POINTS[category] ?: 0
 
+// full explanation shown wherever the user picks/reads a category (dropdowns); stored value stays
+// the bare code (POINTS key) -- this map is display-only.
+val CATEGORY_LABELS: Map<String, String> = mapOf(
+    "A**" to "A** — 7D6N (100 pts)",
+    "A++" to "A++ — 6D5N (85 pts)",
+    "A+" to "A+ — 5D4N (69 pts)",
+    "A" to "A — 4D3N (53 pts)",
+    "B" to "B — 3D2N (36 pts)",
+    "C" to "C — 2D1N (20 pts)",
+    "D" to "D — 1 day / Dhaka non-metro (4 pts)",
+    "E" to "E — Dhaka metro (1 pt)",
+    "N/A" to "N/A — Additional (0 pts)",
+)
+
 // minimal shape scoring needs from a visit; keeps this file free of Room/android deps
 data class VisitScore(val officerId: String, val category: String, val deleted: Boolean = false)
 
