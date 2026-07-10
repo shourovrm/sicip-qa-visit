@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- exposes only the cache dir the bill PDF is written into (see pdf/BillPdf.kt) -->
+<!-- exposes only the cache dir the bill PDF is written into (see pdf/BillPrinter.kt) -->
 <paths>
     <cache-path name="bills" path="." />
 </paths>

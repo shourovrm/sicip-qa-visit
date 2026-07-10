@@ -132,7 +132,7 @@ fun renderableFromSnapshot(json: JsonObject): BillSnapshot {
 
 // PDF-ready form: per-leg night-stay/food-day recomputed the same way bill prep computes them
 // (day-grouped, last day halved/zeroed, whole trip zeroed if both nights and food are 0) so
-// re-rendering later via pdf/BillPdf.kt reproduces the original submitted PDF.
+// re-rendering later via pdf/BillHtml.kt reproduces the original submitted PDF.
 fun BillSnapshot.toBillTrips(): List<BillTrip> = trips.map { t ->
     val mathLegs = t.legs.map { Leg(fare = it.fare, depDate = it.depDate) }
     val endDate = t.legs.maxOfOrNull { it.depDate } ?: billDate

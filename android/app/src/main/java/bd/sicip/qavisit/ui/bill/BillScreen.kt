@@ -1,7 +1,7 @@
 // TA/DA bill flow: New bill (pick own finished trips (step 1), edit night/food per trip +
 // preview live totals (step 2), Submit bill freezes a snapshot into the immutable archive) and
 // Previous bills (read-only list + detail of everything already submitted). The official-
-// template PDF (pdf/BillPdf.kt) is generated either from the live preview (Generate PDF, still
+// template PDF (pdf/BillHtml.kt + pdf/BillPrinter.kt) is generated either from the live preview (Generate PDF, still
 // editable up to that point) or deterministically from a frozen snapshot (Submit bill / View
 // PDF on a previous bill) -- see domain/BillSnapshot.kt. everything here is plain material3 --
 // only the PDF itself is styled to look like the government form.
@@ -80,7 +80,9 @@ import bd.sicip.qavisit.domain.tripFoodDays
 import bd.sicip.qavisit.domain.tripNights
 import bd.sicip.qavisit.pdf.BillLeg
 import bd.sicip.qavisit.pdf.BillTrip
-import bd.sicip.qavisit.pdf.generateBillPdf
+import bd.sicip.qavisit.pdf.buildBillHtml
+import bd.sicip.qavisit.pdf.purposeDate
+import bd.sicip.qavisit.pdf.renderBillPdf
 import bd.sicip.qavisit.ui.common.TwoTabRow
 import bd.sicip.qavisit.ui.common.showDatePicker
 import bd.sicip.qavisit.ui.home.LegFormFields
@@ -272,6 +274,7 @@ private fun PreviousBillsList(bills: List<Bill>, onOpen: (Bill) -> Unit) {
 @Composable
 private fun PreviousBillDetail(bill: Bill, onBack: () -> Unit) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val snapshot = remember(bill.id) { bill.parseSnapshot() }
     Column(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -296,14 +299,16 @@ private fun PreviousBillDetail(bill: Bill, onBack: () -> Unit) {
         }
         Button(
             onClick = {
-                val file = generateBillPdf(
-                    context = context,
-                    officerName = snapshot.officerName,
-                    billDate = snapshot.billDate,
-                    trips = snapshot.toBillTrips(),
-                    totals = snapshot.totals,
-                )
-                shareBillPdf(context, file)
+                scope.launch {
+                    val html = buildBillHtml(
+                        officerName = snapshot.officerName,
+                        billDate = snapshot.billDate,
+                        trips = snapshot.toBillTrips(),
+                        totals = snapshot.totals,
+                    )
+                    val file = renderBillPdf(context, html)
+                    shareBillPdf(context, file)
+                }
             },
             modifier = Modifier.fillMaxWidth().padding(16.dp).height(48.dp),
         ) { Text("View PDF") }
@@ -375,21 +380,23 @@ private fun BillPreviewStep(
         }
         Button(
             onClick = {
-                val file = generateBillPdf(
-                    context = context,
-                    officerName = officerName,
-                    billDate = billDate,
-                    trips = edits.map { it.toBillTrip() },
-                    totals = totals,
-                )
-                val saved = saveToDownloads(context, file)
-                Toast.makeText(
-                    context,
-                    if (saved) "Saved to Downloads" else "Couldn't save to Downloads",
-                    Toast.LENGTH_SHORT,
-                ).show()
-                shareBillPdf(context, file)
-                onGeneratedPreview()
+                scope.launch {
+                    val html = buildBillHtml(
+                        officerName = officerName,
+                        billDate = billDate,
+                        trips = edits.map { it.toBillTrip() },
+                        totals = totals,
+                    )
+                    val file = renderBillPdf(context, html)
+                    val saved = saveToDownloads(context, file)
+                    Toast.makeText(
+                        context,
+                        if (saved) "Saved to Downloads" else "Couldn't save to Downloads",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                    shareBillPdf(context, file)
+                    onGeneratedPreview()
+                }
             },
             modifier = Modifier.fillMaxWidth().padding(16.dp).height(48.dp),
         ) { Text("Generate PDF") }
@@ -432,13 +439,13 @@ private fun BillPreviewStep(
                         )
                         edits.forEach { db.tripDao().markSubmitted(it.candidate.trip.id, now) }
                         SyncNow.enqueue(context) // push the new bill + submitted trips promptly, don't wait for the 15-min periodic job
-                        val file = generateBillPdf(
-                            context = context,
+                        val html = buildBillHtml(
                             officerName = officerName,
                             billDate = billDate,
                             trips = snapshot.toBillTrips(),
                             totals = totals,
                         )
+                        val file = renderBillPdf(context, html)
                         saveToDownloads(context, file)
                         shareBillPdf(context, file)
                         showSubmitConfirm = false
@@ -456,10 +463,13 @@ private fun TripEditCard(edit: TripEdit, db: AppDb) {
     val scope = rememberCoroutineScope()
     var editingLeg by remember { mutableStateOf<TravelLeg?>(null) }
     var showTravelForm by remember { mutableStateOf(false) }
+    var places by remember { mutableStateOf<List<String>>(emptyList()) }
 
     suspend fun reloadLegs() {
         edit.legs = db.travelLegDao().byTrip(edit.candidate.trip.id)
     }
+
+    LaunchedEffect(Unit) { places = db.travelLegDao().distinctPlaces() }
 
     Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -528,7 +538,7 @@ private fun TripEditCard(edit: TripEdit, db: AppDb) {
             title = { Text(if (editing != null) "Edit travel" else "Add travel") },
             text = {
                 Column(modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
-                    LegFormFields(draft)
+                    LegFormFields(draft, places)
                 }
             },
             confirmButton = {
@@ -567,10 +577,11 @@ private fun TotalsCard(totals: BillTotals) {
     }
 }
 
-// "Purpose: {purpose} - {association} (Ref: {ref_no or —}, {start_date})" -- one line per
-// trip's primary visit, printed as the purpose band above that trip's itinerary rows.
+// "Purpose: {purpose} - {association} (Ref: {ref_no or —}, {ref_date or start_date})" -- one
+// line per trip's primary visit, printed as the purpose band above that trip's itinerary rows.
+// date-selection rule (ref_date over start_date) lives in pdf/BillHtml.purposeDate, see there.
 private fun purposeLine(v: Visit): String =
-    "Purpose: ${v.purpose} - ${v.association} (Ref: ${v.refNo ?: "—"}, ${v.startDate.format()})"
+    "Purpose: ${v.purpose} - ${v.association} (Ref: ${v.refNo ?: "—"}, ${purposeDate(v.startDate, v.refDate)})"
 
 private fun String.format(): String = runCatching { LocalDate.parse(this).format(BILL_DATE_FMT) }.getOrDefault(this)
 

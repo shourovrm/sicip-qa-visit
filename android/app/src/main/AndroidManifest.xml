@@ -21,7 +21,7 @@
             </intent-filter>
         </activity>
 
-        <!-- shares the generated TA/DA bill PDF (cache dir) to the share sheet, see pdf/BillPdf.kt -->
+        <!-- shares the generated TA/DA bill PDF (cache dir) to the share sheet, see pdf/BillPrinter.kt -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="bd.sicip.qavisit.fileprovider"
