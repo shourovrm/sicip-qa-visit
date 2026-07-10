@@ -1,6 +1,11 @@
 // round-trip every field through toJson()/fromJson() for each synced table. dirty is
 // local-only and intentionally reset to false on the way back in -- that's the contract,
 // not a bug, so test entities are built with dirty = false to match.
+//
+// updated_at (and visit's created_at) are server-owned: toJson() must never emit them (C1),
+// so a literal toJson().toXxx() round trip no longer works -- fromJson requires the column.
+// each test asserts the push payload omits it, then re-adds it (as a pull would) before
+// checking every other field survives the round trip.
 package bd.sicip.qavisit.data.sync
 
 import bd.sicip.qavisit.data.db.Activity
@@ -8,10 +13,17 @@ import bd.sicip.qavisit.data.db.Leave
 import bd.sicip.qavisit.data.db.TravelLeg
 import bd.sicip.qavisit.data.db.Trip
 import bd.sicip.qavisit.data.db.Visit
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
+
+// simulates a server pull: adds back a column toJson() (correctly) never sent.
+private fun JsonObject.withColumn(key: String, value: String): JsonObject =
+    JsonObject(toMutableMap().also { it[key] = JsonPrimitive(value) })
 
 class MappersTest {
     @Test
@@ -27,7 +39,9 @@ class MappersTest {
             deleted = true,
             dirty = false,
         )
-        assertEquals(trip, trip.toJson().toTrip())
+        val json = trip.toJson()
+        assertFalse(json.containsKey("updated_at"))
+        assertEquals(trip, json.withColumn("updated_at", trip.updatedAt).toTrip())
     }
 
     @Test
@@ -43,7 +57,9 @@ class MappersTest {
             deleted = false,
             dirty = false,
         )
-        assertEquals(trip, trip.toJson().toTrip())
+        val json = trip.toJson()
+        assertFalse(json.containsKey("updated_at"))
+        assertEquals(trip, json.withColumn("updated_at", trip.updatedAt).toTrip())
     }
 
     @Test
@@ -71,7 +87,13 @@ class MappersTest {
             deleted = true,
             dirty = false,
         )
-        assertEquals(visit, visit.toJson().toVisit())
+        val json = visit.toJson()
+        assertFalse(json.containsKey("updated_at"))
+        assertFalse(json.containsKey("created_at"))
+        assertEquals(
+            visit,
+            json.withColumn("updated_at", visit.updatedAt).withColumn("created_at", visit.createdAt).toVisit(),
+        )
     }
 
     @Test
@@ -99,7 +121,13 @@ class MappersTest {
             deleted = false,
             dirty = false,
         )
-        assertEquals(visit, visit.toJson().toVisit())
+        val json = visit.toJson()
+        assertFalse(json.containsKey("updated_at"))
+        assertFalse(json.containsKey("created_at"))
+        assertEquals(
+            visit,
+            json.withColumn("updated_at", visit.updatedAt).withColumn("created_at", visit.createdAt).toVisit(),
+        )
     }
 
     @Test
@@ -123,7 +151,9 @@ class MappersTest {
             deleted = true,
             dirty = false,
         )
-        assertEquals(leg, leg.toJson().toTravelLeg())
+        val json = leg.toJson()
+        assertFalse(json.containsKey("updated_at"))
+        assertEquals(leg, json.withColumn("updated_at", leg.updatedAt).toTravelLeg())
     }
 
     @Test
@@ -147,7 +177,9 @@ class MappersTest {
             deleted = false,
             dirty = false,
         )
-        assertEquals(leg, leg.toJson().toTravelLeg())
+        val json = leg.toJson()
+        assertFalse(json.containsKey("updated_at"))
+        assertEquals(leg, json.withColumn("updated_at", leg.updatedAt).toTravelLeg())
     }
 
     @Test
@@ -162,7 +194,9 @@ class MappersTest {
             deleted = true,
             dirty = false,
         )
-        assertEquals(activity, activity.toJson().toActivity())
+        val json = activity.toJson()
+        assertFalse(json.containsKey("updated_at"))
+        assertEquals(activity, json.withColumn("updated_at", activity.updatedAt).toActivity())
     }
 
     @Test
@@ -177,7 +211,9 @@ class MappersTest {
             deleted = false,
             dirty = false,
         )
-        assertEquals(activity, activity.toJson().toActivity())
+        val json = activity.toJson()
+        assertFalse(json.containsKey("updated_at"))
+        assertEquals(activity, json.withColumn("updated_at", activity.updatedAt).toActivity())
     }
 
     @Test
@@ -195,7 +231,9 @@ class MappersTest {
             deleted = true,
             dirty = false,
         )
-        assertEquals(leave, leave.toJson().toLeave())
+        val json = leave.toJson()
+        assertFalse(json.containsKey("updated_at"))
+        assertEquals(leave, json.withColumn("updated_at", leave.updatedAt).toLeave())
     }
 
     @Test
@@ -213,7 +251,9 @@ class MappersTest {
             deleted = false,
             dirty = false,
         )
-        assertEquals(leave, leave.toJson().toLeave())
+        val json = leave.toJson()
+        assertFalse(json.containsKey("updated_at"))
+        assertEquals(leave, json.withColumn("updated_at", leave.updatedAt).toLeave())
     }
 
     @Test

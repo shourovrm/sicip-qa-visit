@@ -25,7 +25,8 @@ fun shouldApplyRemote(localDirty: Boolean): Boolean = !localDirty
 
 // iso-8601 timestamps (same format, same offset) sort the same lexicographically as
 // chronologically, so "newest" is just string max. equal timestamps compare equal, no
-// special case needed.
+// special case needed. relies on postgrest always rendering timestamptz with a fixed-width
+// +00:00 offset -- a mixed offset format would break the lexicographic ordering.
 fun advanceWatermark(current: String, updatedAts: List<String>): String =
     (updatedAts + current).max()
 
@@ -82,7 +83,7 @@ class SyncEngine(
         val dirty = dao.dirtyRows()
         if (dirty.isEmpty()) return 0
         client.upsert("trips", JsonArray(dirty.map { it.toJson() }), token)
-        dao.clearDirty(dirty.map { it.id })
+        dao.clearDirty(dirty.map { it.id to it.updatedAt })
         return dirty.size
     }
 
@@ -91,7 +92,7 @@ class SyncEngine(
         val dirty = dao.dirtyRows()
         if (dirty.isEmpty()) return 0
         client.upsert("visits", JsonArray(dirty.map { it.toJson() }), token)
-        dao.clearDirty(dirty.map { it.id })
+        dao.clearDirty(dirty.map { it.id to it.updatedAt })
         return dirty.size
     }
 
@@ -100,7 +101,7 @@ class SyncEngine(
         val dirty = dao.dirtyRows()
         if (dirty.isEmpty()) return 0
         client.upsert("travel_legs", JsonArray(dirty.map { it.toJson() }), token)
-        dao.clearDirty(dirty.map { it.id })
+        dao.clearDirty(dirty.map { it.id to it.updatedAt })
         return dirty.size
     }
 
@@ -109,7 +110,7 @@ class SyncEngine(
         val dirty = dao.dirtyRows()
         if (dirty.isEmpty()) return 0
         client.upsert("activities", JsonArray(dirty.map { it.toJson() }), token)
-        dao.clearDirty(dirty.map { it.id })
+        dao.clearDirty(dirty.map { it.id to it.updatedAt })
         return dirty.size
     }
 
@@ -118,7 +119,7 @@ class SyncEngine(
         val dirty = dao.dirtyRows()
         if (dirty.isEmpty()) return 0
         client.upsert("leaves", JsonArray(dirty.map { it.toJson() }), token)
-        dao.clearDirty(dirty.map { it.id })
+        dao.clearDirty(dirty.map { it.id to it.updatedAt })
         return dirty.size
     }
 
@@ -160,7 +161,11 @@ class SyncEngine(
                 applied++
             }
             // a colleague informed *me* of a brand-new trip of theirs -- post a local notice.
-            if (isNewTrip && remote.informedOfficerId == myUserId && remote.officerId != myUserId) {
+            // skip on the very first pull (watermark still at epoch): every existing trip looks
+            // "brand-new" then, which would fire a notification per historical inform at once.
+            if (watermark != EPOCH_WATERMARK &&
+                isNewTrip && remote.informedOfficerId == myUserId && remote.officerId != myUserId
+            ) {
                 val officerName = officerDao.byId(remote.officerId)?.name ?: "An officer"
                 notifyInformed(remote.id, officerName)
             }

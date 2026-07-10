@@ -1,6 +1,12 @@
 // entity <-> supabase json, one section per table. explicit fields only, no reflection --
 // keeps kotlin camelCase and sql snake_case (see supabase/migrations/001_init.sql) honest
 // against each other, and catches a renamed column at compile time instead of in the field.
+//
+// updated_at (and visit's created_at) are never pushed: postgrest's merge-duplicates upsert
+// takes an INSERT path on conflict, which skips the moddatetime BEFORE UPDATE trigger, so a
+// client-supplied updated_at would become server truth and jump ahead of peers' watermarks.
+// omitting the column lets the column default / trigger own it. fromJson still reads it back
+// on every pull, since the server does stamp it there.
 package bd.sicip.qavisit.data.sync
 
 import bd.sicip.qavisit.data.db.Activity
@@ -38,7 +44,6 @@ fun Trip.toJson(): JsonObject = buildJsonObject {
     put("started_at", startedAt)
     put("finished_at", finishedAt)
     put("informed_officer_id", informedOfficerId)
-    put("updated_at", updatedAt)
     put("deleted", deleted)
 }
 
@@ -75,8 +80,6 @@ fun Visit.toJson(): JsonObject = buildJsonObject {
     put("status", status)
     put("remarks", remarks)
     put("source", source)
-    put("created_at", createdAt)
-    put("updated_at", updatedAt)
     put("deleted", deleted)
 }
 
@@ -120,7 +123,6 @@ fun TravelLeg.toJson(): JsonObject = buildJsonObject {
     put("night_stay", nightStay)
     put("food_day", foodDay)
     put("remarks", remarks)
-    put("updated_at", updatedAt)
     put("deleted", deleted)
 }
 
@@ -151,7 +153,6 @@ fun Activity.toJson(): JsonObject = buildJsonObject {
     put("visit_id", visitId)
     put("at", at)
     put("note", note)
-    put("updated_at", updatedAt)
     put("deleted", deleted)
 }
 
@@ -176,7 +177,6 @@ fun Leave.toJson(): JsonObject = buildJsonObject {
     put("start_date", startDate)
     put("end_date", endDate)
     put("status", status)
-    put("updated_at", updatedAt)
     put("deleted", deleted)
 }
 

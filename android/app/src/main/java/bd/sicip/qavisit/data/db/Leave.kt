@@ -6,6 +6,7 @@ import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Upsert
 
 @Entity(tableName = "leaves")
@@ -48,8 +49,16 @@ interface LeaveDao {
     @Query("SELECT * FROM leaves WHERE dirty = 1")
     suspend fun dirtyRows(): List<Leave>
 
-    @Query("UPDATE leaves SET dirty = 0 WHERE id IN (:ids)")
-    suspend fun clearDirty(ids: List<String>)
+    // conditional on the pushed snapshot's updated_at -- if the row was edited again while the
+    // upsert was in flight, its updated_at has already moved on and this clear is a no-op, so
+    // the fresh edit stays dirty instead of being clobbered by the next pull.
+    @Query("UPDATE leaves SET dirty = 0 WHERE id = :id AND updated_at = :updatedAt")
+    suspend fun clearDirtyIfUnchanged(id: String, updatedAt: String)
+
+    @Transaction
+    suspend fun clearDirty(snapshots: List<Pair<String, String>>) {
+        snapshots.forEach { (id, updatedAt) -> clearDirtyIfUnchanged(id, updatedAt) }
+    }
 
     @Query("SELECT MAX(updated_at) FROM leaves")
     suspend fun maxUpdatedAt(): String?
