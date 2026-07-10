@@ -21,6 +21,7 @@ data class Visit(
     @ColumnInfo(name = "dhaka_metro") val dhakaMetro: Boolean? = null,
     val purpose: String,
     @ColumnInfo(name = "ref_no") val refNo: String? = null,
+    @ColumnInfo(name = "ref_date") val refDate: String? = null,
     @ColumnInfo(name = "start_date") val startDate: String,
     @ColumnInfo(name = "end_date") val endDate: String,
     val category: String = "N/A",
@@ -83,4 +84,14 @@ interface VisitDao {
 
     @Query("SELECT MAX(updated_at) FROM visits")
     suspend fun maxUpdatedAt(): String?
+
+    // office orders (ref_no) are shared across officers, not per-officer -- so this looks
+    // across every officer's visits, not just the caller's.
+    @Query("SELECT DISTINCT ref_no FROM visits WHERE ref_no IS NOT NULL AND ref_no != '' ORDER BY ref_no")
+    suspend fun distinctRefs(): List<String>
+
+    // most recent ref_date recorded against a given ref_no, for prefilling a new visit that
+    // reuses an existing office order.
+    @Query("SELECT ref_date FROM visits WHERE ref_no = :refNo AND ref_date IS NOT NULL ORDER BY updated_at DESC LIMIT 1")
+    suspend fun refDateFor(refNo: String): String?
 }

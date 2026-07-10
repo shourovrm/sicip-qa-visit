@@ -19,6 +19,7 @@ data class Trip(
     @ColumnInfo(name = "finished_at") val finishedAt: String? = null,
     @ColumnInfo(name = "informed_officer_id") val informedOfficerId: String? = null,
     @ColumnInfo(name = "updated_at") val updatedAt: String,
+    val submitted: Boolean = false,
     val deleted: Boolean = false,
     val dirty: Boolean = false,
 )
@@ -38,9 +39,16 @@ interface TripDao {
     @Query("SELECT * FROM trips WHERE officer_id = :officerId AND status = 'active' AND deleted = 0 LIMIT 1")
     fun activeTripFlow(officerId: String): Flow<Trip?>
 
-    // TA/DA bill picker: own finished trips to batch onto a bill, newest first.
-    @Query("SELECT * FROM trips WHERE officer_id = :officerId AND status = 'finished' AND deleted = 0 ORDER BY started_at DESC")
-    suspend fun finishedByOfficer(officerId: String): List<Trip>
+    // TA/DA bill picker: own finished, not-yet-submitted trips to batch onto a bill, newest first.
+    @Query("SELECT * FROM trips WHERE officer_id = :officerId AND status = 'finished' AND submitted = 0 AND deleted = 0 ORDER BY started_at DESC")
+    suspend fun finishedUnsubmittedByOfficer(officerId: String): List<Trip>
+
+    // trips already batched onto a submitted bill -- history view.
+    @Query("SELECT * FROM trips WHERE officer_id = :officerId AND status = 'finished' AND submitted = 1 AND deleted = 0 ORDER BY started_at DESC")
+    suspend fun finishedSubmittedByOfficer(officerId: String): List<Trip>
+
+    @Query("UPDATE trips SET submitted = 1, dirty = 1, updated_at = :now WHERE id = :id")
+    suspend fun markSubmitted(id: String, now: String)
 
     // sync needs this to check "already had this row?" and "is it locally dirty?" before overwriting.
     @Query("SELECT * FROM trips WHERE id = :id")

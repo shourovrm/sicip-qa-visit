@@ -102,7 +102,7 @@ fun BillScreen(officerId: String, db: AppDb, onDone: () -> Unit) {
 
     LaunchedEffect(officerId) {
         officerName = db.officerDao().byId(officerId)?.name ?: ""
-        candidates = db.tripDao().finishedByOfficer(officerId).mapNotNull { trip ->
+        candidates = db.tripDao().finishedUnsubmittedByOfficer(officerId).mapNotNull { trip ->
             val visits = db.visitDao().byTrip(trip.id)
             val primary = primaryVisit(visits) { it.isAdditional } ?: return@mapNotNull null
             TripCandidate(trip, primary, db.travelLegDao().byTrip(trip.id))

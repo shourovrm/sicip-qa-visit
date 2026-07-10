@@ -44,6 +44,7 @@ fun Trip.toJson(): JsonObject = buildJsonObject {
     put("started_at", startedAt)
     put("finished_at", finishedAt)
     put("informed_officer_id", informedOfficerId)
+    put("submitted", submitted)
     put("deleted", deleted)
 }
 
@@ -57,6 +58,7 @@ fun JsonObject.toTrip(): Trip = Trip(
     finishedAt = strOrNull("finished_at"),
     informedOfficerId = strOrNull("informed_officer_id"),
     updatedAt = str("updated_at"),
+    submitted = bool("submitted"),
     deleted = bool("deleted"),
     dirty = false,
 )
@@ -72,6 +74,7 @@ fun Visit.toJson(): JsonObject = buildJsonObject {
     put("dhaka_metro", dhakaMetro)
     put("purpose", purpose)
     put("ref_no", refNo)
+    put("ref_date", refDate)
     put("start_date", startDate)
     put("end_date", endDate)
     put("category", category)
@@ -93,6 +96,7 @@ fun JsonObject.toVisit(): Visit = Visit(
     dhakaMetro = boolOrNull("dhaka_metro"),
     purpose = str("purpose"),
     refNo = strOrNull("ref_no"),
+    refDate = strOrNull("ref_date"),
     startDate = str("start_date"),
     endDate = str("end_date"),
     category = str("category"),

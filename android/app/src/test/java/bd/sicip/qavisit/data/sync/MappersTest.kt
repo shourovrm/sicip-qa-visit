@@ -36,6 +36,7 @@ class MappersTest {
             finishedAt = "2024-01-02T00:00:00Z",
             informedOfficerId = "o2",
             updatedAt = "2024-01-03T00:00:00Z",
+            submitted = true,
             deleted = true,
             dirty = false,
         )
@@ -54,6 +55,7 @@ class MappersTest {
             finishedAt = null,
             informedOfficerId = null,
             updatedAt = "2024-01-01T00:00:00Z",
+            submitted = false,
             deleted = false,
             dirty = false,
         )
@@ -74,6 +76,7 @@ class MappersTest {
             dhakaMetro = true,
             purpose = "purpose text",
             refNo = "REF-1",
+            refDate = "2024-01-01",
             startDate = "2024-01-01",
             endDate = "2024-01-02",
             category = "A+",
@@ -108,6 +111,7 @@ class MappersTest {
             dhakaMetro = null,
             purpose = "purpose text",
             refNo = null,
+            refDate = null,
             startDate = "2024-01-01",
             endDate = "2024-01-01",
             category = "N/A",
