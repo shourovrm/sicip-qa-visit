@@ -32,11 +32,10 @@
   let loadStarted = false
   $: if ($officer && !loadStarted) { loadStarted = true; load() }
 
+  // JS-side lookup (event handlers) -- template-side lookups are inlined instead, see the
+  // {@const} comment in the markup below for why.
   function primaryVisit(tripId) {
     return visits.find((v) => v.trip_id === tripId && !v.is_additional)
-  }
-  function tripLegs(tripId) {
-    return legs.filter((l) => l.trip_id === tripId)
   }
 
   // no primary visit: fall back to the officer's name for a tour viewed by someone else
@@ -102,7 +101,12 @@
   <p class="muted">No tours yet.</p>
 {:else}
   {#each trips as trip (trip.id)}
-    {@const pv = primaryVisit(trip.id)}
+    <!-- pv/tLegs inline `visits`/`legs` lookups (not the primaryVisit/tripLegs helpers) so
+         svelte's compiler sees this each-block depends on those variables -- a helper *call*
+         hides the dependency from svelte's static analysis, so reassigning visits/legs after
+         an edit (setCategory, saveLeg) would silently leave this block stale otherwise. -->
+    {@const pv = visits.find((v) => v.trip_id === trip.id && !v.is_additional)}
+    {@const tLegs = legs.filter((l) => l.trip_id === trip.id)}
     <div class="card trip">
       <div class="spread" on:click={() => (openTripId = openTripId === trip.id ? null : trip.id)} role="button" tabindex="0" on:keydown={() => {}}>
         <div>
@@ -130,8 +134,8 @@
           <table>
             <thead><tr><th>Dep</th><th>Arr</th><th>Mode</th><th>Class</th><th>Fare</th><th>Remarks</th><th></th></tr></thead>
             <tbody>
-              {#if tripLegs(trip.id).length === 0}<tr><td colspan="7" class="muted">No travel yet.</td></tr>{/if}
-              {#each tripLegs(trip.id) as l (l.id)}
+              {#if tLegs.length === 0}<tr><td colspan="7" class="muted">No travel yet.</td></tr>{/if}
+              {#each tLegs as l (l.id)}
                 <tr>
                   <td>{l.dep_date} {l.dep_time}<br /><span class="muted">{l.dep_place}</span></td>
                   <td>{l.arr_date} {l.arr_time}<br /><span class="muted">{l.arr_place}</span></td>

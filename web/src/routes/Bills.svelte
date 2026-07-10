@@ -64,11 +64,13 @@
   }
 
   // build snapshot-shaped trips (same shape bills.data stores) from currently selected live trips.
-  // sel passed as arg so svelte's $: dependency tracking sees it (body-only refs aren't tracked).
+  // sel/allVisits passed as args (not read off the closure) so svelte's $: dependency tracking
+  // sees them -- a helper *call* like primaryVisit(id) hides the `visits` read from svelte's
+  // static analysis, so a category edit (setCategory) would leave totals stale otherwise.
   // nights/foodDays derived from the primary visit's category, not user-edited.
-  function buildSnapshotTrips(sel) {
+  function buildSnapshotTrips(sel, allVisits) {
     return [...sel].map((tripId) => {
-      const pv = primaryVisit(tripId)
+      const pv = allVisits.find((v) => v.trip_id === tripId && !v.is_additional)
       const tLegs = tripLegs(tripId)
       return {
         tripId,
@@ -84,7 +86,7 @@
     })
   }
 
-  $: selectedTrips = buildSnapshotTrips(selected)
+  $: selectedTrips = buildSnapshotTrips(selected, visits)
   $: billTripsPreview = toBillTrips({ billDate: new Date().toISOString().slice(0, 10), trips: selectedTrips })
   $: totals = billTotals(selectedTrips.map((t) => makeTrip(t.legs.map((l) => mkLeg(l.fare)), '', '', t.nights, t.foodDays)))
 
@@ -155,7 +157,7 @@
         <thead><tr><th></th><th>Institute</th><th>Dates</th><th>Category</th></tr></thead>
         <tbody>
           {#each trips as t (t.id)}
-            {@const pv = primaryVisit(t.id)}
+            {@const pv = visits.find((v) => v.trip_id === t.id && !v.is_additional)}
             <tr>
               <td><input type="checkbox" checked={selected.has(t.id)} on:change={() => toggle(t.id)} /></td>
               <td>{pv?.institute ?? '—'}</td>
@@ -169,7 +171,7 @@
       {#if selected.size > 0}
         <h3>Preview</h3>
         {#each [...selected] as tripId (tripId)}
-          {@const pv = primaryVisit(tripId)}
+          {@const pv = visits.find((v) => v.trip_id === tripId && !v.is_additional)}
           <div class="preview-trip">
             <p><b>{purposeLineFor(pv)}</b></p>
             <div class="row-wrap cat-row">
