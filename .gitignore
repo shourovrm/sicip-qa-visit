@@ -47,3 +47,4 @@ dist/
 __pycache__/
 *.pyc
 web/.cf-token
+!assets/tada-template.example.xlsx
