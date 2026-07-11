@@ -4,6 +4,7 @@
   import TopBar from './components/TopBar.svelte'
   import Login from './routes/Login.svelte'
   import ResetPassword from './routes/ResetPassword.svelte'
+  import Home from './routes/Home.svelte'
   import Visits from './routes/Visits.svelte'
   import Tours from './routes/Tours.svelte'
   import Bills from './routes/Bills.svelte'
@@ -17,11 +18,11 @@
   const isResetPath = location.pathname === '/reset'
 
   const pages = {
-    '/visits': Visits, '/tours': Tours, '/bills': Bills, '/team': Team,
+    '/': Home, '/visits': Visits, '/tours': Tours, '/bills': Bills, '/team': Team,
     '/leaves': Leaves, '/admin': Admin, '/profile': Profile,
   }
   $: base = '/' + $route.split('/')[1]
-  $: Page = pages[base] ?? Visits
+  $: Page = pages[base] ?? Home
 </script>
 
 {#if isResetPath}

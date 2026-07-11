@@ -3,7 +3,7 @@
 import { writable } from 'svelte/store'
 
 function currentHash() {
-  return location.hash.slice(1) || '/visits'
+  return location.hash.slice(1) || '/'
 }
 
 export const route = writable(currentHash())

@@ -4,6 +4,7 @@
   import { officer, isAdmin } from '../lib/auth.js'
 
   const tabs = [
+    ['/', 'Home'],
     ['/visits', 'Visits'],
     ['/tours', 'Tours'],
     ['/bills', 'Bills'],
