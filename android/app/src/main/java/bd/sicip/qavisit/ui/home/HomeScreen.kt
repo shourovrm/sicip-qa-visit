@@ -3,8 +3,7 @@
 // that opens the start-tour sheet pre-checked for that visit. FAB schedules a new visit.
 package bd.sicip.qavisit.ui.home
 
-import android.content.Intent
-import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,6 +47,7 @@ import bd.sicip.qavisit.domain.dayNumber
 import bd.sicip.qavisit.domain.primaryVisit
 import bd.sicip.qavisit.ui.common.StatusPill
 import bd.sicip.qavisit.ui.theme.LocalStatusColors
+import bd.sicip.qavisit.update.downloadAndInstall
 
 @Composable
 fun HomeScreen(
@@ -87,7 +87,10 @@ fun HomeScreen(
                 item {
                     UpdateBanner(
                         version = notice.latestVersion,
-                        onGet = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(notice.apkUrl))) },
+                        onGet = {
+                            downloadAndInstall(context, notice.apkUrl, notice.latestVersion)
+                            Toast.makeText(context, "Downloading update…", Toast.LENGTH_SHORT).show()
+                        },
                         onDismiss = { vm.dismissUpdateNotice() },
                     )
                 }
