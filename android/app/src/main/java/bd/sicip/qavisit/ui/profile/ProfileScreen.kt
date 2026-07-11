@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AlertDialog
@@ -24,6 +25,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -46,6 +48,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import bd.sicip.qavisit.BuildConfig
 import bd.sicip.qavisit.data.auth.SessionStore
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Officer
@@ -65,6 +68,8 @@ import java.io.IOException
 
 // public spreadsheet where visit-score categories/points are documented.
 private const val VISIT_SCORES_URL = "https://docs.google.com/spreadsheets/d/1MIZ7tMjWHKnM-NuLcfimH__N9YNac-MIQKXe_oUTBuM"
+private const val WEB_APP_URL = "https://sicip-qa-visit.shourovrm.workers.dev"
+private const val GITHUB_URL = "https://github.com/shourovrm/sicip-qa-visit"
 
 private data class MyStats(val points: Int = 0, val position: Int = 0, val officerCount: Int = 0, val visitCount: Int = 0)
 
@@ -114,6 +119,7 @@ fun ProfileScreen(
         item { ChangePasswordCard(sessionStore, client) }
         item { VisitScoresRow { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(VISIT_SCORES_URL))) } }
         item { SyncCard(lastSyncAt, lastError) { SyncNow.enqueue(context) } }
+        item { AboutCard { url -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } }
         item {
             OutlinedButton(
                 onClick = { showLogoutConfirm = true },
@@ -318,6 +324,46 @@ private fun SyncCard(lastSyncAt: String?, lastError: String?, onSyncNow: () -> U
                 shape = RoundedCornerShape(99),
                 modifier = Modifier.fillMaxWidth().height(48.dp),
             ) { Text("Sync now") }
+        }
+    }
+}
+
+@Composable
+private fun AboutCard(onOpen: (String) -> Unit) {
+    Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("SICIP QA Visit", style = MaterialTheme.typography.titleMedium)
+                IconButton(onClick = { onOpen(GITHUB_URL) }) {
+                    Icon(Icons.Filled.Code, contentDescription = "Source")
+                }
+            }
+            Text(
+                "Visit management for SICIP QA field officers — schedule visits, run tours, " +
+                    "log travel, auto-score performance, generate TA/DA bills. Offline-first.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "Created by Riad Mashrub Shourov, Program Officer (QA), SICIP",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "v${BuildConfig.VERSION_NAME}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "Web app",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.clickable { onOpen(WEB_APP_URL) },
+            )
         }
     }
 }
