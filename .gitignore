@@ -48,3 +48,4 @@ __pycache__/
 *.pyc
 web/.cf-token
 !assets/tada-template.example.xlsx
+sample.claude.md
