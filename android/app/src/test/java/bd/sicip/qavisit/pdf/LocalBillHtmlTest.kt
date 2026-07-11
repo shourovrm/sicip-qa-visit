@@ -29,10 +29,20 @@ class LocalBillHtmlTest {
         assertTrue(localBillTrips(listOf(trip)).isEmpty())
     }
 
-    @Test fun `N slash A mode leg is dropped`() {
-        val trip = BillTrip(purposeLine = "Purpose: X", legs = listOf(leg(mode = "N/A")), nights = 0, foodDays = 0.0)
+    @Test fun `N slash A mode leg with zero fare is still dropped by the fare rule`() {
+        val trip = BillTrip(purposeLine = "Purpose: X", legs = listOf(leg(mode = "N/A", fare = 0.0)), nights = 0, foodDays = 0.0)
 
         assertTrue(localBillTrips(listOf(trip)).isEmpty())
+    }
+
+    @Test fun `N slash A mode leg with fare and no ticket remark is kept and prints dash mode`() {
+        val trip = BillTrip(purposeLine = "Purpose: X", legs = listOf(leg(mode = "N/A", fare = 150.0)), nights = 0, foodDays = 0.0)
+
+        val result = localBillTrips(listOf(trip))
+        assertEquals(1, result.single().legs.size)
+
+        val html = buildLocalBillHtml("Officer", "2026-06-10", listOf(trip))
+        assertTrue(html.contains("<td>-</td>"))
     }
 
     @Test fun `trip losing every leg drops its whole purpose band`() {
@@ -48,7 +58,7 @@ class LocalBillHtmlTest {
     @Test fun `total sums only the surviving fares`() {
         val trip = BillTrip(
             purposeLine = "Purpose: X",
-            legs = listOf(leg(fare = 300.0), leg(fare = 0.0), leg(mode = "N/A"), leg(remarks = TICKET_REMARK), leg(fare = 200.0)),
+            legs = listOf(leg(fare = 300.0), leg(fare = 0.0), leg(remarks = TICKET_REMARK), leg(fare = 200.0)),
             nights = 0, foodDays = 0.0,
         )
         val html = buildLocalBillHtml("Officer", "2026-06-10", listOf(trip))

@@ -82,13 +82,12 @@ function localLeg(overrides = {}) {
 }
 
 describe('localBillTrips', () => {
-  it('drops zero-fare, ticket-remark, and N/A-mode legs; keeps the rest', () => {
+  it('drops zero-fare and ticket-remark legs; keeps the rest', () => {
     const trips = [{
       purposeLine: 'P1',
       legs: [
         localLeg({ fare: 0 }),
         localLeg({ remarks: TICKET_REMARK }),
-        localLeg({ mode: 'N/A' }),
         localLeg({ fare: 100 }),
       ],
     }]
@@ -98,8 +97,22 @@ describe('localBillTrips', () => {
     expect(out[0].legs[0].fare).toBe(100)
   })
 
+  it('N/A-mode leg with zero fare is still dropped by the fare rule', () => {
+    const trips = [{ purposeLine: 'P1', legs: [localLeg({ mode: 'N/A', fare: 0 })] }]
+    expect(localBillTrips(trips)).toEqual([])
+  })
+
+  it('N/A-mode leg with fare and no ticket remark is kept and prints dash mode', () => {
+    const trips = [{ purposeLine: 'P1', legs: [localLeg({ mode: 'N/A', fare: 150 })] }]
+    const out = localBillTrips(trips)
+    expect(out[0].legs.length).toBe(1)
+
+    const html = buildLocalBillHtml('X', '2026-07-01', trips)
+    expect(html).toContain('<td>-</td>')
+  })
+
   it('drops a trip whose every leg is filtered out', () => {
-    const trips = [{ purposeLine: 'AllGone', legs: [localLeg({ fare: 0 }), localLeg({ mode: 'N/A' })] }]
+    const trips = [{ purposeLine: 'AllGone', legs: [localLeg({ fare: 0 }), localLeg({ fare: 0, mode: 'N/A' })] }]
     expect(localBillTrips(trips)).toEqual([])
   })
 })

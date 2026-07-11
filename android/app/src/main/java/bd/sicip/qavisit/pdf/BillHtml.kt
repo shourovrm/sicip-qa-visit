@@ -103,11 +103,12 @@ fun buildLocalBillHtml(officerName: String, billDate: String, trips: List<BillTr
     append("</body></html>")
 }
 
-// row filter for the local bill: ticket-attached legs, zero-fare legs and N/A-mode legs never
-// belonged on a cash claim itinerary in the first place -- drop them, and drop a trip's whole
-// purpose band if nothing survives (pure so it's unit-testable on its own).
+// row filter for the local bill: ticket-attached legs and zero-fare legs never belonged on a
+// cash claim itinerary in the first place -- drop them (N/A-mode alone no longer excludes a
+// leg, only fare = 0 does), and drop a trip's whole purpose band if nothing survives (pure so
+// it's unit-testable on its own).
 fun localBillTrips(trips: List<BillTrip>): List<BillTrip> = trips.mapNotNull { trip ->
-    val legs = trip.legs.filter { it.fare > 0.0 && it.mode != "N/A" && it.remarks?.contains(TICKET_REMARK) != true }
+    val legs = trip.legs.filter { it.fare > 0.0 && it.remarks?.contains(TICKET_REMARK) != true }
     if (legs.isEmpty()) null else trip.copy(legs = legs)
 }
 

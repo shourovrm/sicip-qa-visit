@@ -117,11 +117,12 @@ function tripRowsHtml(trip) {
   return html
 }
 
-// local bill: drop legs with no fare, ticket-attached remark, or no mode claimed (N/A) -- these
-// aren't part of the local-travel claim. drop trips left with zero legs.
+// local bill: drop legs with no fare or a ticket-attached remark -- these aren't part of the
+// local-travel claim (N/A mode alone no longer excludes a leg, only fare = 0 does). drop trips
+// left with zero legs.
 export function localBillTrips(trips) {
   return trips
-    .map((t) => ({ ...t, legs: t.legs.filter((l) => l.fare > 0 && !(l.remarks || '').includes(TICKET_REMARK) && l.mode !== 'N/A') }))
+    .map((t) => ({ ...t, legs: t.legs.filter((l) => l.fare > 0 && !(l.remarks || '').includes(TICKET_REMARK)) }))
     .filter((t) => t.legs.length > 0)
 }
 
@@ -143,7 +144,7 @@ function localTripRowsHtml(trip) {
       if (k === i) html += td(displayDate(first.arrDate), { rowspan: span })
       html += td(displayTime(leg.arrTime), { cls: 'time' })
       html += td(esc(leg.arrPlace), { cls: 'place' })
-      html += td(esc(leg.mode))
+      html += td(leg.mode === 'N/A' ? '-' : esc(leg.mode))
       html += td(dashIfZero(leg.fare), { cls: 'money' })
       html += td(esc(leg.remarks || '-'))
       html += '</tr>'

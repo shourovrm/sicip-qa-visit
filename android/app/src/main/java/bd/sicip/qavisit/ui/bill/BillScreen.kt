@@ -301,39 +301,45 @@ private fun PreviousBillDetail(bill: Bill, onBack: () -> Unit) {
             }
             item { TotalsCard(snapshot.totals) }
         }
-        Button(
-            onClick = {
-                scope.launch {
-                    val html = buildBillHtml(
-                        officerName = snapshot.officerName,
-                        billDate = snapshot.billDate,
-                        trips = snapshot.toBillTrips(),
-                        totals = snapshot.totals,
-                    )
-                    val file = renderBillPdf(context, html)
-                    shareBillPdf(context, file)
-                }
-            },
-            modifier = Modifier.fillMaxWidth().padding(16.dp).height(48.dp),
-        ) { Text("View TADA Bill PDF") }
-        Button(
-            onClick = {
-                scope.launch {
-                    val html = buildLocalBillHtml(
-                        officerName = snapshot.officerName,
-                        billDate = snapshot.billDate,
-                        trips = snapshot.toBillTrips(),
-                    )
-                    val file = renderBillPdf(context, html, filePrefix = "Local-tada_bill")
-                    shareBillPdf(context, file)
-                }
-            },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(48.dp),
-        ) { Text("View Local Bill PDF") }
-        OutlinedButton(
-            onClick = onBack,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp),
-        ) { Text("Back") }
+        // same shared rhythm as BillPreviewStep's button stack -- was fusing View Local/Back together.
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Button(
+                onClick = {
+                    scope.launch {
+                        val html = buildBillHtml(
+                            officerName = snapshot.officerName,
+                            billDate = snapshot.billDate,
+                            trips = snapshot.toBillTrips(),
+                            totals = snapshot.totals,
+                        )
+                        val file = renderBillPdf(context, html)
+                        shareBillPdf(context, file)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+            ) { Text("View TADA Bill PDF") }
+            Button(
+                onClick = {
+                    scope.launch {
+                        val html = buildLocalBillHtml(
+                            officerName = snapshot.officerName,
+                            billDate = snapshot.billDate,
+                            trips = snapshot.toBillTrips(),
+                        )
+                        val file = renderBillPdf(context, html, filePrefix = "Local-tada_bill")
+                        shareBillPdf(context, file)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+            ) { Text("View Local Bill PDF") }
+            OutlinedButton(
+                onClick = onBack,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Back") }
+        }
     }
 }
 
@@ -394,57 +400,64 @@ private fun BillPreviewStep(
             items(edits, key = { it.candidate.trip.id }) { edit -> TripEditCard(edit, db) }
             item { TotalsCard(totals) }
         }
-        Button(
-            onClick = {
-                scope.launch {
-                    val html = buildBillHtml(
-                        officerName = officerName,
-                        billDate = billDate,
-                        trips = edits.map { it.toBillTrip() },
-                        totals = totals,
-                    )
-                    val file = renderBillPdf(context, html)
-                    val saved = saveToDownloads(context, file)
-                    Toast.makeText(
-                        context,
-                        if (saved) "Saved to Downloads" else "Couldn't save to Downloads",
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                    shareBillPdf(context, file)
-                    onGeneratedPreview()
-                }
-            },
-            modifier = Modifier.fillMaxWidth().padding(16.dp).height(48.dp),
-        ) { Text("Generate TADA Bill PDF") }
-        Button(
-            onClick = {
-                scope.launch {
-                    val html = buildLocalBillHtml(
-                        officerName = officerName,
-                        billDate = billDate,
-                        trips = edits.map { it.toBillTrip() },
-                    )
-                    val file = renderBillPdf(context, html, filePrefix = "Local-tada_bill")
-                    val saved = saveToDownloads(context, file)
-                    Toast.makeText(
-                        context,
-                        if (saved) "Saved to Downloads" else "Couldn't save to Downloads",
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                    shareBillPdf(context, file)
-                    onGeneratedPreview()
-                }
-            },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(48.dp),
-        ) { Text("Generate Local Bill PDF") }
-        Button(
-            onClick = { showSubmitConfirm = true },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(48.dp),
-        ) { Text("Submit bill") }
-        OutlinedButton(
-            onClick = onBack,
-            modifier = Modifier.fillMaxWidth().padding(16.dp).padding(bottom = 0.dp),
-        ) { Text("Back") }
+        // stacked buttons: one shared rhythm (16dp sides, 8dp between, 16dp top/bottom) instead
+        // of each button carrying its own mismatched padding -- was fusing Local/Submit together.
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Button(
+                onClick = {
+                    scope.launch {
+                        val html = buildBillHtml(
+                            officerName = officerName,
+                            billDate = billDate,
+                            trips = edits.map { it.toBillTrip() },
+                            totals = totals,
+                        )
+                        val file = renderBillPdf(context, html)
+                        val saved = saveToDownloads(context, file)
+                        Toast.makeText(
+                            context,
+                            if (saved) "Saved to Downloads" else "Couldn't save to Downloads",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                        shareBillPdf(context, file)
+                        onGeneratedPreview()
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+            ) { Text("Generate TADA Bill PDF") }
+            Button(
+                onClick = {
+                    scope.launch {
+                        val html = buildLocalBillHtml(
+                            officerName = officerName,
+                            billDate = billDate,
+                            trips = edits.map { it.toBillTrip() },
+                        )
+                        val file = renderBillPdf(context, html, filePrefix = "Local-tada_bill")
+                        val saved = saveToDownloads(context, file)
+                        Toast.makeText(
+                            context,
+                            if (saved) "Saved to Downloads" else "Couldn't save to Downloads",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                        shareBillPdf(context, file)
+                        onGeneratedPreview()
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+            ) { Text("Generate Local Bill PDF") }
+            Button(
+                onClick = { showSubmitConfirm = true },
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+            ) { Text("Submit bill") }
+            OutlinedButton(
+                onClick = onBack,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Back") }
+        }
     }
 
     // freezes the current preview into an immutable bills row + marks every batched trip
