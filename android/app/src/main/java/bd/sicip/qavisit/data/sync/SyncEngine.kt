@@ -14,6 +14,7 @@ import bd.sicip.qavisit.data.auth.SessionStore
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.remote.SupabaseClient
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonObject
 import java.time.Instant
 
@@ -37,6 +38,11 @@ data class SyncResult(
 )
 
 private const val NOTIFICATION_CHANNEL_ID = "informs"
+
+// postgrest caps a bare select at 1000 rows -- anything past that was silently getting
+// dropped, and the watermark then jumped past it forever. page through with limit/offset
+// until a short page proves we've drained the table.
+private const val PAGE_SIZE = 1000
 
 class SyncEngine(
     private val context: Context,
@@ -136,14 +142,36 @@ class SyncEngine(
 
     // ---- pull: rows newer than our watermark in, skipping ones we have unpushed edits for ----
 
+    // fetches every row past `watermark`, not just the first 1000 -- pages with limit/offset
+    // until a short page proves the table's drained. same watermark for every page in the pass,
+    // so ties (bulk-imported rows sharing one updated_at) all land together within this pass;
+    // the only residual gap is a row updated to exactly that timestamp *after* the pass already
+    // read it, which server-side moddatetime makes negligible.
+    private suspend fun pullPages(table: String, watermark: String, token: String): List<JsonElement> {
+        val all = mutableListOf<JsonElement>()
+        var offset = 0
+        while (true) {
+            val page = client.select(
+                table,
+                mapOf(
+                    "updated_at" to "gt.$watermark",
+                    "order" to "updated_at.asc",
+                    "limit" to "$PAGE_SIZE",
+                    "offset" to "$offset",
+                ),
+                token,
+            )
+            all.addAll(page)
+            if (page.size < PAGE_SIZE) break
+            offset += PAGE_SIZE
+        }
+        return all
+    }
+
     private suspend fun pullOfficers(token: String): Int {
         val dao = db.officerDao()
         val watermark = syncState.watermark("officers")
-        val rows = client.select(
-            "officers",
-            mapOf("updated_at" to "gt.$watermark", "order" to "updated_at.asc"),
-            token,
-        )
+        val rows = pullPages("officers", watermark, token)
         if (rows.isEmpty()) return 0
         val remoteRows = rows.map { it.jsonObject.toOfficer() }
         // officers = pull-only, no local edits ever compete with the server here.
@@ -156,11 +184,7 @@ class SyncEngine(
         val dao = db.tripDao()
         val officerDao = db.officerDao()
         val watermark = syncState.watermark("trips")
-        val rows = client.select(
-            "trips",
-            mapOf("updated_at" to "gt.$watermark", "order" to "updated_at.asc"),
-            token,
-        )
+        val rows = pullPages("trips", watermark, token)
         if (rows.isEmpty()) return 0
         val remoteRows = rows.map { it.jsonObject.toTrip() }
         var applied = 0
@@ -188,11 +212,7 @@ class SyncEngine(
     private suspend fun pullVisits(token: String): Int {
         val dao = db.visitDao()
         val watermark = syncState.watermark("visits")
-        val rows = client.select(
-            "visits",
-            mapOf("updated_at" to "gt.$watermark", "order" to "updated_at.asc"),
-            token,
-        )
+        val rows = pullPages("visits", watermark, token)
         if (rows.isEmpty()) return 0
         val remoteRows = rows.map { it.jsonObject.toVisit() }
         var applied = 0
@@ -210,11 +230,7 @@ class SyncEngine(
     private suspend fun pullTravelLegs(token: String): Int {
         val dao = db.travelLegDao()
         val watermark = syncState.watermark("travel_legs")
-        val rows = client.select(
-            "travel_legs",
-            mapOf("updated_at" to "gt.$watermark", "order" to "updated_at.asc"),
-            token,
-        )
+        val rows = pullPages("travel_legs", watermark, token)
         if (rows.isEmpty()) return 0
         val remoteRows = rows.map { it.jsonObject.toTravelLeg() }
         var applied = 0
@@ -232,11 +248,7 @@ class SyncEngine(
     private suspend fun pullActivities(token: String): Int {
         val dao = db.activityDao()
         val watermark = syncState.watermark("activities")
-        val rows = client.select(
-            "activities",
-            mapOf("updated_at" to "gt.$watermark", "order" to "updated_at.asc"),
-            token,
-        )
+        val rows = pullPages("activities", watermark, token)
         if (rows.isEmpty()) return 0
         val remoteRows = rows.map { it.jsonObject.toActivity() }
         var applied = 0
@@ -254,11 +266,7 @@ class SyncEngine(
     private suspend fun pullLeaves(token: String): Int {
         val dao = db.leaveDao()
         val watermark = syncState.watermark("leaves")
-        val rows = client.select(
-            "leaves",
-            mapOf("updated_at" to "gt.$watermark", "order" to "updated_at.asc"),
-            token,
-        )
+        val rows = pullPages("leaves", watermark, token)
         if (rows.isEmpty()) return 0
         val remoteRows = rows.map { it.jsonObject.toLeave() }
         var applied = 0
@@ -278,11 +286,7 @@ class SyncEngine(
     private suspend fun pullBills(token: String): Int {
         val dao = db.billDao()
         val watermark = syncState.watermark("bills")
-        val rows = client.select(
-            "bills",
-            mapOf("updated_at" to "gt.$watermark", "order" to "updated_at.asc"),
-            token,
-        )
+        val rows = pullPages("bills", watermark, token)
         if (rows.isEmpty()) return 0
         val remoteRows = rows.map { it.jsonObject.toBill() }
         var applied = 0
