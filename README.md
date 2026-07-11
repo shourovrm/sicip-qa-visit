@@ -50,8 +50,9 @@ staff who live in Sheets see live data without touching the DB.
    `android/.../data/remote/SupabaseConfig.kt`.
 2. **Accounts**: create auth users (dashboard or `tools/create_officers.py` — needs a
    personal access token in `supabase/.token`). A DB trigger auto-creates officer rows.
-3. **Bill template**: put your own `.xlsx` at `assets/tada-template.xlsx`.
-   `assets/tada-template.example.xlsx` shows the expected layout with sample data.
+3. **Bill templates**: put your own `.xlsx` at `assets/tada-template.xlsx` (full TA/DA bill)
+   and `assets/local-tada-template.xlsx` (local travel itinerary). The matching
+   `*.example.xlsx` files show the expected layouts with sample data.
 4. **Android build**: needs JDK 21 + Android SDK (platforms 33+) + Gradle 8.13
    (`android/g` is a thin launcher that finds a cached Gradle dist; use your own Gradle or
    the wrapper if you prefer). First build: generate a keystore under `android/keystore/`
