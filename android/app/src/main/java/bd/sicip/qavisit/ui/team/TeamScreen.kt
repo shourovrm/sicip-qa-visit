@@ -135,7 +135,9 @@ private fun teamUiState(
         TeamRow(officer, status, subtitle)
     }
 
-    val rankOfficers = officers.map { RankOfficer(it.id, it.name) }
+    // rank_summary view (SQL) only ranks active officers -- mirror that here so a
+    // deactivated officer doesn't linger in the leaderboard with a stale points row.
+    val rankOfficers = officers.filter { it.active }.map { RankOfficer(it.id, it.name) }
     val rankedOverall = rank(rankOfficers, allVisits.toScores())
     // cumulative snapshot: only visits that had already started by the end of last month,
     // fed through the same rank() -- "where the team stood as of last month."

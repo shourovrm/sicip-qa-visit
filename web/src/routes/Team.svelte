@@ -59,7 +59,7 @@
     <tbody>
       {#each $officers as o (o.id)}
         {@const s = statusFor(o.id)}
-        <tr>
+        <tr class:me={o.id === $officer?.id}>
           <td>{o.name}</td>
           <td><Pill tone={s.tone}>{s.label}</Pill></td>
           <td class="muted">{s.detail}</td>
