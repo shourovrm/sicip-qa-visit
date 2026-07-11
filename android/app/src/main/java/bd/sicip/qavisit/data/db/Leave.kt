@@ -8,6 +8,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
+import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "leaves")
 data class Leave(
@@ -38,6 +39,12 @@ interface LeaveDao {
             "AND start_date <= :today AND end_date >= :today"
     )
     suspend fun overlapping(today: String): List<Leave>
+
+    // Team screen: leave lifecycle is explicit now (status flips to "started" via the officer's
+    // own start action), same shape as trips.status=='active' -- reactive so a sync pull
+    // recomposes the status list.
+    @Query("SELECT * FROM leaves WHERE status = 'started' AND deleted = 0")
+    fun startedFlow(): Flow<List<Leave>>
 
     @Query("SELECT * FROM leaves WHERE officer_id = :officerId AND deleted = 0 ORDER BY start_date DESC")
     suspend fun byOfficer(officerId: String): List<Leave>

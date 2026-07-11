@@ -10,7 +10,7 @@
 
   let visits = []
   let loading = true
-  let tab = 'scheduled' // scheduled | done
+  let tab = 'done' // scheduled | done -- Completed is the default
   let scope = 'mine' // mine | team
   let fDistrict = '', fCategory = '', fPurpose = '', fOfficer = '', fFrom = '', fTo = ''
   let editing = null // visit being created/edited (copy); editing.id null == create mode

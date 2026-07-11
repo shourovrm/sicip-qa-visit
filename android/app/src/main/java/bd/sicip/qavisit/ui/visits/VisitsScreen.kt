@@ -35,6 +35,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +49,7 @@ import bd.sicip.qavisit.data.db.Officer
 import bd.sicip.qavisit.data.db.Visit
 import bd.sicip.qavisit.data.seed.DISTRICTS
 import bd.sicip.qavisit.data.seed.PURPOSES
+import bd.sicip.qavisit.data.sync.SyncNow
 import bd.sicip.qavisit.domain.CATEGORY_LABELS
 import bd.sicip.qavisit.domain.POINTS
 import bd.sicip.qavisit.domain.points
@@ -60,38 +62,49 @@ import bd.sicip.qavisit.ui.theme.StatusPair
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlinx.coroutines.flow.combine
 
 private const val ALL_OFFICERS = "All officers"
 private val DISTRICT_OPTIONS = listOf(FILTER_ALL) + DISTRICTS
 private val CATEGORY_OPTIONS = listOf(FILTER_ALL) + POINTS.keys
 private val PURPOSE_OPTIONS = listOf(FILTER_ALL) + PURPOSES
 
+private data class VisitsUiState(
+    val myVisits: List<Visit> = emptyList(),
+    val allVisits: List<Visit> = emptyList(),
+    val officers: List<Officer> = emptyList(),
+    val activeTripIds: Set<String> = emptySet(),
+)
+
 @Composable
 fun VisitsScreen(officerId: String, db: AppDb, onEditVisit: (String) -> Unit, onOpenBill: () -> Unit) {
-    var scheduledTab by remember { mutableStateOf(true) } // true = Scheduled, false = Completed
+    var scheduledTab by remember { mutableStateOf(false) } // true = Scheduled, false = Completed
     var personal by remember { mutableStateOf(true) }
-    var myVisits by remember { mutableStateOf<List<Visit>>(emptyList()) }
-    var allVisits by remember { mutableStateOf<List<Visit>>(emptyList()) }
-    var officers by remember { mutableStateOf<List<Officer>>(emptyList()) }
     var officerFilter by remember { mutableStateOf(ALL_OFFICERS) }
     var filter by remember { mutableStateOf(VisitFilter()) }
+    val context = LocalContext.current
 
-    LaunchedEffect(Unit) {
-        myVisits = db.visitDao().byOfficer(officerId) // already deleted=0, start_date desc
-        allVisits = db.visitDao().all()
-        officers = db.officerDao().all()
-    }
+    // fresh tours/visits land via sync (RLS read-all pulls every officer's rows) -- kick a pull
+    // on entry so Team visits don't wait for the next periodic sync.
+    LaunchedEffect(Unit) { SyncNow.enqueue(context) }
 
-    val nameById = officers.associate { it.id to it.name }
+    val state by remember(db) {
+        combine(
+            db.visitDao().byOfficerFlow(officerId), // already deleted=0, start_date desc
+            db.visitDao().allFlow(),
+            db.officerDao().allFlow(),
+            db.tripDao().activeTripsFlow(),
+        ) { myVisits, allVisits, officers, activeTrips ->
+            VisitsUiState(myVisits, allVisits, officers, activeTrips.map { it.id }.toSet())
+        }
+    }.collectAsState(initial = VisitsUiState())
+
+    val nameById = state.officers.associate { it.id to it.name }
     val tabVisits = if (personal) {
-        myVisits
+        state.myVisits
     } else {
-        allVisits.filter { officerFilter == ALL_OFFICERS || nameById[it.officerId] == officerFilter }
+        state.allVisits.filter { officerFilter == ALL_OFFICERS || nameById[it.officerId] == officerFilter }
     }
-    // a visit's tripId is only ever set while it's attached to the trip that's currently active
-    // (finishTrip flips every one of a trip's visits to status=done in the same write it closes
-    // the trip), so status=scheduled + tripId!=null already means "on an active tour" -- no
-    // second trips query needed to tell SCHEDULED from ON TOUR.
     val statusVisits = tabVisits.filter { it.status == if (scheduledTab) "scheduled" else "done" }
     val visits = filterVisits(statusVisits, filter)
     val totalPts = visits.sumOf { points(it.category) }
@@ -141,7 +154,7 @@ fun VisitsScreen(officerId: String, db: AppDb, onEditVisit: (String) -> Unit, on
                 item {
                     FilterChipDropdown(
                         label = "Officer",
-                        options = listOf(ALL_OFFICERS) + officers.map { it.name },
+                        options = listOf(ALL_OFFICERS) + state.officers.map { it.name },
                         selected = officerFilter,
                         onSelect = { officerFilter = it },
                         allValue = ALL_OFFICERS,
@@ -172,7 +185,9 @@ fun VisitsScreen(officerId: String, db: AppDb, onEditVisit: (String) -> Unit, on
             if (scheduledTab) {
                 // not scored yet -- flat list (no month grouping), status pill instead of category.
                 items(visits) { visit ->
-                    val onTour = visit.tripId != null
+                    // real trip status, not just tripId != null -- a trip can be soft-deleted or
+                    // finished while a stray visit still points at its id.
+                    val onTour = visit.tripId != null && visit.tripId in state.activeTripIds
                     VisitRow(
                         visit = visit,
                         officerName = if (personal) null else nameById[visit.officerId],

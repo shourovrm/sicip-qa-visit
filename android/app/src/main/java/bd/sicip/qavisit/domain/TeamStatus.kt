@@ -2,8 +2,6 @@
 // pure kotlin, no android deps -- same rule as Scoring.kt/TripMath.kt/Rank.kt.
 package bd.sicip.qavisit.domain
 
-import java.time.LocalDate
-
 // minimal shapes teamStatus needs -- keeps this file free of the Room Trip/Leave entities.
 data class TripFlag(val status: String, val deleted: Boolean, val startedAt: String)
 data class LeaveFlag(
@@ -20,22 +18,15 @@ sealed class TeamStatus {
     object InOffice : TeamStatus()
 }
 
-// one officer's derived status. `today` boundary is inclusive both ends (start <= today <= end),
-// mirroring LeaveDao.overlapping's sql. an active trip always wins over an overlapping leave --
-// can't be both, but if the data's ever inconsistent, "on visit" is the more useful signal.
-fun teamStatus(
-    trips: List<TripFlag>,
-    leaves: List<LeaveFlag>,
-    today: LocalDate = LocalDate.now(),
-): TeamStatus {
+// one officer's derived status. leave is explicit-lifecycle now (status=="started" set by the
+// officer's own "start leave" action, same shape as trip's status=="active") -- no more
+// date-range guessing. an active trip always wins over a started leave -- can't be both, but if
+// the data's ever inconsistent, "on visit" is the more useful signal.
+fun teamStatus(trips: List<TripFlag>, leaves: List<LeaveFlag>): TeamStatus {
     val activeTrip = trips.firstOrNull { it.status == "active" && !it.deleted }
     if (activeTrip != null) return TeamStatus.OnVisit(since = activeTrip.startedAt.take(10))
 
-    val activeLeave = leaves.firstOrNull { leave ->
-        !leave.deleted && leave.status != "cancelled" &&
-            !LocalDate.parse(leave.startDate).isAfter(today) &&
-            !LocalDate.parse(leave.endDate).isBefore(today)
-    }
+    val activeLeave = leaves.firstOrNull { it.status == "started" && !it.deleted }
     if (activeLeave != null) return TeamStatus.OnLeave(type = activeLeave.type, until = activeLeave.endDate)
 
     return TeamStatus.InOffice

@@ -39,6 +39,10 @@ interface TripDao {
     @Query("SELECT * FROM trips WHERE officer_id = :officerId AND status = 'active' AND deleted = 0 LIMIT 1")
     fun activeTripFlow(officerId: String): Flow<Trip?>
 
+    // Team screen: every officer's active trip in one query, reactive so a sync pull recomposes the status list.
+    @Query("SELECT * FROM trips WHERE status = 'active' AND deleted = 0")
+    fun activeTripsFlow(): Flow<List<Trip>>
+
     // TA/DA bill picker: own finished, not-yet-submitted trips to batch onto a bill, newest first.
     @Query("SELECT * FROM trips WHERE officer_id = :officerId AND status = 'finished' AND submitted = 0 AND deleted = 0 ORDER BY started_at DESC")
     suspend fun finishedUnsubmittedByOfficer(officerId: String): List<Trip>
