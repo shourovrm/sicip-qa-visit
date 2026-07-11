@@ -39,5 +39,9 @@ val TRANSPORT: Map<String, List<String>> = mapOf(
     "Pathao Bike" to listOf("Rented"),
     "Pathao Car" to listOf("Rented"),
     "Autorickshaw" to listOf("Rented"),
+    "N/A" to emptyList(), // no mode claimed -- bill prints '-' for mode/class/fare
     "Other" to emptyList(),
 )
+
+// exact remark text the "Ticket/ receipt attached" tick box writes; local bill skips legs carrying it
+const val TICKET_REMARK = "Ticket/ receipt attached"

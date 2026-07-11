@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -15,12 +16,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.TravelLeg
+import bd.sicip.qavisit.data.seed.TICKET_REMARK
 import bd.sicip.qavisit.data.seed.TRANSPORT
 import bd.sicip.qavisit.ui.common.PickerDropdown
 import bd.sicip.qavisit.ui.common.showDatePicker
@@ -40,6 +43,28 @@ fun resolveMode(dropdownValue: String, otherText: String): String =
 fun modeDropdownFor(storedMode: String, seedModes: Set<String> = TRANSPORT.keys): Pair<String, String> =
     if (storedMode in seedModes) storedMode to "" else "Other" to storedMode
 
+// remarks text field + ticket tick box -> the single string stored on the leg. blank text with
+// the box unticked stores nothing; ticked appends/sets the fixed TICKET_REMARK marker.
+fun composeRemarks(userText: String, ticket: Boolean): String? {
+    val trimmed = userText.trim()
+    return when {
+        !ticket -> trimmed.ifBlank { null }
+        trimmed.isBlank() -> TICKET_REMARK
+        else -> "$trimmed; $TICKET_REMARK"
+    }
+}
+
+// inverse, for edit prefill: strips the TICKET_REMARK marker back off (with or without its
+// "; " separator) and reports whether it was present.
+fun splitTicketRemark(stored: String?): Pair<String, Boolean> {
+    val s = stored?.trim().orEmpty()
+    return when {
+        s == TICKET_REMARK -> "" to true
+        s.endsWith("; $TICKET_REMARK") -> s.removeSuffix("; $TICKET_REMARK").trim() to true
+        else -> s to false
+    }
+}
+
 // mutable draft the form edits in place; caller reads it back on save.
 class LegDraft {
     var depDate by mutableStateOf(Instant.now().toString().take(10))
@@ -53,6 +78,7 @@ class LegDraft {
     var travelClass by mutableStateOf(TRANSPORT.values.first().firstOrNull())
     var fareText by mutableStateOf("")
     var remarks by mutableStateOf("")
+    var ticketAttached by mutableStateOf(false)
 
     val fare: Double get() = fareText.toDoubleOrNull() ?: 0.0
     val valid: Boolean get() = depPlace.isNotBlank() && arrPlace.isNotBlank()
@@ -79,7 +105,9 @@ fun rememberLegDraft(existing: TravelLeg): LegDraft = remember(existing.id) {
         d.otherModeText = otherText
         d.travelClass = existing.travelClass
         d.fareText = fareToText(existing.fare)
-        d.remarks = existing.remarks ?: ""
+        val (userText, ticketed) = splitTicketRemark(existing.remarks)
+        d.remarks = userText
+        d.ticketAttached = ticketed
     }
 }
 
@@ -153,24 +181,32 @@ fun LegFormFields(
             )
         }
 
-        OutlinedTextField(
-            value = draft.fareText,
-            onValueChange = { draft.fareText = it },
-            label = { Text("Fare") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth(),
-        )
+        if (draft.mode != "N/A") {
+            OutlinedTextField(
+                value = draft.fareText,
+                onValueChange = { draft.fareText = it },
+                label = { Text("Fare") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         OutlinedTextField(
             value = draft.remarks,
             onValueChange = { draft.remarks = it },
             label = { Text("Remarks (optional)") },
             modifier = Modifier.fillMaxWidth(),
         )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = draft.ticketAttached, onCheckedChange = { draft.ticketAttached = it })
+            Text(TICKET_REMARK)
+        }
     }
 }
 
 fun LegDraft.toEntity(tripId: String, id: String = UUID.randomUUID().toString()): TravelLeg {
     val now = Instant.now().toString()
+    val resolvedMode = resolveMode(mode, otherModeText)
+    val isNA = resolvedMode == "N/A" // no mode claimed -- wipe class/fare regardless of stray input
     return TravelLeg(
         id = id,
         tripId = tripId,
@@ -180,10 +216,10 @@ fun LegDraft.toEntity(tripId: String, id: String = UUID.randomUUID().toString())
         arrDate = arrDate,
         arrTime = arrTime,
         arrPlace = arrPlace,
-        mode = resolveMode(mode, otherModeText),
-        travelClass = travelClass,
-        fare = fare,
-        remarks = remarks.ifBlank { null },
+        mode = resolvedMode,
+        travelClass = if (isNA) null else travelClass,
+        fare = if (isNA) 0.0 else fare,
+        remarks = composeRemarks(remarks, ticketAttached),
         updatedAt = now,
         dirty = true,
     )

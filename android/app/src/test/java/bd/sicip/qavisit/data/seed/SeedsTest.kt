@@ -34,6 +34,7 @@ class SeedsTest {
         assertEquals(listOf("Economy"), TRANSPORT["Air"])
         assertEquals(listOf("Rented"), TRANSPORT["Uber Car"])
         assertEquals(emptyList<String>(), TRANSPORT["Other"])
-        assertEquals(11, TRANSPORT.size)
+        assertEquals(emptyList<String>(), TRANSPORT["N/A"])
+        assertEquals(12, TRANSPORT.size)
     }
 }

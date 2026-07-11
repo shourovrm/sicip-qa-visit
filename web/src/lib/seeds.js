@@ -36,8 +36,12 @@ export const TRANSPORT = {
   'Pathao Bike': ['Rented'],
   'Pathao Car': ['Rented'],
   'Autorickshaw': ['Rented'],
+  'N/A': [], // no mode claimed -- bill prints '-' for mode/class/fare
   'Other': [],
 }
+
+// exact remark text the "Ticket/ receipt attached" tick box writes; local bill skips legs carrying it
+export const TICKET_REMARK = 'Ticket/ receipt attached'
 
 export const LEAVE_TYPES = ['Casual', 'Sick', 'Emergency', 'Others']
 

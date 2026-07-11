@@ -4,7 +4,7 @@
   import { officer, isAdmin } from '../lib/auth.js'
   import { officers, officerName } from '../lib/officers.js'
   import { CATEGORY_LABELS, suggestedNights, suggestedFood } from '../lib/scoring.js'
-  import { TRANSPORT } from '../lib/seeds.js'
+  import { TRANSPORT, TICKET_REMARK } from '../lib/seeds.js'
   import Dropdown from '../components/Dropdown.svelte'
 
   let trips = []
@@ -54,12 +54,26 @@
     visits = visits.map((v) => (v.id === updated.id ? updated : v))
   }
 
+  // android stores the tick inside remarks string -- match exactly on compose/parse
+  function composeRemarks(text, ticket) {
+    const t = (text || '').trim()
+    if (!ticket) return t
+    return t ? `${t}; ${TICKET_REMARK}` : TICKET_REMARK
+  }
+  function parseRemarks(remarks) {
+    const r = remarks ?? ''
+    if (!r.includes(TICKET_REMARK)) return { text: r, ticket: false }
+    const text = r.replace(TICKET_REMARK, '').replace(/;\s*$/, '').trim()
+    return { text, ticket: true }
+  }
+
   function newLeg(tripId) {
-    legForm = { trip_id: tripId, dep_date: '', dep_time: '', dep_place: '', arr_date: '', arr_time: '', arr_place: '', mode: 'Bus', class: 'AC', fare: 0, remarks: '' }
+    legForm = { trip_id: tripId, dep_date: '', dep_time: '', dep_place: '', arr_date: '', arr_time: '', arr_place: '', mode: 'Bus', class: 'AC', fare: 0, remarks: '', ticket: false }
     err = ''
   }
   function editLeg(l) {
-    legForm = { ...l, mode: l.mode in TRANSPORT ? l.mode : 'Other', otherMode: l.mode in TRANSPORT ? '' : l.mode }
+    const { text, ticket } = parseRemarks(l.remarks)
+    legForm = { ...l, mode: l.mode in TRANSPORT ? l.mode : 'Other', otherMode: l.mode in TRANSPORT ? '' : l.mode, remarks: text, ticket }
     err = ''
   }
   $: legClasses = legForm && legForm.mode !== 'Other' ? TRANSPORT[legForm.mode] ?? [] : []
@@ -68,10 +82,12 @@
     err = ''
     try {
       const mode = legForm.mode === 'Other' ? (legForm.otherMode || 'Other') : legForm.mode
+      const isNA = mode === 'N/A'
       const payload = {
         trip_id: legForm.trip_id, dep_date: legForm.dep_date, dep_time: legForm.dep_time, dep_place: legForm.dep_place,
         arr_date: legForm.arr_date, arr_time: legForm.arr_time, arr_place: legForm.arr_place,
-        mode, class: legForm.class, fare: Number(legForm.fare) || 0, remarks: legForm.remarks,
+        mode, class: isNA ? null : legForm.class, fare: isNA ? 0 : (Number(legForm.fare) || 0),
+        remarks: composeRemarks(legForm.remarks, legForm.ticket),
       }
       if (legForm.id) {
         const updated = await updateLeg(legForm.id, payload)
@@ -182,8 +198,13 @@
       {:else if legClasses.length}
         <div class="field"><label for="cl2">Class</label><Dropdown id="cl2" bind:value={legForm.class} options={legClasses} /></div>
       {/if}
-      <div class="field"><label for="fare">Fare (Tk)</label><input id="fare" type="number" step="0.01" bind:value={legForm.fare} /></div>
+      {#if legForm.mode !== 'N/A'}
+        <div class="field"><label for="fare">Fare (Tk)</label><input id="fare" type="number" step="0.01" bind:value={legForm.fare} /></div>
+      {/if}
       <div class="field"><label for="rm">Remarks</label><input id="rm" type="text" bind:value={legForm.remarks} /></div>
+      <div class="field checkbox-row">
+        <label><input type="checkbox" bind:checked={legForm.ticket} /> {TICKET_REMARK}</label>
+      </div>
       {#if err}<p class="err">{err}</p>{/if}
       <div class="row">
         <button type="submit" class="btn btn-primary">Save</button>
