@@ -80,6 +80,7 @@ import bd.sicip.qavisit.domain.toBillTrips
 import bd.sicip.qavisit.pdf.BillLeg
 import bd.sicip.qavisit.pdf.BillTrip
 import bd.sicip.qavisit.pdf.buildBillHtml
+import bd.sicip.qavisit.pdf.buildLocalBillHtml
 import bd.sicip.qavisit.pdf.purposeDate
 import bd.sicip.qavisit.pdf.renderBillPdf
 import bd.sicip.qavisit.ui.common.PickerDropdown
@@ -314,7 +315,21 @@ private fun PreviousBillDetail(bill: Bill, onBack: () -> Unit) {
                 }
             },
             modifier = Modifier.fillMaxWidth().padding(16.dp).height(48.dp),
-        ) { Text("View PDF") }
+        ) { Text("View TADA Bill PDF") }
+        Button(
+            onClick = {
+                scope.launch {
+                    val html = buildLocalBillHtml(
+                        officerName = snapshot.officerName,
+                        billDate = snapshot.billDate,
+                        trips = snapshot.toBillTrips(),
+                    )
+                    val file = renderBillPdf(context, html, filePrefix = "Local-tada_bill")
+                    shareBillPdf(context, file)
+                }
+            },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(48.dp),
+        ) { Text("View Local Bill PDF") }
         OutlinedButton(
             onClick = onBack,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp),
@@ -400,7 +415,28 @@ private fun BillPreviewStep(
                 }
             },
             modifier = Modifier.fillMaxWidth().padding(16.dp).height(48.dp),
-        ) { Text("Generate PDF") }
+        ) { Text("Generate TADA Bill PDF") }
+        Button(
+            onClick = {
+                scope.launch {
+                    val html = buildLocalBillHtml(
+                        officerName = officerName,
+                        billDate = billDate,
+                        trips = edits.map { it.toBillTrip() },
+                    )
+                    val file = renderBillPdf(context, html, filePrefix = "Local-tada_bill")
+                    val saved = saveToDownloads(context, file)
+                    Toast.makeText(
+                        context,
+                        if (saved) "Saved to Downloads" else "Couldn't save to Downloads",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                    shareBillPdf(context, file)
+                    onGeneratedPreview()
+                }
+            },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(48.dp),
+        ) { Text("Generate Local Bill PDF") }
         Button(
             onClick = { showSubmitConfirm = true },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(48.dp),

@@ -3,19 +3,24 @@
 import { it, expect } from 'vitest'
 import { readFileSync, existsSync } from 'node:fs'
 import ExcelJS from 'exceljs'
-import { fillBillTemplate } from './xlsx.js'
+import { fillBillTemplate, fillLocalBillTemplate } from './xlsx.js'
 
 const TEMPLATE = new URL('../../../assets/tada-template.xlsx', import.meta.url).pathname
+const LOCAL_TEMPLATE = new URL('../../../assets/local-tada-template.xlsx', import.meta.url).pathname
 
 function legRow(depDate, fare, night, food) {
   return { depDate, depTime: '09:00', depPlace: 'A', arrDate: depDate, arrTime: '10:00', arrPlace: 'B',
     mode: 'Bus', travelClass: 'AC', fare, remarks: null, nightStay: night, foodDay: food }
 }
 
-async function loadOut(buf) {
+function localLegRow(depDate, fare, remarks = null) {
+  return { depDate, depTime: '09:00', depPlace: 'A', arrDate: depDate, arrTime: '10:00', arrPlace: 'B', mode: 'CNG', fare, remarks }
+}
+
+async function loadOut(buf, sheetName = 'TA') {
   const wb = new ExcelJS.Workbook()
   await wb.xlsx.load(buf)
-  return wb.getWorksheet('TA')
+  return wb.getWorksheet(sheetName) ?? wb.worksheets[0]
 }
 
 it.skipIf(!existsSync(TEMPLATE))('shrink path: 1 trip, 2 legs', async () => {
@@ -45,4 +50,23 @@ it.skipIf(!existsSync(TEMPLATE))('grow path: 24 plan rows shifts totals down', a
   expect(ws.getCell('K38').value).toBe(225)
   expect(ws.getCell('K41').value).toBe(21975)
   expect(ws.getCell('A48').value).toBe('Test Officer')
+})
+
+it.skipIf(!existsSync(LOCAL_TEMPLATE))('local bill: shrink path, 2 trips / 3 legs', async () => {
+  const trips = [
+    { purposeLine: 'P1', legs: [localLegRow('2026-06-08', 100), localLegRow('2026-06-08', 50)] },
+    { purposeLine: 'P2', legs: [localLegRow('2026-06-09', 75)] },
+  ]
+  const out = await fillLocalBillTemplate(readFileSync(LOCAL_TEMPLATE), 'Test Officer', '2026-06-15', trips)
+  const ws = await loadOut(out, 'Local')
+  expect(ws.getCell('C7').value).toBe('Test Officer')
+  expect(ws.getCell('A13').value).toBe('Purpose: P1')
+  expect(ws.getCell('H14').value).toBe(100) // day-group leg 1
+  expect(ws.getCell('H15').value).toBe(50) // day-group leg 2 (continuation, same dep date)
+  expect(ws.getCell('A16').value).toBe('Purpose: P2')
+  expect(ws.getCell('H17').value).toBe(75)
+  // 5 plan rows (2 purposes + 3 legs) -> delta -6 -> total row 24-6=18, name row 25, designation row 26
+  expect(ws.getCell('H18').value).toBe(225)
+  expect(ws.getCell('A25').value).toBe('Test Officer')
+  expect(ws.getCell('A26').value).toBe('Program Officer (QA) SICIP')
 })

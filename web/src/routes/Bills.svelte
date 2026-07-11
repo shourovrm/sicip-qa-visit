@@ -7,8 +7,8 @@
   import { CATEGORY_LABELS, suggestedNights, suggestedFood } from '../lib/scoring.js'
   import { leg as mkLeg, makeTrip, billTotals } from '../lib/billmath.js'
   import { toBillTrips, snapshotBill } from '../lib/billsnapshot.js'
-  import { fillBillTemplate, downloadBuffer, fmtDate } from '../lib/xlsx.js'
-  import { buildBillHtml, printBillHtml } from '../lib/billhtml.js'
+  import { fillBillTemplate, fillLocalBillTemplate, downloadBuffer, fmtDate } from '../lib/xlsx.js'
+  import { buildBillHtml, buildLocalBillHtml, localBillTrips, printBillHtml } from '../lib/billhtml.js'
   import Dropdown from '../components/Dropdown.svelte'
 
   let trips = [], visits = [], legs = [], bills = []
@@ -90,13 +90,18 @@
   $: billTripsPreview = toBillTrips({ billDate: new Date().toISOString().slice(0, 10), trips: selectedTrips })
   $: totals = billTotals(selectedTrips.map((t) => makeTrip(t.legs.map((l) => mkLeg(l.fare)), '', '', t.nights, t.foodDays)))
 
+  // shared template fetch -- same missing-file error message for both bill kinds
+  async function fetchTemplate(path) {
+    const resp = await fetch(path)
+    if (!resp.ok) throw new Error(`Template not found at ${path} (run \`bun run build\` or copy it into public/ for dev).`)
+    return resp.arrayBuffer()
+  }
+
   async function downloadXlsx() {
     genErr = ''
     busy = true
     try {
-      const resp = await fetch('/tada-template.xlsx')
-      if (!resp.ok) throw new Error('Template not found at /tada-template.xlsx (run `bun run build` or copy it into public/ for dev).')
-      const buf = await resp.arrayBuffer()
+      const buf = await fetchTemplate('/tada-template.xlsx')
       const out = await fillBillTemplate(buf, $officer.name, new Date().toISOString().slice(0, 10), billTripsPreview, totals)
       downloadBuffer(out, `TADA-${$officer.name.replace(/\s+/g, '-')}-${Date.now()}.xlsx`)
     } catch (e) {
@@ -108,6 +113,25 @@
   function downloadPdf() {
     const billDate = new Date().toISOString().slice(0, 10)
     const html = buildBillHtml($officer.name, billDate, billTripsPreview, totals)
+    printBillHtml(html)
+  }
+
+  async function downloadLocalXlsx() {
+    genErr = ''
+    busy = true
+    try {
+      const buf = await fetchTemplate('/local-tada-template.xlsx')
+      const out = await fillLocalBillTemplate(buf, $officer.name, new Date().toISOString().slice(0, 10), localBillTrips(billTripsPreview))
+      downloadBuffer(out, `Local-TADA-${$officer.name.replace(/\s+/g, '-')}-${Date.now()}.xlsx`)
+    } catch (e) {
+      genErr = e.message
+    }
+    busy = false
+  }
+
+  function downloadLocalPdf() {
+    const billDate = new Date().toISOString().slice(0, 10)
+    const html = buildLocalBillHtml($officer.name, billDate, billTripsPreview)
     printBillHtml(html)
   }
 
@@ -130,8 +154,7 @@
   }
 
   async function regenerate(bill) {
-    const resp = await fetch('/tada-template.xlsx')
-    const buf = await resp.arrayBuffer()
+    const buf = await fetchTemplate('/tada-template.xlsx')
     const trips = toBillTrips(bill.data)
     const out = await fillBillTemplate(buf, bill.data.officerName, bill.bill_date, trips, bill.data.totals)
     downloadBuffer(out, `TADA-${bill.data.officerName.replace(/\s+/g, '-')}-${bill.bill_date}.xlsx`)
@@ -139,6 +162,18 @@
 
   function regeneratePdf(bill) {
     const html = buildBillHtml(bill.data.officerName, bill.bill_date, toBillTrips(bill.data), bill.data.totals)
+    printBillHtml(html)
+  }
+
+  async function regenerateLocalXlsx(bill) {
+    const buf = await fetchTemplate('/local-tada-template.xlsx')
+    const trips = toBillTrips(bill.data)
+    const out = await fillLocalBillTemplate(buf, bill.data.officerName, bill.bill_date, localBillTrips(trips))
+    downloadBuffer(out, `Local-TADA-${bill.data.officerName.replace(/\s+/g, '-')}-${bill.bill_date}.xlsx`)
+  }
+
+  function regenerateLocalPdf(bill) {
+    const html = buildLocalBillHtml(bill.data.officerName, bill.bill_date, toBillTrips(bill.data))
     printBillHtml(html)
   }
 </script>
@@ -196,8 +231,10 @@
         {#if genErr}<p class="err">{genErr}</p>{/if}
         {#if submittedMsg}<p class="muted">{submittedMsg}</p>{/if}
         <div class="row">
-          <button class="btn" disabled={busy} on:click={downloadXlsx}>Download .xlsx</button>
-          <button class="btn" disabled={busy} on:click={downloadPdf}>Download PDF</button>
+          <button class="btn" disabled={busy} on:click={downloadXlsx}>Download TADA Bill .xlsx</button>
+          <button class="btn" disabled={busy} on:click={downloadPdf}>Download TADA Bill PDF</button>
+          <button class="btn" disabled={busy} on:click={downloadLocalXlsx}>Download Local Bill .xlsx</button>
+          <button class="btn" disabled={busy} on:click={downloadLocalPdf}>Download Local Bill PDF</button>
           <button class="btn btn-primary" disabled={busy} on:click={submitBill}>Submit bill</button>
         </div>
       {/if}
@@ -218,8 +255,10 @@
               <td>{b.net}</td>
               <td>{b.data.trips.length}</td>
               <td>
-                <button class="btn-link" on:click={() => regenerate(b)}>Download .xlsx</button>
-                <button class="btn-link" on:click={() => regeneratePdf(b)}>Download PDF</button>
+                <button class="btn-link" on:click={() => regenerate(b)}>Download TADA Bill .xlsx</button>
+                <button class="btn-link" on:click={() => regeneratePdf(b)}>Download TADA Bill PDF</button>
+                <button class="btn-link" on:click={() => regenerateLocalXlsx(b)}>Download Local Bill .xlsx</button>
+                <button class="btn-link" on:click={() => regenerateLocalPdf(b)}>Download Local Bill PDF</button>
               </td>
             </tr>
           {/each}

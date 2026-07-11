@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "cp ../assets/tada-template.xlsx public/tada-template.xlsx && vite build",
+    "build": "cp ../assets/tada-template.xlsx public/tada-template.xlsx && cp ../assets/local-tada-template.xlsx public/local-tada-template.xlsx && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run"
   },

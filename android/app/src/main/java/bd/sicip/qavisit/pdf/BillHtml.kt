@@ -6,6 +6,7 @@
 // test target (see test/.../pdf/BillHtmlTest.kt), the actual print-to-PDF is BillPrinter's job.
 package bd.sicip.qavisit.pdf
 
+import bd.sicip.qavisit.data.seed.TICKET_REMARK
 import bd.sicip.qavisit.domain.BillTotals
 import bd.sicip.qavisit.domain.amountInWords
 import java.time.LocalDate
@@ -58,6 +59,9 @@ fun purposeDate(startDate: String, refDate: String?): String =
 // weights the canvas layout used, now expressed as CSS column percentages.
 private val COL_WEIGHTS = doubleArrayOf(8.63, 8.37, 25.82, 9.09, 8.54, 24.54, 5.91, 8.18, 10.54, 9.82, 12.18, 11.54)
 
+// same idea, A..I widths straight off assets/local-tada-template.xlsx (no Night/Food/Class cols).
+private val LOCAL_COL_WEIGHTS = doubleArrayOf(8.63, 8.37, 25.82, 9.09, 8.54, 24.54, 10.54, 12.18, 11.54)
+
 fun buildBillHtml(
     officerName: String,
     billDate: String,
@@ -77,6 +81,34 @@ fun buildBillHtml(
     append("</tbody></table>")
     append(footerHtml(officerName))
     append("</body></html>")
+}
+
+// local-travel variant: same letterhead/name-date, 9 cols (drops Night/Food/Class), one-row
+// total, no "Recommended By" -- see assets/local-tada-template.xlsx.
+fun buildLocalBillHtml(officerName: String, billDate: String, trips: List<BillTrip>): String = buildString {
+    val filtered = localBillTrips(trips)
+    val fareSum = filtered.sumOf { t -> t.legs.sumOf { it.fare } }
+    append("<!doctype html><html><head><meta charset=\"utf-8\">")
+    append("<style>").append(CSS).append("</style></head><body>")
+    append(letterheadHtml())
+    append(nameDateHtml(officerName, billDate))
+    append("<div class=\"band\">Detailed Local Travel Itinerary:</div>")
+    append("<table class=\"itinerary\">")
+    append(localTableHeadHtml())
+    append("<tbody>")
+    filtered.forEach { append(localTripRowsHtml(it)) }
+    append(localTotalsRowHtml(fareSum))
+    append("</tbody></table>")
+    append(footerHtml(officerName, includeRecommended = false))
+    append("</body></html>")
+}
+
+// row filter for the local bill: ticket-attached legs, zero-fare legs and N/A-mode legs never
+// belonged on a cash claim itinerary in the first place -- drop them, and drop a trip's whole
+// purpose band if nothing survives (pure so it's unit-testable on its own).
+fun localBillTrips(trips: List<BillTrip>): List<BillTrip> = trips.mapNotNull { trip ->
+    val legs = trip.legs.filter { it.fare > 0.0 && it.mode != "N/A" && it.remarks?.contains(TICKET_REMARK) != true }
+    if (legs.isEmpty()) null else trip.copy(legs = legs)
 }
 
 private fun letterheadHtml(): String = """
@@ -99,11 +131,11 @@ private fun nameDateHtml(officerName: String, billDate: String): String = """
     </div>
 """.trimIndent()
 
-private fun colGroupWidths(): String =
-    COL_WEIGHTS.joinToString("") { w -> "<col style=\"width:${"%.4f".format(Locale.US, w / COL_WEIGHTS.sum() * 100)}%\">" }
+private fun colGroupWidths(weights: DoubleArray): String =
+    weights.joinToString("") { w -> "<col style=\"width:${"%.4f".format(Locale.US, w / weights.sum() * 100)}%\">" }
 
 private fun tableHeadHtml(): String = """
-    <colgroup>${colGroupWidths()}</colgroup>
+    <colgroup>${colGroupWidths(COL_WEIGHTS)}</colgroup>
     <thead>
       <tr>
         <th colspan="3">Departure</th>
@@ -122,41 +154,96 @@ private fun tableHeadHtml(): String = """
     </thead>
 """.trimIndent()
 
+private fun localTableHeadHtml(): String = """
+    <colgroup>${colGroupWidths(LOCAL_COL_WEIGHTS)}</colgroup>
+    <thead>
+      <tr>
+        <th colspan="3">Departure</th>
+        <th colspan="3">Arrival</th>
+        <th rowspan="2">Mode of Transport</th>
+        <th rowspan="2">Fare (Tk.)</th>
+        <th rowspan="2">Remarks</th>
+      </tr>
+      <tr>
+        <th>Date</th><th>Time</th><th>Place</th>
+        <th>Date</th><th>Time</th><th>Place</th>
+      </tr>
+    </thead>
+""".trimIndent()
+
 // -- one trip: a full-width purpose band, then its legs day-grouped so the date/night/food
 // cells rowspan over every leg that shares the same calendar (departure) day. --
 
+// groups leg indices into same-departure-day runs, shared by both the full and local row
+// builders (only the per-leg cells they emit differ).
+private fun daySpans(legs: List<BillLeg>): List<IntRange> {
+    val spans = mutableListOf<IntRange>()
+    var i = 0
+    while (i < legs.size) {
+        var j = i
+        while (j + 1 < legs.size && legs[j + 1].depDate == legs[i].depDate) j++
+        spans.add(i..j)
+        i = j + 1
+    }
+    return spans
+}
+
+// N/A means no mode claimed at all -- print the same dash the (null) class column already uses.
+private fun modeCell(mode: String): String = if (mode == "N/A") "-" else esc(mode)
+
 private fun tripRowsHtml(trip: BillTrip): String = buildString {
     append("<tr class=\"purpose\"><td colspan=\"12\">${esc(trip.purposeLine)}</td></tr>")
-    var i = 0
-    while (i < trip.legs.size) {
-        var j = i
-        while (j + 1 < trip.legs.size && trip.legs[j + 1].depDate == trip.legs[i].depDate) j++
-        val span = j - i + 1
-        val first = trip.legs[i]
-        for (k in i..j) {
+    for (span in daySpans(trip.legs)) {
+        val first = trip.legs[span.first]
+        for (k in span) {
             val leg = trip.legs[k]
             append("<tr>")
-            if (k == i) {
-                append(td(formatDisplayDate(first.depDate, DISPLAY_DATE), rowspan = span))
+            if (k == span.first) {
+                append(td(formatDisplayDate(first.depDate, DISPLAY_DATE), rowspan = span.count()))
             }
             append(td(formatDisplayTime(leg.depTime), cls = "time"))
             append(td(esc(leg.depPlace), cls = "place"))
-            if (k == i) {
-                append(td(formatDisplayDate(first.arrDate, DISPLAY_DATE), rowspan = span))
+            if (k == span.first) {
+                append(td(formatDisplayDate(first.arrDate, DISPLAY_DATE), rowspan = span.count()))
             }
             append(td(formatDisplayTime(leg.arrTime), cls = "time"))
             append(td(esc(leg.arrPlace), cls = "place"))
-            if (k == i) {
-                append(td(dashIfZero(first.nightStay.toDouble()), rowspan = span))
-                append(td(dashIfZero(first.foodDay), rowspan = span))
+            if (k == span.first) {
+                append(td(dashIfZero(first.nightStay.toDouble()), rowspan = span.count()))
+                append(td(dashIfZero(first.foodDay), rowspan = span.count()))
             }
-            append(td(esc(leg.mode)))
+            append(td(modeCell(leg.mode)))
             append(td(esc(leg.travelClass ?: "-")))
-            append(td(plainAmount(leg.fare), cls = "money"))
+            append(td(dashIfZero(leg.fare), cls = "money"))
             append(td(esc(leg.remarks ?: "-")))
             append("</tr>")
         }
-        i = j + 1
+    }
+}
+
+// local variant: same day-grouping, only the two date columns rowspan (no night/food/class).
+private fun localTripRowsHtml(trip: BillTrip): String = buildString {
+    append("<tr class=\"purpose\"><td colspan=\"9\">${esc(trip.purposeLine)}</td></tr>")
+    for (span in daySpans(trip.legs)) {
+        val first = trip.legs[span.first]
+        for (k in span) {
+            val leg = trip.legs[k]
+            append("<tr>")
+            if (k == span.first) {
+                append(td(formatDisplayDate(first.depDate, DISPLAY_DATE), rowspan = span.count()))
+            }
+            append(td(formatDisplayTime(leg.depTime), cls = "time"))
+            append(td(esc(leg.depPlace), cls = "place"))
+            if (k == span.first) {
+                append(td(formatDisplayDate(first.arrDate, DISPLAY_DATE), rowspan = span.count()))
+            }
+            append(td(formatDisplayTime(leg.arrTime), cls = "time"))
+            append(td(esc(leg.arrPlace), cls = "place"))
+            append(td(modeCell(leg.mode)))
+            append(td(dashIfZero(leg.fare), cls = "money"))
+            append(td(esc(leg.remarks ?: "-")))
+            append("</tr>")
+        }
     }
 }
 
@@ -170,44 +257,61 @@ private fun totalsRowsHtml(trips: List<BillTrip>, totals: BillTotals): String {
         <td><b>${dashIfZero(nightsSum.toDouble())}</b></td>
         <td><b>${dashIfZero(foodSum)}</b></td>
         <td colspan="2"><b>Total Travel Allowance</b></td>
-        <td class="money"><b>${plainAmount(totals.ta)}</b></td>
+        <td class="money"><b>${dashIfZero(totals.ta)}</b></td>
         <td></td>
       </tr>
       <tr>
         <td colspan="10">Total Accomodation Allowance (2,000 BDT Per Night Stay)</td>
-        <td class="money">${plainAmount(totals.accommodation)}</td>
+        <td class="money">${dashIfZero(totals.accommodation)}</td>
         <td></td>
       </tr>
       <tr>
         <td colspan="10">Total Food Allowance (1,500 BDT Per Day)</td>
-        <td class="money">${plainAmount(totals.food)}</td>
+        <td class="money">${dashIfZero(totals.food)}</td>
         <td></td>
       </tr>
       <tr class="net">
         <td colspan="10"><b>Net claim bill TK. (In word) ${esc(words)}</b></td>
-        <td class="money"><b>${plainAmount(totals.net)}</b></td>
+        <td class="money"><b>${dashIfZero(totals.net)}</b></td>
         <td></td>
       </tr>
     """.trimIndent()
 }
 
-private fun footerHtml(officerName: String): String = """
-    <div class="footer">
-      <div class="sig-col">
-        <div><b>Submitted By:</b></div>
-        <div class="sig-gap"></div>
-        <div class="sig-line"></div>
-        <div>${esc(officerName)}</div>
-        <div>Program Officer (QA)</div>
-        <div>SICIP</div>
-      </div>
-      <div class="sig-col">
-        <div><b>Recommended By:</b></div>
-        <div class="sig-gap"></div>
-        <div class="sig-line"></div>
-      </div>
-    </div>
+// local bill's one-and-only totals row: "Total" spans the 7 itinerary columns, then the fare
+// sum, then an empty remarks cell (see assets/local-tada-template.xlsx row 24).
+private fun localTotalsRowHtml(fareSum: Double): String = """
+    <tr class="totals">
+      <td colspan="7"><b>Total</b></td>
+      <td class="money"><b>${dashIfZero(fareSum)}</b></td>
+      <td></td>
+    </tr>
 """.trimIndent()
+
+// includeRecommended=false drops the second signature column for the local bill (no "Recommended By").
+private fun footerHtml(officerName: String, includeRecommended: Boolean = true): String = buildString {
+    append("""
+        <div class="footer">
+          <div class="sig-col">
+            <div><b>Submitted By:</b></div>
+            <div class="sig-gap"></div>
+            <div class="sig-line"></div>
+            <div>${esc(officerName)}</div>
+            <div>Program Officer (QA)</div>
+            <div>SICIP</div>
+          </div>
+    """.trimIndent())
+    if (includeRecommended) {
+        append("""
+            <div class="sig-col">
+              <div><b>Recommended By:</b></div>
+              <div class="sig-gap"></div>
+              <div class="sig-line"></div>
+            </div>
+        """.trimIndent())
+    }
+    append("</div>")
+}
 
 // -- table cell + formatting helpers --
 

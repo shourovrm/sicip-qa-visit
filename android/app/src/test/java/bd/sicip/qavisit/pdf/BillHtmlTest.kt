@@ -69,4 +69,26 @@ class BillHtmlTest {
 
         assertTrue(html.contains(">-</td>"))
     }
+
+    @Test fun `zero fare leg renders as a dash`() {
+        val trip = BillTrip(purposeLine = "Purpose: X", legs = listOf(leg("2026-06-08", fare = 0.0)), nights = 0, foodDays = 0.0)
+        val html = buildBillHtml("Officer", "2026-06-10", listOf(trip), BillTotals(0.0, 0.0, 0.0, 0.0))
+
+        assertTrue(html.contains("<td class=\"money\">-</td>"))
+    }
+
+    @Test fun `N slash A mode leg prints a dash in the mode cell`() {
+        // real N/A legs carry a null class too (see ui.bill.BillScreen.toBillTrip) -- both the
+        // mode and class cells should print bare "-" (no rowspan/class attrs on either).
+        val na = BillLeg(
+            depDate = "2026-06-08", depTime = "10:00:00", depPlace = "A",
+            arrDate = "2026-06-08", arrTime = "11:00:00", arrPlace = "B",
+            mode = "N/A", travelClass = null, fare = 100.0, remarks = "note",
+            nightStay = 1, foodDay = 1.0,
+        )
+        val trip = BillTrip(purposeLine = "Purpose: X", legs = listOf(na), nights = 1, foodDays = 1.0)
+        val html = buildBillHtml("Officer", "2026-06-10", listOf(trip), BillTotals(0.0, 0.0, 0.0, 0.0))
+
+        assertEquals(2, Regex("<td>-</td>").findAll(html.substringAfter("<tbody>")).count())
+    }
 }

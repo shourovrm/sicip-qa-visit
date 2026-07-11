@@ -30,12 +30,12 @@ private val PAGE_ATTRIBUTES = PrintAttributes.Builder()
 // renders [html] to a fresh PDF file in cacheDir and returns it. suspend wrapper around
 // WebView's callback-based print adapter; the WebView itself is thrown away once the PDF
 // bytes are written -- nothing here is kept alive past this call.
-suspend fun renderBillPdf(context: Context, html: String): File = withContext(Dispatchers.Main) {
+suspend fun renderBillPdf(context: Context, html: String, filePrefix: String = "tada_bill"): File = withContext(Dispatchers.Main) {
     val webView = WebView(context)
     try {
         loadHtml(webView, html)
         val adapter = webView.createPrintDocumentAdapter("tada_bill")
-        val file = File(context.cacheDir, "tada_bill_${System.currentTimeMillis()}.pdf")
+        val file = File(context.cacheDir, "${filePrefix}_${System.currentTimeMillis()}.pdf")
         layoutAndWrite(adapter, file)
         file
     } finally {

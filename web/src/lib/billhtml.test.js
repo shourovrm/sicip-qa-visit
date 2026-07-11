@@ -2,7 +2,8 @@
 // rowspans, dash-for-zero). string-shape checks only -- the actual print/PDF layer is browser
 // window.print(), not JVM-testable here.
 import { describe, it, expect } from 'vitest'
-import { buildBillHtml } from './billhtml.js'
+import { buildBillHtml, buildLocalBillHtml, localBillTrips } from './billhtml.js'
+import { TICKET_REMARK } from './seeds.js'
 
 const totals = { ta: 623, accommodation: 12000, food: 9750, net: 22373 }
 
@@ -62,5 +63,65 @@ describe('logos and print', () => {
     const html = buildBillHtml('X', '2026-07-01', [trip()], totals)
     expect(html).toContain('/logos/bd-govt-seal.jpg')
     expect(html).toContain('/logos/sicip-logo.jpg')
+  })
+})
+
+it('zero fare renders as dash in leg and totals cells', () => {
+  const zeroTrip = trip({ legs: trip().legs.map((l) => ({ ...l, fare: 0 })) })
+  const html = buildBillHtml('X', '2026-07-01', [zeroTrip], { ta: 0, accommodation: 0, food: 0, net: 0 })
+  expect(html).toMatch(/class="money">-<\/td>/)
+  expect(html).toMatch(/class="money"><b>-<\/b><\/td>/)
+})
+
+function localLeg(overrides = {}) {
+  return {
+    depDate: '2026-06-08', depTime: '09:00', depPlace: 'Dhaka', arrDate: '2026-06-08', arrTime: '10:00', arrPlace: 'Bhola',
+    mode: 'CNG', fare: 50, remarks: '',
+    ...overrides,
+  }
+}
+
+describe('localBillTrips', () => {
+  it('drops zero-fare, ticket-remark, and N/A-mode legs; keeps the rest', () => {
+    const trips = [{
+      purposeLine: 'P1',
+      legs: [
+        localLeg({ fare: 0 }),
+        localLeg({ remarks: TICKET_REMARK }),
+        localLeg({ mode: 'N/A' }),
+        localLeg({ fare: 100 }),
+      ],
+    }]
+    const out = localBillTrips(trips)
+    expect(out.length).toBe(1)
+    expect(out[0].legs.length).toBe(1)
+    expect(out[0].legs[0].fare).toBe(100)
+  })
+
+  it('drops a trip whose every leg is filtered out', () => {
+    const trips = [{ purposeLine: 'AllGone', legs: [localLeg({ fare: 0 }), localLeg({ mode: 'N/A' })] }]
+    expect(localBillTrips(trips)).toEqual([])
+  })
+})
+
+describe('buildLocalBillHtml', () => {
+  const localTrips = [{
+    purposeLine: 'Local errands',
+    legs: [
+      localLeg({ fare: 100 }),
+      localLeg({ fare: 0 }), // filtered out
+      localLeg({ fare: 50, depDate: '2026-06-09', arrDate: '2026-06-09' }),
+    ],
+  }]
+
+  it('renders the local band and omits Recommended By', () => {
+    const html = buildLocalBillHtml('X', '2026-07-01', localTrips)
+    expect(html).toContain('Detailed Local Travel Itinerary:')
+    expect(html).not.toContain('Recommended By')
+  })
+
+  it('total row sums only surviving legs\' fare', () => {
+    const html = buildLocalBillHtml('X', '2026-07-01', localTrips)
+    expect(html).toContain('<b>150</b>') // 100 + 50, zero-fare leg dropped
   })
 })

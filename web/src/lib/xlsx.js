@@ -10,6 +10,11 @@ const ITIN_TEMPLATE_ROWS = 20 // template ships with rows 13..32 (20 rows) pre-f
 const COLS = 12 // A..L
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+// local-tada-template.xlsx: same block-splice approach, smaller 9-col sheet, no night/food/class.
+const LOCAL_ITIN_START = 13
+const LOCAL_ITIN_TEMPLATE_ROWS = 11 // rows 13..23 pre-filled as style source
+const LOCAL_COLS = 9 // A..I
+
 function fmtDate(iso) {
   if (!iso) return ''
   const [y, m, d] = iso.split('-').map(Number)
@@ -20,17 +25,17 @@ function cloneStyle(cell) {
   return JSON.parse(JSON.stringify(cell.style ?? {}))
 }
 
-// capture per-column styles (A..L) from a template row, before we overwrite anything
-function captureRowStyle(ws, rowNum) {
+// capture per-column styles (A..L, or fewer for the local sheet) from a template row
+function captureRowStyle(ws, rowNum, cols = COLS) {
   const row = ws.getRow(rowNum)
   const styles = []
-  for (let c = 1; c <= COLS; c++) styles.push(cloneStyle(row.getCell(c)))
+  for (let c = 1; c <= cols; c++) styles.push(cloneStyle(row.getCell(c)))
   return styles
 }
 
-function applyRowStyle(ws, rowNum, styles) {
+function applyRowStyle(ws, rowNum, styles, cols = COLS) {
   const row = ws.getRow(rowNum)
-  for (let c = 1; c <= COLS; c++) row.getCell(c).style = styles[c - 1]
+  for (let c = 1; c <= cols; c++) row.getCell(c).style = styles[c - 1]
 }
 
 // unmerge every merge range fully inside [fromRow, toRow] -- required before splice/clear so
@@ -170,13 +175,104 @@ export async function fillBillTemplate(templateBuffer, officerName, billDate, tr
 
   const totalNights = trips.reduce((s, t) => s + t.nights, 0)
   const totalFoodDays = trips.reduce((s, t) => s + t.foodDays, 0)
-  ws.getCell(`G${totalRow}`).value = totalNights
-  ws.getCell(`H${totalRow}`).value = totalFoodDays
-  ws.getCell(`K${totalRow}`).value = totals.ta
-  ws.getCell(`K${accomRow}`).value = totals.accommodation
-  ws.getCell(`K${foodRow}`).value = totals.food
+  ws.getCell(`G${totalRow}`).value = totalNights || '-'
+  ws.getCell(`H${totalRow}`).value = totalFoodDays || '-'
+  ws.getCell(`K${totalRow}`).value = totals.ta || '-'
+  ws.getCell(`K${accomRow}`).value = totals.accommodation || '-'
+  ws.getCell(`K${foodRow}`).value = totals.food || '-'
   ws.getCell(`A${netRow}`).value = `Net claim bill TK. (In word) ${amountInWords(Math.round(totals.net))} only`
-  ws.getCell(`K${netRow}`).value = totals.net
+  ws.getCell(`K${netRow}`).value = totals.net || '-'
+  ws.getCell(`A${nameRow}`).value = officerName
+  ws.getCell(`A${desgRow}`).value = `${DESIGNATION} SICIP`
+
+  return wb.xlsx.writeBuffer()
+}
+
+// fills local-tada-template.xlsx (public/local-tada-template.xlsx) -- trips arrive already
+// filtered (localBillTrips shape: purposeLine + legs with fare/mode/remarks), same block-splice
+// approach as fillBillTemplate but a smaller 9-col sheet (A dep date .. I remarks, no
+// night/food/class) and a single fare-total row instead of TA/accommodation/food/net.
+export async function fillLocalBillTemplate(templateBuffer, officerName, billDate, trips) {
+  const ExcelJS = (await import('exceljs')).default
+  const wb = new ExcelJS.Workbook()
+  await wb.xlsx.load(templateBuffer)
+  const ws = wb.worksheets[0]
+
+  ws.getCell('C7').value = officerName
+  ws.getCell('H7').value = new Date(billDate)
+
+  const purposeStyle = captureRowStyle(ws, 13, LOCAL_COLS)
+  const legFirstStyle = captureRowStyle(ws, 14, LOCAL_COLS)
+  const legContStyle = captureRowStyle(ws, 15, LOCAL_COLS)
+
+  const plan = planRows(trips)
+  const needed = plan.length
+  const delta = needed - LOCAL_ITIN_TEMPLATE_ROWS
+
+  const footerMerges = listMerges(ws).filter((m) => m.top >= LOCAL_ITIN_START + LOCAL_ITIN_TEMPLATE_ROWS)
+  unmergeAllFrom(ws, LOCAL_ITIN_START)
+
+  for (let r = LOCAL_ITIN_START; r < LOCAL_ITIN_START + LOCAL_ITIN_TEMPLATE_ROWS; r++) {
+    const row = ws.getRow(r)
+    for (let c = 1; c <= LOCAL_COLS; c++) row.getCell(c).value = null
+  }
+
+  if (delta > 0) {
+    const blanks = Array.from({ length: delta }, () => [])
+    ws.insertRows(LOCAL_ITIN_START + LOCAL_ITIN_TEMPLATE_ROWS, blanks, 'n')
+  } else if (delta < 0) {
+    ws.spliceRows(LOCAL_ITIN_START + needed, -delta)
+  }
+
+  for (const m of footerMerges) {
+    try { ws.mergeCells(m.top + delta, m.left, m.bottom + delta, m.right) } catch { /* overlap */ }
+  }
+
+  // write each planned row + merges for day-group spans (A dep date, D arr date only -- no
+  // night/food columns to span in the local layout)
+  let r = LOCAL_ITIN_START
+  let groupStart = null
+  const flushGroupMerge = (col, endRow) => {
+    if (groupStart !== null && endRow > groupStart) ws.mergeCells(groupStart, col, endRow, col)
+  }
+
+  for (let i = 0; i < plan.length; i++) {
+    const item = plan[i]
+    const row = ws.getRow(r)
+    if (item.kind === 'purpose') {
+      applyRowStyle(ws, r, purposeStyle, LOCAL_COLS)
+      row.getCell(1).value = `Purpose: ${item.trip.purposeLine}`
+      ws.mergeCells(r, 1, r, LOCAL_COLS)
+      groupStart = null
+    } else {
+      const l = item.leg
+      applyRowStyle(ws, r, item.kind === 'legFirst' ? legFirstStyle : legContStyle, LOCAL_COLS)
+      if (item.kind === 'legFirst') {
+        if (groupStart !== null) { flushGroupMerge(1, r - 1); flushGroupMerge(4, r - 1) }
+        groupStart = r
+        row.getCell(1).value = new Date(l.depDate)
+        row.getCell(4).value = new Date(l.arrDate)
+      }
+      row.getCell(2).value = l.depTime
+      row.getCell(3).value = l.depPlace
+      row.getCell(5).value = l.arrTime
+      row.getCell(6).value = l.arrPlace
+      row.getCell(7).value = l.mode || '-'
+      row.getCell(8).value = l.fare ? l.fare : '-'
+      row.getCell(9).value = l.remarks || ''
+    }
+    r++
+  }
+  if (groupStart !== null) { flushGroupMerge(1, r - 1); flushGroupMerge(4, r - 1) }
+
+  // Total/signature rows shift by `delta`; template's A cell already reads "Total" -- footer
+  // merges (re-merged above) carry the Total band, we just fill the fare sum into H
+  const totalRow = 24 + delta
+  const nameRow = 31 + delta
+  const desgRow = 32 + delta
+
+  const fareSum = trips.reduce((s, t) => s + t.legs.reduce((ss, l) => ss + Number(l.fare || 0), 0), 0)
+  ws.getCell(`H${totalRow}`).value = fareSum || '-'
   ws.getCell(`A${nameRow}`).value = officerName
   ws.getCell(`A${desgRow}`).value = `${DESIGNATION} SICIP`
 
