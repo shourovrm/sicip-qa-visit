@@ -109,6 +109,11 @@ export async function cancelLeave(id) {
   return updateLeave(id, { status: 'cancelled' })
 }
 
+// scheduled -> started -> completed lifecycle (see migration 007).
+export async function updateLeaveStatus(id, status) {
+  return updateLeave(id, { status })
+}
+
 export async function softDeleteLeave(id) {
   return updateLeave(id, { deleted: true })
 }

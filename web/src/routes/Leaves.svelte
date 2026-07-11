@@ -1,7 +1,7 @@
 <!-- list/add/cancel own leaves + team view -->
 <script>
   import { onMount } from 'svelte'
-  import { listLeaves, createLeave, cancelLeave } from '../lib/db.js'
+  import { listLeaves, createLeave, cancelLeave, updateLeaveStatus } from '../lib/db.js'
   import { officer, isAdmin } from '../lib/auth.js'
   import { officers } from '../lib/officers.js'
   import { LEAVE_TYPES } from '../lib/seeds.js'
@@ -51,8 +51,21 @@
     leaves = leaves.map((x) => (x.id === updated.id ? updated : x))
   }
 
+  // scheduled -> started -> completed, own rows only (see migration 007).
+  async function advance(l, status) {
+    const updated = await updateLeaveStatus(l.id, status)
+    leaves = leaves.map((x) => (x.id === updated.id ? updated : x))
+  }
+
   function statusTone(status) {
-    return status === 'cancelled' ? 'office' : status === 'availed' ? 'leave' : 'success'
+    if (status === 'cancelled') return 'office'
+    if (status === 'started') return 'leave'
+    if (status === 'completed' || status === 'availed') return 'success' // availed = legacy, pre-007 rows
+    return 'visit' // scheduled
+  }
+
+  function statusLabel(status) {
+    return status === 'availed' ? 'completed' : status // availed = legacy, pre-007 rows
   }
 </script>
 
@@ -97,9 +110,15 @@
           <td>{l.reason ?? ''}</td>
           <td>{l.start_date}</td>
           <td>{l.end_date}</td>
-          <td><Pill tone={statusTone(l.status)}>{l.status}</Pill></td>
+          <td><Pill tone={statusTone(l.status)}>{statusLabel(l.status)}</Pill></td>
           {#if scope === 'team'}<td>{$officers.find((o) => o.id === l.officer_id)?.name ?? ''}</td>{/if}
           <td>
+            {#if l.officer_id === mine && l.status === 'scheduled'}
+              <button class="btn-link" on:click={() => advance(l, 'started')}>Start leave</button>
+            {/if}
+            {#if l.officer_id === mine && l.status === 'started'}
+              <button class="btn-link" on:click={() => advance(l, 'completed')}>End leave</button>
+            {/if}
             {#if l.status !== 'cancelled' && (l.officer_id === mine || $isAdmin)}
               <button class="btn-link" on:click={() => cancel(l)}>Cancel</button>
             {/if}

@@ -26,30 +26,48 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Leave
 import bd.sicip.qavisit.data.db.Officer
+import bd.sicip.qavisit.data.sync.SyncNow
 import bd.sicip.qavisit.ui.common.StatusPill
 import bd.sicip.qavisit.ui.theme.LocalStatusColors
 import bd.sicip.qavisit.ui.theme.StatusPair
-import java.time.LocalDate
+import kotlinx.coroutines.launch
+import java.time.Instant
 
 @Composable
 fun LeavesScreen(officerId: String, db: AppDb, onAddLeave: () -> Unit, onEditLeave: (String) -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var personal by remember { mutableStateOf(true) }
     var myLeaves by remember { mutableStateOf<List<Leave>>(emptyList()) }
     var allLeaves by remember { mutableStateOf<List<Leave>>(emptyList()) }
     var officers by remember { mutableStateOf<List<Officer>>(emptyList()) }
-    val today = remember { LocalDate.now() }
 
-    LaunchedEffect(Unit) {
+    suspend fun reload() {
         myLeaves = db.leaveDao().byOfficer(officerId) // already deleted=0, start_date desc
         allLeaves = db.leaveDao().all()
+    }
+
+    LaunchedEffect(Unit) {
+        reload()
         officers = db.officerDao().all()
+    }
+
+    // scheduled -> started -> completed, own rows only. plain re-query after write -- no Flow here.
+    fun advanceStatus(leave: Leave, next: String) {
+        scope.launch {
+            db.leaveDao().upsert(leave.copy(status = next, updatedAt = Instant.now().toString(), dirty = true))
+            SyncNow.enqueue(context)
+            reload()
+        }
     }
 
     val nameById = officers.associate { it.id to it.name }
@@ -99,8 +117,9 @@ fun LeavesScreen(officerId: String, db: AppDb, onAddLeave: () -> Unit, onEditLea
                 LeaveRow(
                     leave = leave,
                     officerName = if (personal) null else nameById[leave.officerId],
-                    today = today,
                     onClick = if (personal) ({ onEditLeave(leave.id) }) else null,
+                    onStart = if (personal && leave.status == "scheduled") ({ advanceStatus(leave, "started") }) else null,
+                    onEnd = if (personal && leave.status == "started") ({ advanceStatus(leave, "completed") }) else null,
                 )
             }
         }
@@ -108,39 +127,54 @@ fun LeavesScreen(officerId: String, db: AppDb, onAddLeave: () -> Unit, onEditLea
 }
 
 @Composable
-private fun LeaveRow(leave: Leave, officerName: String?, today: LocalDate, onClick: (() -> Unit)?) {
+private fun LeaveRow(
+    leave: Leave,
+    officerName: String?,
+    onClick: (() -> Unit)?,
+    onStart: (() -> Unit)?,
+    onEnd: (() -> Unit)?,
+) {
     val shape = RoundedCornerShape(16.dp)
     val body: @Composable () -> Unit = {
-        Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            // weighted + ellipsized so a long officer name/reason can never squeeze the pill offscreen.
-            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                if (officerName != null) {
+        Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                // weighted + ellipsized so a long officer name/reason can never squeeze the pill offscreen.
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                    if (officerName != null) {
+                        Text(
+                            officerName,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Text(leave.type, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    leave.reason?.takeIf { it.isNotBlank() }?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                     Text(
-                        officerName,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Text(leave.type, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                leave.reason?.takeIf { it.isNotBlank() }?.let {
-                    Text(
-                        it,
+                        "${leave.startDate} – ${leave.endDate}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Text(
-                    "${leave.startDate} – ${leave.endDate}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                val (label, colors) = pillFor(leave.status)
+                StatusPill(label, colors)
             }
-            val (label, colors) = pillFor(displayStatus(leave, today))
-            StatusPill(label, colors)
+            if (onStart != null || onEnd != null) {
+                Button(
+                    onClick = { onStart?.invoke(); onEnd?.invoke() },
+                    shape = RoundedCornerShape(99),
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(40.dp),
+                ) { Text(if (onStart != null) "Start leave" else "End leave") }
+            }
         }
     }
     // read-only (Team) rows get the plain Card; own (Personal) rows get the clickable overload.
@@ -153,13 +187,8 @@ private fun LeaveRow(leave: Leave, officerName: String?, today: LocalDate, onCli
 
 @Composable
 private fun pillFor(status: String): Pair<String, StatusPair> = when (status) {
-    "availed" -> "AVAILED" to LocalStatusColors.current.success
+    "started" -> "STARTED" to LocalStatusColors.current.onVisit
+    "completed", "availed" -> "COMPLETED" to LocalStatusColors.current.success // availed = legacy, pre-007 rows until synced
     "cancelled" -> "CANCELLED" to LocalStatusColors.current.office
     else -> "SCHEDULED" to LocalStatusColors.current.onVisit
 }
-
-// pure so it's unit-testable without touching compose/android.
-// stored status only ever moves scheduled -> cancelled from this app; "availed" is a display-only
-// derivation (start date has arrived) so a scheduled leave never needs a background job to flip it.
-fun displayStatus(leave: Leave, today: LocalDate = LocalDate.now()): String =
-    if (leave.status == "scheduled" && LocalDate.parse(leave.startDate) <= today) "availed" else leave.status
