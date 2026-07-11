@@ -33,9 +33,10 @@ import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Officer
 import bd.sicip.qavisit.data.db.Trip
 import bd.sicip.qavisit.data.db.Visit
+import bd.sicip.qavisit.data.sync.SyncNow
 import bd.sicip.qavisit.ui.common.PickerDropdown
+import bd.sicip.qavisit.ui.common.TimeField
 import bd.sicip.qavisit.ui.common.showDatePicker
-import bd.sicip.qavisit.ui.common.showTimePicker
 import bd.sicip.qavisit.ui.visits.VisitForm
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -99,9 +100,7 @@ fun StartTrip(officerId: String, db: AppDb, preselectedVisitId: String? = null, 
             OutlinedButton(onClick = { showDatePicker(context, startDate) { startDate = it } }, modifier = Modifier.height(48.dp)) {
                 Text(startDate)
             }
-            OutlinedButton(onClick = { showTimePicker(context, startTime) { startTime = it } }, modifier = Modifier.height(48.dp)) {
-                Text(startTime.take(5))
-            }
+            TimeField(value = startTime, onChange = { startTime = it })
         }
 
         Text("Attach scheduled visits (optional)", style = MaterialTheme.typography.labelSmall)
@@ -148,6 +147,7 @@ fun StartTrip(officerId: String, db: AppDb, preselectedVisitId: String? = null, 
                         val v = candidates.first { it.id == visitId }
                         db.visitDao().upsert(v.copy(tripId = tripId, updatedAt = now, dirty = true))
                     }
+                    SyncNow.enqueue(context)
                     onDone()
                 }
             },

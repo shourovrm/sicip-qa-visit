@@ -32,8 +32,8 @@ import bd.sicip.qavisit.domain.daysAndNights
 import bd.sicip.qavisit.domain.points
 import bd.sicip.qavisit.domain.primaryVisit
 import bd.sicip.qavisit.ui.common.PickerDropdown
+import bd.sicip.qavisit.ui.common.TimeField
 import bd.sicip.qavisit.ui.common.showDatePicker
-import bd.sicip.qavisit.ui.common.showTimePicker
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalTime
@@ -64,9 +64,7 @@ fun FinishTripDialog(trip: Trip, visits: List<Visit>, db: AppDb, onDismiss: () -
                     OutlinedButton(onClick = { showDatePicker(context, endDate) { endDate = it } }, modifier = Modifier.weight(1.3f)) {
                         Text(endDate, maxLines = 1)
                     }
-                    OutlinedButton(onClick = { showTimePicker(context, endTime) { endTime = it } }, modifier = Modifier.weight(1f)) {
-                        Text(endTime.take(5), maxLines = 1)
-                    }
+                    TimeField(value = endTime, onChange = { endTime = it }, modifier = Modifier.weight(1f))
                 }
                 if (primary == null) {
                     Text("No visits attached -- this tour will end with none.")

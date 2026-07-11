@@ -26,8 +26,8 @@ import bd.sicip.qavisit.data.db.TravelLeg
 import bd.sicip.qavisit.data.seed.TICKET_REMARK
 import bd.sicip.qavisit.data.seed.TRANSPORT
 import bd.sicip.qavisit.ui.common.PickerDropdown
+import bd.sicip.qavisit.ui.common.TimeField
 import bd.sicip.qavisit.ui.common.showDatePicker
-import bd.sicip.qavisit.ui.common.showTimePicker
 import java.time.Instant
 import java.util.UUID
 
@@ -126,9 +126,7 @@ fun LegFormFields(
             OutlinedButton(onClick = { showDatePicker(context, draft.depDate) { draft.depDate = it } }, modifier = Modifier.height(48.dp)) {
                 Text(draft.depDate)
             }
-            OutlinedButton(onClick = { showTimePicker(context, draft.depTime) { draft.depTime = it } }, modifier = Modifier.height(48.dp)) {
-                Text(draft.depTime.take(5))
-            }
+            TimeField(value = draft.depTime, onChange = { draft.depTime = it })
         }
         PickerDropdown(
             label = "Departure place",
@@ -144,9 +142,7 @@ fun LegFormFields(
             OutlinedButton(onClick = { showDatePicker(context, draft.arrDate) { draft.arrDate = it } }, modifier = Modifier.height(48.dp)) {
                 Text(draft.arrDate)
             }
-            OutlinedButton(onClick = { showTimePicker(context, draft.arrTime) { draft.arrTime = it } }, modifier = Modifier.height(48.dp)) {
-                Text(draft.arrTime.take(5))
-            }
+            TimeField(value = draft.arrTime, onChange = { draft.arrTime = it })
         }
         PickerDropdown(
             label = "Arrival place",
