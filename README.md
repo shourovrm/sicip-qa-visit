@@ -6,6 +6,8 @@ SICIP (Finance Division, Ministry of Finance, Bangladesh) — 9 users, zero host
 
 **[⬇ Download the Android app (release APK)](https://github.com/shourovrm/sicip-qa-visit/releases/latest)** — Android 8+, ~1.7 MB, no Google services required.
 
+**[🌐 Web app](https://sicip-qa-visit.shourovrm.workers.dev)** — desk companion: bills, admin, password reset (login required).
+
 ## What's inside
 
 | Part | Stack | Role |
