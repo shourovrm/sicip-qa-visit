@@ -193,7 +193,7 @@ private fun TeachingCard() {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("Schedule a visit to begin", style = MaterialTheme.typography.titleMedium)
             Text(
-                "Tap + to schedule your first visit, then start a tour from it.",
+                "Tap + to schedule a visit, then start a tour from it.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
