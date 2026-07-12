@@ -5,6 +5,7 @@
 package bd.sicip.qavisit.ui.home
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -61,10 +62,11 @@ fun FinishTripDialog(trip: Trip, visits: List<Visit>, db: AppDb, onDismiss: () -
         text = {
             Column {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { showDatePicker(context, endDate) { endDate = it } }, modifier = Modifier.weight(1.3f)) {
+                    // weight(1f)+widthIn floor: TimeField's clock icon needs ~134dp or it clips
+                    OutlinedButton(onClick = { showDatePicker(context, endDate) { endDate = it } }, modifier = Modifier.weight(1f)) {
                         Text(endDate, maxLines = 1)
                     }
-                    TimeField(value = endTime, onChange = { endTime = it }, modifier = Modifier.weight(1f))
+                    TimeField(value = endTime, onChange = { endTime = it }, modifier = Modifier.widthIn(min = 134.dp))
                 }
                 if (primary == null) {
                     Text("No visits attached -- this tour will end with none.")
