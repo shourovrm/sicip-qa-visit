@@ -92,7 +92,9 @@ class HomeViewModel(
             db.visitDao().allFlow(),
             db.officerDao().allFlow(),
         ) { visits, myVisits, allVisits, officers ->
-            val upcoming = myVisits.filter { it.status == "scheduled" }.sortedBy { it.startDate }
+            // scheduled visits already attached to the running tour show in ONGOING instead --
+            // exclude them here so they don't double-list.
+            val upcoming = myVisits.filter { it.status == "scheduled" && it.tripId != trip?.id }.sortedBy { it.startDate }
 
             val scores = allVisits.map { VisitScore(it.officerId, it.category, it.deleted) }
             val ranked = rank(scores)

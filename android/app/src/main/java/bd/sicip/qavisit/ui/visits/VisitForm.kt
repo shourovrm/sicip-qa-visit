@@ -62,6 +62,10 @@ fun VisitForm(
     visitId: String? = null,
     tripId: String? = null,
     forceAdditional: Boolean = false,
+    // prefill for a brand-new visit only (Home's "+ Visit" clones date+district from another
+    // scheduled card); ignored once visitId != null -- the byId LaunchedEffect below wins.
+    initialDistrict: String? = null,
+    initialStartDate: String? = null,
     onDone: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -72,13 +76,13 @@ fun VisitForm(
 
     var institute by remember { mutableStateOf("") }
     var association by remember { mutableStateOf(ASSOCIATIONS.first()) }
-    var district by remember { mutableStateOf(DISTRICTS.first()) }
+    var district by remember { mutableStateOf(initialDistrict ?: DISTRICTS.first()) }
     var dhakaMetro by remember { mutableStateOf(false) }
     var purpose by remember { mutableStateOf(PURPOSES.first()) }
     var refNo by remember { mutableStateOf("") }
     var refDate by remember { mutableStateOf<String?>(null) }
-    var startDate by remember { mutableStateOf(Instant.now().toString().take(10)) }
-    var endDate by remember { mutableStateOf(Instant.now().toString().take(10)) }
+    var startDate by remember { mutableStateOf(initialStartDate ?: Instant.now().toString().take(10)) }
+    var endDate by remember { mutableStateOf(initialStartDate ?: Instant.now().toString().take(10)) }
     var category by remember { mutableStateOf("N/A") }
     var categoryTouched by remember { mutableStateOf(false) } // true once the user picks a value themselves
     var remarks by remember { mutableStateOf("") }
