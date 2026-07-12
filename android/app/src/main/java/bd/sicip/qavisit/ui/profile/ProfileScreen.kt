@@ -53,6 +53,7 @@ import bd.sicip.qavisit.data.auth.SessionStore
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Officer
 import bd.sicip.qavisit.data.remote.SupabaseClient
+import bd.sicip.qavisit.data.remote.SupabaseException
 import bd.sicip.qavisit.data.sync.SyncNow
 import bd.sicip.qavisit.data.sync.SyncStateStore
 import bd.sicip.qavisit.domain.RankOfficer
@@ -64,6 +65,9 @@ import bd.sicip.qavisit.ui.shell.syncChipText
 import bd.sicip.qavisit.ui.theme.LocalStatusColors
 import bd.sicip.qavisit.ui.theme.ThemeMode
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.io.IOException
 
 // public spreadsheet where visit-score categories/points are documented.
@@ -261,11 +265,13 @@ private fun ChangePasswordCard(sessionStore: SessionStore, client: SupabaseClien
                         message = null
                         scope.launch {
                             try {
-                                if (!passwordFormValid(newPassword, confirmPassword)) {
+                                val trimmedNew = newPassword.trim()
+                                val trimmedConfirm = confirmPassword.trim()
+                                if (!passwordFormValid(trimmedNew, trimmedConfirm)) {
                                     throw IllegalArgumentException("Password must be at least 8 characters and match")
                                 }
                                 val session = sessionStore.ensureFresh(client) ?: throw IOException("offline")
-                                client.changePassword(session.accessToken, newPassword)
+                                client.changePassword(session.accessToken, trimmedNew)
                                 isError = false
                                 message = "Password updated"
                                 newPassword = ""
@@ -375,6 +381,16 @@ fun passwordFormValid(newPassword: String, confirmPassword: String): Boolean =
 
 fun passwordErrorMessage(t: Throwable): String = when {
     t is IllegalArgumentException -> t.message ?: "Invalid password"
+    t is SupabaseException && t.code == 422 -> supabaseErrorMessage(t.body)
     t is IOException -> "No connection — try again"
     else -> "Something went wrong — try again"
+}
+
+// gotrue error bodies are json ({"msg"/"message"/"error_description"/"error": "..."}); fall
+// back to the raw body if it doesn't parse or has none of those keys.
+private fun supabaseErrorMessage(body: String): String = try {
+    val obj = Json.parseToJsonElement(body).jsonObject
+    (obj["msg"] ?: obj["message"] ?: obj["error_description"] ?: obj["error"])?.jsonPrimitive?.content ?: body
+} catch (e: Exception) {
+    body
 }

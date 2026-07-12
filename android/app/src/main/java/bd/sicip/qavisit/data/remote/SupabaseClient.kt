@@ -56,6 +56,13 @@ class SupabaseClient(
         Unit
     }
 
+    // triggers gotrue's reset email; anon key auth (no session yet). body ignored on 2xx.
+    suspend fun recover(email: String) = withContext(Dispatchers.IO) {
+        val body = buildJsonObject { put("email", email) }
+        request("POST", "$baseUrl/auth/v1/recover", body.toString())
+        Unit
+    }
+
     suspend fun select(table: String, params: Map<String, String>, accessToken: String): JsonArray =
         withContext(Dispatchers.IO) {
             val query = params.entries.joinToString("&") { (k, v) -> "$k=${URLEncoder.encode(v, "UTF-8")}" }

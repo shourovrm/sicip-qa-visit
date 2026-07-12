@@ -54,6 +54,7 @@ import bd.sicip.qavisit.data.db.Officer
 import bd.sicip.qavisit.data.db.OfficerDao
 import bd.sicip.qavisit.data.remote.SupabaseClient
 import bd.sicip.qavisit.data.remote.SupabaseException
+import bd.sicip.qavisit.ui.theme.LocalStatusColors
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.jsonObject
@@ -73,6 +74,10 @@ fun LoginScreen(
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var showForgotDialog by remember { mutableStateOf(false) }
+    var recoverEmail by remember { mutableStateOf("") }
+    var recoverLoading by remember { mutableStateOf(false) }
+    var recoverMessage by remember { mutableStateOf<String?>(null) }
+    var recoverIsError by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     Column(
@@ -164,7 +169,7 @@ fun LoginScreen(
                             error = null
                             scope.launch {
                                 try {
-                                    val auth = client.signIn(email.trim(), password)
+                                    val auth = client.signIn(email.trim(), password.trim())
                                     sessionStore.save(
                                         Session(auth.accessToken, auth.refreshToken, auth.expiresAt, auth.userId, email.trim()),
                                     )
@@ -198,7 +203,12 @@ fun LoginScreen(
                         }
                     }
                     TextButton(
-                        onClick = { showForgotDialog = true },
+                        onClick = {
+                            recoverEmail = email.trim()
+                            recoverMessage = null
+                            recoverIsError = false
+                            showForgotDialog = true
+                        },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text("Forgot password?", color = MaterialTheme.colorScheme.primary)
@@ -208,20 +218,63 @@ fun LoginScreen(
         }
     }
 
-    // ponytail: real self-service reset needs a backend email flow, lands with the web app
-    // milestone. For now, point people at the admin so login isn't a dead end.
     if (showForgotDialog) {
         AlertDialog(
             onDismissRequest = { showForgotDialog = false },
-            title = { Text("Password reset") },
+            title = { Text("Reset password") },
             text = {
-                Text(
-                    "Password reset by email is coming in the next update. For now, ask the " +
-                        "admin (Riad Mashrub Shourov) to set you a new password.",
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("We'll email a reset link to this address.")
+                    OutlinedTextField(
+                        value = recoverEmail,
+                        onValueChange = { recoverEmail = it; recoverMessage = null },
+                        label = { Text("Email") },
+                        singleLine = true,
+                        enabled = !recoverLoading,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            capitalization = KeyboardCapitalization.None,
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    recoverMessage?.let {
+                        Text(
+                            it,
+                            color = if (recoverIsError) MaterialTheme.colorScheme.error else LocalStatusColors.current.success.ink,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
             },
             confirmButton = {
-                TextButton(onClick = { showForgotDialog = false }) { Text("OK") }
+                TextButton(
+                    onClick = {
+                        recoverLoading = true
+                        recoverMessage = null
+                        scope.launch {
+                            try {
+                                client.recover(recoverEmail.trim())
+                                recoverIsError = false
+                                recoverMessage = "Reset link sent. Open the email and set a new password."
+                            } catch (e: Exception) {
+                                recoverIsError = true
+                                recoverMessage = recoverErrorMessage(e)
+                            } finally {
+                                recoverLoading = false
+                            }
+                        }
+                    },
+                    enabled = !recoverLoading && recoverEmail.isNotBlank(),
+                ) {
+                    if (recoverLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("Send")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showForgotDialog = false }) { Text("Close") }
             },
         )
     }
@@ -247,6 +300,12 @@ private suspend fun syncOwnOfficer(client: SupabaseClient, accessToken: String, 
 // pure so it's unit-testable without touching compose/android.
 fun loginErrorMessage(t: Throwable): String = when {
     t is SupabaseException && t.code == 400 -> "Wrong email or password"
+    t is IOException -> "No connection — try again"
+    else -> "Something went wrong — try again"
+}
+
+fun recoverErrorMessage(t: Throwable): String = when {
+    t is SupabaseException && t.code == 429 -> "Too many requests, try later"
     t is IOException -> "No connection — try again"
     else -> "Something went wrong — try again"
 }
