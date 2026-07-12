@@ -1,26 +1,26 @@
-// compact time entry: hour box : minute box + AM/PM spinner + clock icon that falls back to
-// the native showTimePicker. Split boxes (not one "h:mm" field) so it never overflows a dialog.
-// hour/minute use BasicTextField+DecorationBox (not plain OutlinedTextField) because the sibling
-// date box in Start tour's row only leaves ~150dp total -- OutlinedTextField's fixed 16dp side
-// padding doesn't shrink, DecorationBox's contentPadding does.
+// compact time entry: ONE outlined container matching the sibling date OutlinedTextField --
+// hour:minute borderless boxes + AM/PM segmented toggle + clock icon falling back to the
+// native showTimePicker. Border lives on the outer Row now, not per-digit-box (v3).
 package bd.sicip.qavisit.ui.common
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -34,11 +34,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 // 24h "HH:mm" or "HH:mm:ss" -> (hour 1-12, minute, isPM). unparsable -> midnight.
 fun to12h(time24: String): Triple<Int, Int, Boolean> {
@@ -74,33 +76,61 @@ private fun parse24h(time24: String): Pair<Int, Int>? {
     return h to m
 }
 
-// narrow bordered 2-digit box: DecorationBox lets padding shrink below OutlinedTextField's fixed
-// 16dp/side, which is what actually makes a sub-48dp numeric field possible.
+// borderless 2-digit box -- outer Row owns the single visible border now, so this is a bare
+// BasicTextField (no DecorationBox at all, unlike v2's per-box border).
 @Composable
-private fun DigitBox(value: String, onValueChange: (String) -> Unit, isError: Boolean, modifier: Modifier, onFocusLost: () -> Unit) {
+private fun DigitBox(
+    value: String,
+    onValueChange: (String) -> Unit,
+    isError: Boolean,
+    modifier: Modifier,
+    onFocusChanged: (Boolean) -> Unit,
+    onFocusLost: () -> Unit,
+) {
     val interactionSource = remember { MutableInteractionSource() }
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
         singleLine = true,
         interactionSource = interactionSource,
-        textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center),
+        textStyle = MaterialTheme.typography.titleMedium.copy(
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
+            color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+        ),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-        modifier = modifier.onFocusChanged { if (!it.isFocused) onFocusLost() },
-        decorationBox = { inner ->
-            OutlinedTextFieldDefaults.DecorationBox(
-                value = value,
-                innerTextField = inner,
-                enabled = true,
-                singleLine = true,
-                visualTransformation = VisualTransformation.None,
-                interactionSource = interactionSource,
-                isError = isError,
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-            )
+        modifier = modifier.onFocusChanged {
+            onFocusChanged(it.isFocused)
+            if (!it.isFocused) onFocusLost()
         },
     )
+}
+
+// one AM/PM cell: active = filled primaryContainer pill, inactive = plain text. Tap sets it
+// directly (tapping the already-active cell is a no-op) -- replaces v2's chevron cycler.
+@Composable
+private fun AmPmCell(label: String, active: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .height(16.dp)
+            .then(
+                if (active) {
+                    Modifier.background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(4.dp))
+                } else {
+                    Modifier
+                },
+            )
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+            color = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 @Composable
@@ -112,12 +142,33 @@ fun TimeField(value: String, onChange: (String) -> Unit, modifier: Modifier = Mo
     var isPM by remember(value) { mutableStateOf(validIsPM) }
     var hourError by remember(value) { mutableStateOf(false) }
     var minuteError by remember(value) { mutableStateOf(false) }
+    var hourFocused by remember { mutableStateOf(false) }
+    var minuteFocused by remember { mutableStateOf(false) }
 
     fun commit(h: Int?, m: Int?, pm: Boolean) {
         if (h != null && m != null) onChange(to24h(h, m, pm))
     }
 
-    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+    fun setAmPm(pm: Boolean) {
+        if (pm == isPM) return // tap on already-active cell = no-op
+        isPM = pm
+        commit(parseHour(hourText), parseMinute(minuteText), pm)
+    }
+
+    val borderColor = when {
+        hourFocused || minuteFocused -> MaterialTheme.colorScheme.primary
+        hourError || minuteError -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.outline
+    }
+
+    Row(
+        modifier = modifier
+            .height(52.dp)
+            .border(1.dp, borderColor, OutlinedTextFieldDefaults.shape)
+            .padding(horizontal = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
         DigitBox(
             value = hourText,
             onValueChange = { raw ->
@@ -127,7 +178,8 @@ fun TimeField(value: String, onChange: (String) -> Unit, modifier: Modifier = Mo
                 commit(h, parseMinute(minuteText), isPM)
             },
             isError = hourError,
-            modifier = Modifier.width(30.dp),
+            modifier = Modifier.width(24.dp),
+            onFocusChanged = { hourFocused = it },
             onFocusLost = {
                 if (hourError) {
                     hourText = validHour.toString()
@@ -135,7 +187,7 @@ fun TimeField(value: String, onChange: (String) -> Unit, modifier: Modifier = Mo
                 }
             },
         )
-        Text(":", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+        Text(":", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
         DigitBox(
             value = minuteText,
             onValueChange = { raw ->
@@ -145,7 +197,8 @@ fun TimeField(value: String, onChange: (String) -> Unit, modifier: Modifier = Mo
                 commit(parseHour(hourText), m, isPM)
             },
             isError = minuteError,
-            modifier = Modifier.width(30.dp),
+            modifier = Modifier.width(24.dp),
+            onFocusChanged = { minuteFocused = it },
             onFocusLost = {
                 if (minuteError) {
                     minuteText = validMinute.toString().padStart(2, '0')
@@ -153,32 +206,17 @@ fun TimeField(value: String, onChange: (String) -> Unit, modifier: Modifier = Mo
                 }
             },
         )
-        // vertical spinner: chevrons cycle the only two values, no wasted horizontal space
-        Column(modifier = Modifier.width(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                Icons.Filled.KeyboardArrowUp,
-                contentDescription = "Switch to ${if (isPM) "AM" else "PM"}",
-                modifier = Modifier.size(12.dp).clickable {
-                    isPM = !isPM
-                    commit(parseHour(hourText), parseMinute(minuteText), isPM)
-                },
-            )
-            Text(if (isPM) "PM" else "AM", style = MaterialTheme.typography.labelSmall)
-            Icon(
-                Icons.Filled.KeyboardArrowDown,
-                contentDescription = "Switch to ${if (isPM) "AM" else "PM"}",
-                modifier = Modifier.size(12.dp).clickable {
-                    isPM = !isPM
-                    commit(parseHour(hourText), parseMinute(minuteText), isPM)
-                },
-            )
+        Column(modifier = Modifier.width(30.dp)) {
+            AmPmCell("AM", active = !isPM, onClick = { setAmPm(false) })
+            AmPmCell("PM", active = isPM, onClick = { setAmPm(true) })
         }
         // plain clickable icon, not IconButton -- IconButton's built-in 48dp min touch target
         // guard ignores an outer Modifier.size() override and blew the budget in tight dialogs.
         Icon(
             Icons.Filled.Schedule,
             contentDescription = "Pick time",
-            modifier = Modifier.size(18.dp).clickable { showTimePicker(context, value) { onChange(it) } },
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp).clickable { showTimePicker(context, value) { onChange(it) } },
         )
     }
 }
