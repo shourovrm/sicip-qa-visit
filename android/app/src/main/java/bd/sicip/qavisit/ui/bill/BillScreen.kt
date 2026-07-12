@@ -70,13 +70,18 @@ import bd.sicip.qavisit.domain.SnapshotTrip
 import bd.sicip.qavisit.domain.amountInWords
 import bd.sicip.qavisit.domain.billTotals
 import bd.sicip.qavisit.domain.formatFare
+import bd.sicip.qavisit.domain.instituteTitle
 import bd.sicip.qavisit.domain.legDefaults
 import bd.sicip.qavisit.domain.primaryVisit
+import bd.sicip.qavisit.domain.purposeBand
 import bd.sicip.qavisit.domain.renderableFromSnapshot
 import bd.sicip.qavisit.domain.snapshotBill
 import bd.sicip.qavisit.domain.suggestedFood
 import bd.sicip.qavisit.domain.suggestedNights
 import bd.sicip.qavisit.domain.toBillTrips
+import bd.sicip.qavisit.domain.tourEndKey
+import bd.sicip.qavisit.domain.tourStartKey
+import bd.sicip.qavisit.domain.tourSubtitle
 import bd.sicip.qavisit.pdf.BillLeg
 import bd.sicip.qavisit.pdf.BillTrip
 import bd.sicip.qavisit.pdf.buildBillHtml
@@ -108,17 +113,20 @@ private enum class Step { PICKER, PREVIEW, DETAIL }
 // full 17-category list, insertion order from POINTS (same order the label map follows).
 private val CATEGORIES = POINTS.keys.toList()
 
-// one finished trip with everything the bill needs pulled ahead of time -- purpose line
-// comes from the primary visit only (additional visits on the same trip don't get their own
-// bill line, matching how the official sample batches per-trip, not per-visit).
-private data class TripCandidate(val trip: Trip, val primary: Visit, val legs: List<TravelLeg>)
+// one finished trip with everything the bill needs pulled ahead of time -- purpose band joins
+// every visit's clause (T5 #4, see domain.purposeBand), but nights/food/category still key off
+// the primary visit only (additional visits on the same trip don't score, matching how the
+// official sample batches per-trip, not per-visit).
+private data class TripCandidate(val trip: Trip, val primary: Visit, val visits: List<Visit>, val legs: List<TravelLeg>)
 
+// T5 #1: chrono order, earliest tour first -- min(leg dep date+time) fallback trip.started_at.
+// legs come from TravelLegDao.byTrip which is already dep_date/dep_time ascending.
 private suspend fun loadUnsubmitted(db: AppDb, officerId: String): List<TripCandidate> =
     db.tripDao().finishedUnsubmittedByOfficer(officerId).mapNotNull { trip ->
         val visits = db.visitDao().byTrip(trip.id)
         val primary = primaryVisit(visits) { it.isAdditional } ?: return@mapNotNull null
-        TripCandidate(trip, primary, db.travelLegDao().byTrip(trip.id))
-    }
+        TripCandidate(trip, primary, visits, db.travelLegDao().byTrip(trip.id))
+    }.sortedBy { c -> tourStartKey(c.legs.map { it.depDate to it.depTime }, c.trip.startedAt) }
 
 @Composable
 fun BillScreen(officerId: String, db: AppDb, onDone: () -> Unit) {
@@ -207,9 +215,13 @@ private fun NewBillPicker(
                     Row(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = c.trip.id in selected, onCheckedChange = { onToggle(c.trip.id, it) })
                         Column(modifier = Modifier.padding(start = 8.dp)) {
-                            Text(c.primary.institute, style = MaterialTheme.typography.titleMedium)
+                            // T5 #2: every institute, primary first, full names (wrap allowed -- no maxLines here)
                             Text(
-                                "${c.primary.startDate} – ${c.primary.endDate} · ${c.legs.size} travels · Σ ${formatFare(fareSum)}",
+                                instituteTitle(c.visits, { it.isAdditional }, { it.institute }),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Text(
+                                tourSubtitle(c.primary.startDate, c.primary.endDate, c.visits.size, c.legs.size, fareSum),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -353,8 +365,31 @@ private fun Bill.parseSnapshot(): BillSnapshot = renderableFromSnapshot(Json.par
 private class TripEdit(val candidate: TripCandidate) {
     var category by mutableStateOf(candidate.primary.category)
     var legs by mutableStateOf(candidate.legs)
+
+    // T5 #3: last-imposed trip.started_at/finished_at (not rendered -- plain var, no
+    // recomposition needed) so repeat imposeTripTimes() calls compare against what's already
+    // written instead of the stale value captured at TripCandidate load time.
+    var startedAt = candidate.trip.startedAt
+    var finishedAt = candidate.trip.finishedAt
+
     val nights: Int get() = suggestedNights(category)
     val foodDays: Double get() = suggestedFood(category)
+}
+
+// T5 #3: travel legs are ground truth for when a tour actually happened once they exist --
+// keep trip.started_at/finished_at in sync so dayNumber/team/rank stay correct even if
+// Start/End tour used rough times. no-op if nothing changed; idempotent via edit.startedAt/
+// finishedAt (see TripEdit above).
+private suspend fun imposeTripTimes(context: Context, db: AppDb, edit: TripEdit) {
+    val newStart = tourStartKey(edit.legs.map { it.depDate to it.depTime }, edit.startedAt)
+    val newEnd = tourEndKey(edit.legs.map { it.arrDate to it.arrTime }, edit.finishedAt)
+    if (newStart == edit.startedAt && newEnd == edit.finishedAt) return
+    db.tripDao().upsert(
+        edit.candidate.trip.copy(startedAt = newStart, finishedAt = newEnd, updatedAt = Instant.now().toString(), dirty = true),
+    )
+    edit.startedAt = newStart
+    edit.finishedAt = newEnd
+    SyncNow.enqueue(context)
 }
 
 private fun numText(d: Double): String = if (d == d.toLong().toDouble()) d.toLong().toString() else d.toString()
@@ -521,12 +556,15 @@ private fun TripEditCard(edit: TripEdit, db: AppDb) {
     }
 
     LaunchedEffect(Unit) { places = db.travelLegDao().distinctPlaces() }
+    // T5 #3: fires on first composition (candidate.legs) and again whenever add/edit/delete
+    // travel reassigns edit.legs via reloadLegs() below -- covers both "builds" and "rebuilds".
+    LaunchedEffect(edit.legs) { imposeTripTimes(context, db, edit) }
 
     Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(edit.candidate.primary.institute, style = MaterialTheme.typography.titleMedium)
+            Text(instituteTitle(edit.candidate.visits, { it.isAdditional }, { it.institute }), style = MaterialTheme.typography.titleMedium)
             Text(
-                purposeLine(edit.candidate.primary),
+                purposeLine(edit.candidate.visits),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -640,11 +678,15 @@ private fun TotalsCard(totals: BillTotals) {
     }
 }
 
-// "Purpose: {purpose} - {association} (Ref: {ref_no or —}, {ref_date or start_date})" -- one
-// line per trip's primary visit, printed as the purpose band above that trip's itinerary rows.
+// "{purpose} - {association} (Ref: {ref_no or —}, {ref_date or start_date})" for one visit --
 // date-selection rule (ref_date over start_date) lives in pdf/BillHtml.purposeDate, see there.
-private fun purposeLine(v: Visit): String =
-    "Purpose: ${v.purpose} - ${v.association} (Ref: ${v.refNo ?: "—"}, ${purposeDate(v.startDate, v.refDate)})"
+private fun purposeClause(v: Visit): String =
+    "${v.purpose} - ${v.association} (Ref: ${v.refNo ?: "—"}, ${purposeDate(v.startDate, v.refDate)})"
+
+// T5 #4: the tour's whole purpose band -- one clause per visit, identical ones collapsed,
+// joined "; " under a single "Purpose: " prefix (domain.purposeBand) so a multi-institute tour
+// still prints exactly one band, matching how the official sample batches per-trip.
+private fun purposeLine(visits: List<Visit>): String = purposeBand(visits.map(::purposeClause))
 
 private fun String.format(): String = runCatching { LocalDate.parse(this).format(BILL_DATE_FMT) }.getOrDefault(this)
 
@@ -663,14 +705,14 @@ private fun TripEdit.toBillTrip(): BillTrip {
             nightStay = n, foodDay = f,
         )
     }
-    return BillTrip(purposeLine = purposeLine(candidate.primary), legs = billLegs, nights = nights, foodDays = foodDays)
+    return BillTrip(purposeLine = purposeLine(candidate.visits), legs = billLegs, nights = nights, foodDays = foodDays)
 }
 
 // same trip, shaped for the frozen archive instead of a live PDF render -- raw leg fields
 // only, no derived night/food-per-leg (see domain/BillSnapshot.kt doc comment).
 private fun TripEdit.toSnapshotTrip(): SnapshotTrip = SnapshotTrip(
     tripId = candidate.trip.id,
-    purposeLine = purposeLine(candidate.primary),
+    purposeLine = purposeLine(candidate.visits),
     nights = nights,
     foodDays = foodDays,
     legs = legs.map { leg ->
