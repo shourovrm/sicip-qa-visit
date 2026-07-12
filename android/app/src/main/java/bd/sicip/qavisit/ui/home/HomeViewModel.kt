@@ -94,7 +94,9 @@ class HomeViewModel(
         ) { visits, myVisits, allVisits, officers ->
             // scheduled visits already attached to the running tour show in ONGOING instead --
             // exclude them here so they don't double-list.
-            val upcoming = myVisits.filter { it.status == "scheduled" && it.tripId != trip?.id }.sortedBy { it.startDate }
+            // exclude only visits attached to the ACTIVE tour (they show under ONGOING); when no
+            // tour is active trip?.id is null and a null-tripId visit must still be upcoming
+            val upcoming = myVisits.filter { it.status == "scheduled" && (trip == null || it.tripId != trip.id) }.sortedBy { it.startDate }
 
             val scores = allVisits.map { VisitScore(it.officerId, it.category, it.deleted) }
             val ranked = rank(scores)
