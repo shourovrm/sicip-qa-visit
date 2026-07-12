@@ -79,7 +79,9 @@
     editing = {
       id: null, institute: '', association: ASSOCIATIONS[0], district: DISTRICTS[0], dhaka_metro: null,
       purpose: PURPOSES[0], ref_no: '', ref_date: '', start_date: todayIso, end_date: todayIso,
-      category: 'N/A', status: 'scheduled', remarks: '', trip_id: activeTrip.id, is_additional: true,
+      category: 'N/A', status: 'scheduled', remarks: '', trip_id: activeTrip.id,
+      // first visit on an ad-hoc tour becomes primary (mirrors android forceAdditional)
+      is_additional: ongoing.some((v) => !v.is_additional),
     }
     saveErr = ''
   }
@@ -135,7 +137,7 @@
       </div>
     </div>
 
-    <h2 class="section">Ongoing</h2>
+    {#if ongoing.length}<h2 class="section">Ongoing</h2>{/if}
     {#each ongoing as v (v.id)}
       <div class="card upcoming-row">
         <div>

@@ -30,8 +30,10 @@
     loading = true
     const mine = $officer?.id
     const [allTrips, allVisits] = await Promise.all([listTrips(), listVisits()])
-    trips = allTrips.filter((t) => t.officer_id === mine && t.status === 'finished' && !t.submitted)
     visits = allVisits.filter((v) => v.officer_id === mine)
+    // no-primary-visit tours can't be billed (android loadUnsubmitted mapNotNull does the same)
+    trips = allTrips.filter((t) => t.officer_id === mine && t.status === 'finished' && !t.submitted
+      && visits.some((v) => v.trip_id === t.id && !v.is_additional && !v.deleted))
     legs = await listLegsForTrips(trips.map((t) => t.id))
     places = await listTravelPlaces()
     bills = await listBills(mine)
@@ -114,24 +116,32 @@
 
   // imposed tour times (android T5): legs are ground truth once entered -- mirror
   // started_at/finished_at on the trip row so Team/Tours/chrono-sort-fallback stay accurate.
-  // fires whenever a selected tour's legs change; args passed directly (not closure reads) so
-  // svelte's $: sees `selected`/`trips`/`legs` change. arr_date is explicit in this schema so no
-  // cross-midnight inference is needed (ponytail: unlike android, we never guess the arrival day).
-  async function imposeTimes(sel, allTrips, allLegs) {
-    for (const tripId of sel) {
-      const trip = allTrips.find((t) => t.id === tripId)
-      const tLegs = allLegs.filter((l) => l.trip_id === tripId)
-      if (!trip || !tLegs.length) continue
-      const start = tLegs.reduce((min, l) => { const k = `${l.dep_date}T${l.dep_time}`; return k < min ? k : min }, `${tLegs[0].dep_date}T${tLegs[0].dep_time}`)
-      const end = tLegs.reduce((max, l) => { const k = `${l.arr_date}T${l.arr_time}`; return k > max ? k : max }, `${tLegs[0].arr_date}T${tLegs[0].arr_time}`)
-      const startedAt = `${start}:00Z`
-      const finishedAt = `${end}:00Z`
-      if (sameInstant(trip.started_at, startedAt) && sameInstant(trip.finished_at, finishedAt)) continue
-      const updated = await updateTrip(tripId, { started_at: startedAt, finished_at: finishedAt })
-      trips = trips.map((t) => (t.id === updated.id ? updated : t))
+  // keyed off selected+legs ONLY (android keys LaunchedEffect off edit.legs the same way):
+  // `trips` is read inside the fn so the write-back below can't re-trigger this statement,
+  // and the `imposing` flag stops overlapping async passes from double-PATCHing a trip.
+  // arr_date is explicit in this schema so no cross-midnight inference is needed.
+  let imposing = false
+  async function imposeTimes(sel, allLegs) {
+    if (imposing) return
+    imposing = true
+    try {
+      for (const tripId of sel) {
+        const trip = trips.find((t) => t.id === tripId)
+        const tLegs = allLegs.filter((l) => l.trip_id === tripId)
+        if (!trip || !tLegs.length) continue
+        const start = tLegs.reduce((min, l) => { const k = `${l.dep_date}T${l.dep_time}`; return k < min ? k : min }, `${tLegs[0].dep_date}T${tLegs[0].dep_time}`)
+        const end = tLegs.reduce((max, l) => { const k = `${l.arr_date}T${l.arr_time}`; return k > max ? k : max }, `${tLegs[0].arr_date}T${tLegs[0].arr_time}`)
+        const startedAt = `${start}:00Z`
+        const finishedAt = `${end}:00Z`
+        if (sameInstant(trip.started_at, startedAt) && sameInstant(trip.finished_at, finishedAt)) continue
+        const updated = await updateTrip(tripId, { started_at: startedAt, finished_at: finishedAt })
+        trips = trips.map((t) => (t.id === updated.id ? updated : t))
+      }
+    } finally {
+      imposing = false
     }
   }
-  $: imposeTimes(selected, trips, legs)
+  $: imposeTimes(selected, legs)
 
   // shared template fetch -- same missing-file error message for both bill kinds
   async function fetchTemplate(path) {
