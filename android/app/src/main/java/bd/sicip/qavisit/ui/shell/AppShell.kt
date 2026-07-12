@@ -1,4 +1,4 @@
-// post-login shell: navy app bar + sync chip on top, orange-tinted bottom nav, 5 tabs.
+// post-login shell: navy app bar (title only), orange-tinted bottom nav, 5 tabs.
 package bd.sicip.qavisit.ui.shell
 
 import android.content.Context
@@ -9,8 +9,6 @@ import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -22,13 +20,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -38,8 +34,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import bd.sicip.qavisit.data.auth.SessionStore
 import bd.sicip.qavisit.data.db.AppDb
-import bd.sicip.qavisit.data.sync.SyncNow
-import bd.sicip.qavisit.data.sync.SyncStateStore
 import bd.sicip.qavisit.settings.ThemePrefs
 import bd.sicip.qavisit.ui.bill.BillScreen
 import bd.sicip.qavisit.ui.home.HomeScreen
@@ -64,7 +58,7 @@ private val NAV_ITEMS = listOf(
     NavItem("profile", "Profile", Icons.Filled.Person),
 )
 
-// TopAppBar is the experimental bit here (assist chip / nav-bar items are stable); this
+// TopAppBar is the experimental bit here (nav-bar items are stable); this
 // screen-level shell composable is the natural opt-in boundary.
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,9 +66,6 @@ fun AppShell(context: Context, officerId: String) {
     val db = remember { AppDb.get(context) }
     val sessionStore = remember { SessionStore(context) }
     val themePrefs = remember { ThemePrefs(context) }
-    val syncState = remember { SyncStateStore(context) }
-    val lastSyncAt by syncState.lastSyncAt.collectAsState(initial = null)
-    val lastError by syncState.lastError.collectAsState(initial = null)
 
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -89,16 +80,6 @@ fun AppShell(context: Context, officerId: String) {
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
                 ),
-                actions = {
-                    AssistChip(
-                        onClick = { SyncNow.enqueue(context) },
-                        label = { Text(syncChipText(lastSyncAt, lastError)) },
-                        colors = AssistChipDefaults.assistChipColors(
-                            labelColor = MaterialTheme.colorScheme.onPrimary,
-                        ),
-                        modifier = Modifier.padding(end = 12.dp),
-                    )
-                },
             )
         },
         bottomBar = {
