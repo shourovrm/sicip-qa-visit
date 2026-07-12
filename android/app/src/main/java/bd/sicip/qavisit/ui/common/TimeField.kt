@@ -161,13 +161,15 @@ fun TimeField(value: String, onChange: (String) -> Unit, modifier: Modifier = Mo
         else -> MaterialTheme.colorScheme.outline
     }
 
+    // 6dp gaps + 8dp padding: total ~134dp so the clock icon survives LegForm's ~140dp
+    // dialog slot (10dp rhythm clipped it there)
     Row(
         modifier = modifier
             .height(52.dp)
             .border(1.dp, borderColor, OutlinedTextFieldDefaults.shape)
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         DigitBox(
             value = hourText,
@@ -206,7 +208,7 @@ fun TimeField(value: String, onChange: (String) -> Unit, modifier: Modifier = Mo
                 }
             },
         )
-        Column(modifier = Modifier.width(30.dp)) {
+        Column(modifier = Modifier.width(26.dp)) {
             AmPmCell("AM", active = !isPM, onClick = { setAmPm(false) })
             AmPmCell("PM", active = isPM, onClick = { setAmPm(true) })
         }
