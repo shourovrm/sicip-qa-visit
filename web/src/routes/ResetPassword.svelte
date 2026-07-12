@@ -20,10 +20,12 @@
 
   async function setPassword() {
     error = ''
-    if (password.length < 8) { error = 'Password must be at least 8 characters.'; return }
-    if (password !== confirm) { error = 'Passwords do not match.'; return }
+    // trim before validating -- same trailing-space keyboard bug as android T1
+    const trimmed = password.trim()
+    if (trimmed.length < 8) { error = 'Password must be at least 8 characters.'; return }
+    if (trimmed !== confirm.trim()) { error = 'Passwords do not match.'; return }
     busy = true
-    const err = await updatePassword(password)
+    const err = await updatePassword(trimmed)
     busy = false
     if (err) error = err.message
     else { done = true; setTimeout(() => { location.href = '/' }, 1500) }

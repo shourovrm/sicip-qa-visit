@@ -2,12 +2,13 @@
      those pages themselves (RLS is_admin() bypass + this app's canEdit checks already allow it). -->
 <script>
   import { onMount } from 'svelte'
-  import { getAppMeta, setAppMeta, updateOfficer } from '../lib/db.js'
+  import { getAppMeta, setAppMeta, updateOfficer, listTrips, updateTrip } from '../lib/db.js'
   import { isAdmin } from '../lib/auth.js'
   import { officers } from '../lib/officers.js'
   import Dropdown from '../components/Dropdown.svelte'
 
   let meta = {}
+  let trips = []
   let loading = true
   let saved = ''
   let editingId = null // officer.id being edited
@@ -15,9 +16,22 @@
   let officerErr = ''
 
   onMount(async () => {
-    meta = await getAppMeta()
+    ;[meta, trips] = await Promise.all([getAppMeta(), listTrips()])
     loading = false
   })
+
+  // admin override: end an officer's active tour from the web (field officers normally end
+  // their own tour from the phone) -- sets status/finished_at only, updated_at stays server-owned.
+  async function endTour(o, trip) {
+    if (!confirm(`End ${o.name}'s active tour now?`)) return
+    officerErr = ''
+    try {
+      const updated = await updateTrip(trip.id, { status: 'finished', finished_at: new Date().toISOString() })
+      trips = trips.map((t) => (t.id === updated.id ? updated : t))
+    } catch (e) {
+      officerErr = e.message
+    }
+  }
 
   async function save(key) {
     saved = ''
@@ -74,6 +88,7 @@
       <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Active</th><th></th></tr></thead>
       <tbody>
         {#each $officers as o (o.id)}
+          {@const activeTour = trips.find((t) => t.officer_id === o.id && t.status === 'active')}
           {#if editingId === o.id}
             <tr>
               <td><input type="text" bind:value={draft.name} /></td>
@@ -88,7 +103,12 @@
           {:else}
             <tr>
               <td>{o.name}</td><td>{o.email}</td><td>{o.role}</td><td>{o.active ? 'yes' : 'no'}</td>
-              <td><button class="btn-link" on:click={() => startEditOfficer(o)}>Edit</button></td>
+              <td>
+                <button class="btn-link" on:click={() => startEditOfficer(o)}>Edit</button>
+                {#if activeTour}
+                  <button class="btn-link" on:click={() => endTour(o, activeTour)}>End tour</button>
+                {/if}
+              </td>
             </tr>
           {/if}
         {/each}

@@ -22,8 +22,11 @@ supabase.auth.onAuthStateChange((_event, sess) => {
   loadOfficer(sess?.user?.id)
 })
 
+// trim -- phone/desktop keyboards autocomplete trailing spaces onto password fields; an
+// untrimmed password gets stored/compared with whitespace and the user can never log back in
+// with the password they think they set (same bug as android T1, see DECISIONS.md).
 export async function signIn(email, password) {
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: password.trim() })
   return error
 }
 
@@ -42,6 +45,6 @@ export async function requestPasswordReset(email) {
 }
 
 export async function updatePassword(newPassword) {
-  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  const { error } = await supabase.auth.updateUser({ password: newPassword.trim() })
   return error
 }

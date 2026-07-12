@@ -6,11 +6,12 @@
   import { officer } from '../lib/auth.js'
   import { CATEGORY_LABELS, suggestedNights, suggestedFood } from '../lib/scoring.js'
   import { leg as mkLeg, makeTrip, billTotals } from '../lib/billmath.js'
-  import { toBillTrips, snapshotBill } from '../lib/billsnapshot.js'
-  import { fillBillTemplate, fillLocalBillTemplate, downloadBuffer, fmtDate } from '../lib/xlsx.js'
+  import { toBillTrips, snapshotBill, buildStoredTrips, tourSortKey, institutesForTrip, purposeLineForTrip } from '../lib/billsnapshot.js'
+  import { fillBillTemplate, fillLocalBillTemplate, downloadBuffer } from '../lib/xlsx.js'
   import { buildBillHtml, buildLocalBillHtml, localBillTrips, printBillHtml } from '../lib/billhtml.js'
-  import { TRANSPORT, TICKET_REMARK } from '../lib/seeds.js'
+  import { newLegDraft, legFromRow, legPayload } from '../lib/legs.js'
   import Dropdown from '../components/Dropdown.svelte'
+  import LegModal from '../components/LegModal.svelte'
 
   let trips = [], visits = [], legs = [], bills = [], places = []
   let loading = true
@@ -41,41 +42,19 @@
     return visits.find((v) => v.trip_id === tripId && !v.is_additional)
   }
 
-  // android stores the tick inside remarks string -- match exactly on compose/parse (copied from Tours.svelte)
-  function composeRemarks(text, ticket) {
-    const t = (text || '').trim()
-    if (!ticket) return t
-    return t ? `${t}; ${TICKET_REMARK}` : TICKET_REMARK
-  }
-  function parseRemarks(remarks) {
-    const r = remarks ?? ''
-    if (!r.includes(TICKET_REMARK)) return { text: r, ticket: false }
-    const text = r.replace(TICKET_REMARK, '').replace(/;\s*$/, '').trim()
-    return { text, ticket: true }
-  }
-
   function newLeg(tripId) {
-    legForm = { trip_id: tripId, dep_date: '', dep_time: '', dep_place: '', arr_date: '', arr_time: '', arr_place: '', mode: 'Bus', class: 'AC', fare: 0, remarks: '', ticket: false }
+    legForm = newLegDraft(tripId)
     legErr = ''
   }
   function editLeg(l) {
-    const { text, ticket } = parseRemarks(l.remarks)
-    legForm = { ...l, mode: l.mode in TRANSPORT ? l.mode : 'Other', otherMode: l.mode in TRANSPORT ? '' : l.mode, remarks: text, ticket }
+    legForm = legFromRow(l)
     legErr = ''
   }
-  $: legClasses = legForm && legForm.mode !== 'Other' ? TRANSPORT[legForm.mode] ?? [] : []
 
   async function saveLeg() {
     legErr = ''
     try {
-      const mode = legForm.mode === 'Other' ? (legForm.otherMode || 'Other') : legForm.mode
-      const isNA = mode === 'N/A'
-      const payload = {
-        trip_id: legForm.trip_id, dep_date: legForm.dep_date, dep_time: legForm.dep_time, dep_place: legForm.dep_place,
-        arr_date: legForm.arr_date, arr_time: legForm.arr_time, arr_place: legForm.arr_place,
-        mode, class: isNA ? null : legForm.class, fare: isNA ? 0 : (Number(legForm.fare) || 0),
-        remarks: composeRemarks(legForm.remarks, legForm.ticket),
-      }
+      const payload = legPayload(legForm)
       if (legForm.id) {
         const updated = await updateLeg(legForm.id, payload)
         legs = legs.map((l) => (l.id === updated.id ? updated : l))
@@ -114,36 +93,45 @@
     visits = visits.map((v) => (v.id === updated.id ? updated : v))
   }
 
-  function purposeLineFor(v) {
-    return `${v.purpose} - ${v.association} (Ref: ${v.ref_no || '—'}, ${fmtDate(v.ref_date || v.start_date)})`
-  }
+  // chrono sort (android T5): earliest leg departure first, trip.started_at as fallback. args
+  // (trips/legs) referenced directly in the $: expression -- see the gotcha note above.
+  $: sortedTrips = [...trips].sort((a, b) =>
+    tourSortKey(legs.filter((l) => l.trip_id === a.id), a.started_at)
+      .localeCompare(tourSortKey(legs.filter((l) => l.trip_id === b.id), b.started_at)))
 
-  // build snapshot-shaped trips (same shape bills.data stores) from currently selected live trips.
-  // sel/allVisits/allLegs passed as args (not read off the closure) so svelte's $: dependency
-  // tracking sees them -- a helper *call* like primaryVisit(id) hides the read from svelte's
-  // static analysis, so a category edit (setCategory) or leg CRUD (saveLeg/delLeg) would leave
-  // totals stale otherwise. nights/foodDays derived from the primary visit's category, not user-edited.
-  function buildSnapshotTrips(sel, allVisits, allLegs) {
-    return [...sel].map((tripId) => {
-      const pv = allVisits.find((v) => v.trip_id === tripId && !v.is_additional)
-      const tLegs = allLegs.filter((l) => l.trip_id === tripId).sort((a, b) => (a.dep_date + a.dep_time).localeCompare(b.dep_date + b.dep_time))
-      return {
-        tripId,
-        purposeLine: purposeLineFor(pv),
-        nights: suggestedNights(pv.category),
-        foodDays: suggestedFood(pv.category),
-        legs: tLegs.map((l) => ({
-          dep_date: l.dep_date, dep_time: l.dep_time, dep_place: l.dep_place,
-          arr_date: l.arr_date, arr_time: l.arr_time, arr_place: l.arr_place,
-          mode: l.mode, class: l.class, fare: Number(l.fare), remarks: l.remarks,
-        })),
-      }
-    })
-  }
+  // preview/snapshot/submit all iterate this instead of raw `selected` so they inherit the same
+  // chrono order (android T5: "apply everywhere tours are listed/grouped for bills").
+  $: orderedTripIds = sortedTrips.filter((t) => selected.has(t.id)).map((t) => t.id)
 
-  $: selectedTrips = buildSnapshotTrips(selected, visits, legs)
+  $: selectedTrips = buildStoredTrips(orderedTripIds, visits, legs)
   $: billTripsPreview = toBillTrips({ billDate: new Date().toISOString().slice(0, 10), trips: selectedTrips })
   $: totals = billTotals(selectedTrips.map((t) => makeTrip(t.legs.map((l) => mkLeg(l.fare)), '', '', t.nights, t.foodDays)))
+
+  function sameInstant(a, b) {
+    if (!a || !b) return a === b
+    return new Date(a).getTime() === new Date(b).getTime()
+  }
+
+  // imposed tour times (android T5): legs are ground truth once entered -- mirror
+  // started_at/finished_at on the trip row so Team/Tours/chrono-sort-fallback stay accurate.
+  // fires whenever a selected tour's legs change; args passed directly (not closure reads) so
+  // svelte's $: sees `selected`/`trips`/`legs` change. arr_date is explicit in this schema so no
+  // cross-midnight inference is needed (ponytail: unlike android, we never guess the arrival day).
+  async function imposeTimes(sel, allTrips, allLegs) {
+    for (const tripId of sel) {
+      const trip = allTrips.find((t) => t.id === tripId)
+      const tLegs = allLegs.filter((l) => l.trip_id === tripId)
+      if (!trip || !tLegs.length) continue
+      const start = tLegs.reduce((min, l) => { const k = `${l.dep_date}T${l.dep_time}`; return k < min ? k : min }, `${tLegs[0].dep_date}T${tLegs[0].dep_time}`)
+      const end = tLegs.reduce((max, l) => { const k = `${l.arr_date}T${l.arr_time}`; return k > max ? k : max }, `${tLegs[0].arr_date}T${tLegs[0].arr_time}`)
+      const startedAt = `${start}:00Z`
+      const finishedAt = `${end}:00Z`
+      if (sameInstant(trip.started_at, startedAt) && sameInstant(trip.finished_at, finishedAt)) continue
+      const updated = await updateTrip(tripId, { started_at: startedAt, finished_at: finishedAt })
+      trips = trips.map((t) => (t.id === updated.id ? updated : t))
+    }
+  }
+  $: imposeTimes(selected, trips, legs)
 
   // shared template fetch -- same missing-file error message for both bill kinds
   async function fetchTemplate(path) {
@@ -244,17 +232,19 @@
       <p class="muted">No finished, unsubmitted tours to bill.</p>
     {:else}
       <table>
-        <thead><tr><th></th><th>Institute</th><th>Dates</th><th>Category</th><th>Travel</th></tr></thead>
+        <thead><tr><th></th><th>Institutes</th><th>Dates</th><th>Visits</th><th>Category</th><th>Travel</th></tr></thead>
         <tbody>
-          {#each trips as t (t.id)}
-            {@const pv = visits.find((v) => v.trip_id === t.id && !v.is_additional)}
+          {#each sortedTrips as t (t.id)}
+            {@const tVisits = visits.filter((v) => v.trip_id === t.id)}
+            {@const pv = tVisits.find((v) => !v.is_additional)}
             {@const tLegs = legs.filter((l) => l.trip_id === t.id)}
             <tr>
               <td><input type="checkbox" checked={selected.has(t.id)} on:change={() => toggle(t.id)} /></td>
-              <td>{pv?.institute ?? '—'}</td>
+              <td>{institutesForTrip(t.id, visits).join(', ') || '—'}</td>
               <td>{pv ? `${pv.start_date} – ${pv.end_date}` : ''}</td>
+              <td>{tVisits.length} visit{tVisits.length === 1 ? '' : 's'}</td>
               <td>{pv?.category ?? ''}</td>
-              <td>{tLegs.length} travels · {tLegs.reduce((s, l) => s + Number(l.fare), 0)}</td>
+              <td>{tLegs.length} travel{tLegs.length === 1 ? '' : 's'} · ৳{tLegs.reduce((s, l) => s + Number(l.fare), 0)}</td>
             </tr>
           {/each}
         </tbody>
@@ -262,11 +252,11 @@
 
       {#if selected.size > 0}
         <h3>Preview</h3>
-        {#each [...selected] as tripId (tripId)}
+        {#each orderedTripIds as tripId (tripId)}
           {@const pv = visits.find((v) => v.trip_id === tripId && !v.is_additional)}
           {@const tLegs = legs.filter((l) => l.trip_id === tripId).sort((a, b) => (a.dep_date + a.dep_time).localeCompare(b.dep_date + b.dep_time))}
           <div class="preview-trip">
-            <p><b>{purposeLineFor(pv)}</b></p>
+            <p><b>{purposeLineForTrip(tripId, visits)}</b></p>
             <div class="row-wrap cat-row">
               <div class="field" style="width:280px">
                 <label for="cat-{tripId}">Category</label>
@@ -338,46 +328,7 @@
 {/if}
 
 {#if legForm}
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div class="modal-backdrop" on:click|self={() => (legForm = null)}>
-    <form class="card modal" on:submit|preventDefault={saveLeg}>
-      <h2>{legForm.id ? 'Edit' : 'Add'} travel</h2>
-      <div class="row">
-        <div class="field"><label for="dd">Departure date</label><input id="dd" type="date" bind:value={legForm.dep_date} required /></div>
-        <div class="field"><label for="dt">Time</label><input id="dt" type="time" bind:value={legForm.dep_time} required /></div>
-      </div>
-      <div class="field"><label for="dp">Departure place</label><input id="dp" type="text" list="place-list" bind:value={legForm.dep_place} required /></div>
-      <div class="row">
-        <div class="field"><label for="ad">Arrival date</label><input id="ad" type="date" bind:value={legForm.arr_date} required /></div>
-        <div class="field"><label for="at">Time</label><input id="at" type="time" bind:value={legForm.arr_time} required /></div>
-      </div>
-      <div class="field"><label for="ap">Arrival place</label><input id="ap" type="text" list="place-list" bind:value={legForm.arr_place} required /></div>
-      <datalist id="place-list">{#each places as p}<option value={p} />{/each}</datalist>
-      <div class="field">
-        <label for="md">Mode</label>
-        <Dropdown id="md" bind:value={legForm.mode} options={[...Object.keys(TRANSPORT)]} />
-      </div>
-      {#if legForm.mode === 'Other'}
-        <div class="field"><label for="om">Mode (free text)</label><input id="om" type="text" bind:value={legForm.otherMode} /></div>
-        <div class="field"><label for="cl">Class</label><input id="cl" type="text" bind:value={legForm.class} /></div>
-      {:else if legClasses.length}
-        <div class="field"><label for="cl2">Class</label><Dropdown id="cl2" bind:value={legForm.class} options={legClasses} /></div>
-      {/if}
-      {#if legForm.mode !== 'N/A'}
-        <div class="field"><label for="fare">Fare (Tk)</label><input id="fare" type="number" step="0.01" bind:value={legForm.fare} /></div>
-      {/if}
-      <div class="field"><label for="rm">Remarks</label><input id="rm" type="text" bind:value={legForm.remarks} /></div>
-      <div class="field checkbox-row">
-        <label><input type="checkbox" bind:checked={legForm.ticket} /> {TICKET_REMARK}</label>
-      </div>
-      {#if legErr}<p class="err">{legErr}</p>{/if}
-      <div class="row">
-        <button type="submit" class="btn btn-primary">Save</button>
-        <button type="button" class="btn" on:click={() => (legForm = null)}>Cancel</button>
-      </div>
-    </form>
-  </div>
+  <LegModal legForm={legForm} places={places} legErr={legErr} on:save={saveLeg} on:cancel={() => (legForm = null)} />
 {/if}
 
 <style>
@@ -389,6 +340,4 @@
   .cat-row { align-items: flex-end; margin: 8px 0; }
   .derived { padding-bottom: 8px; }
   .totals { font-size: 14px; margin: 12px 0; }
-  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 10; }
-  .modal { width: 420px; max-height: 90vh; overflow: auto; }
 </style>

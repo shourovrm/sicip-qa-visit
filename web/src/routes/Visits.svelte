@@ -7,6 +7,7 @@
   import { DISTRICTS, ASSOCIATIONS, PURPOSES } from '../lib/seeds.js'
   import { CATEGORY_LABELS, autoCategoryFromDates } from '../lib/scoring.js'
   import Dropdown from '../components/Dropdown.svelte'
+  import VisitModal from '../components/VisitModal.svelte'
 
   let visits = []
   let loading = true
@@ -38,11 +39,6 @@
     return v.officer_id === mine || $isAdmin
   }
 
-  // global autosuggest sources -- distinct across every synced visit (any officer), same
-  // reasoning as android's VisitDao.distinctInstitutes/distinctRefs.
-  $: instituteOptions = [...new Set(visits.map((v) => v.institute))].filter(Boolean).sort()
-  $: refOptions = [...new Set(visits.map((v) => v.ref_no))].filter(Boolean).sort()
-
   function startEdit(v) {
     editing = { ...v }
     saveErr = ''
@@ -56,15 +52,6 @@
       category: 'N/A', status: 'scheduled', remarks: '',
     }
     saveErr = ''
-  }
-
-  // typing/picking a ref no that matches an existing visit pulls in its ref_date, same as
-  // android's ref-no PickerDropdown onSelect (exact match only, most recently updated wins).
-  function refNoChanged() {
-    const match = visits
-      .filter((v) => v.ref_no === editing.ref_no && v.ref_date)
-      .sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''))[0]
-    if (match) editing.ref_date = match.ref_date
   }
 
   async function save() {
@@ -166,49 +153,7 @@
 {/if}
 
 {#if editing}
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div class="modal-backdrop" on:click|self={() => (editing = null)}>
-    <form class="card modal" on:submit|preventDefault={save}>
-      <h2>{editing.id ? 'Edit' : 'Schedule'} visit</h2>
-      <div class="field">
-        <label for="inst">Institute</label>
-        <input id="inst" type="text" list="institute-list" bind:value={editing.institute} required />
-        <datalist id="institute-list">{#each instituteOptions as i}<option value={i} />{/each}</datalist>
-      </div>
-      <div class="field"><label for="assoc">Association</label><Dropdown bind:value={editing.association} options={ASSOCIATIONS} /></div>
-      <div class="field"><label for="dist">District</label><Dropdown bind:value={editing.district} options={DISTRICTS} /></div>
-      {#if editing.district === 'Dhaka'}
-        <div class="field">
-          <label for="metro">Dhaka sub-option</label>
-          <Dropdown id="metro" bind:value={editing.dhaka_metro} options={[[true, 'Inside metro'], [false, 'Outside metro']]} />
-        </div>
-      {/if}
-      <div class="field"><label for="purp">Purpose</label><Dropdown bind:value={editing.purpose} options={PURPOSES} /></div>
-      <div class="field">
-        <label for="ref">Ref no</label>
-        <input id="ref" type="text" list="ref-list" bind:value={editing.ref_no} on:input={refNoChanged} />
-        <datalist id="ref-list">{#each refOptions as r}<option value={r} />{/each}</datalist>
-      </div>
-      <div class="field"><label for="refd">Ref date</label><input id="refd" type="date" bind:value={editing.ref_date} /></div>
-      <div class="row">
-        <div class="field"><label for="sd">Start date</label><input id="sd" type="date" bind:value={editing.start_date} required /></div>
-        <div class="field"><label for="ed">End date</label><input id="ed" type="date" bind:value={editing.end_date} required /></div>
-      </div>
-      {#if editing.status === 'done'}
-        <div class="field">
-          <label for="cat">Category</label>
-          <Dropdown id="cat" bind:value={editing.category} options={Object.entries(CATEGORY_LABELS)} />
-        </div>
-      {/if}
-      <div class="field"><label for="rem">Remarks</label><textarea id="rem" bind:value={editing.remarks}></textarea></div>
-      {#if saveErr}<p class="err">{saveErr}</p>{/if}
-      <div class="row">
-        <button type="submit" class="btn btn-primary">Save</button>
-        <button type="button" class="btn" on:click={() => (editing = null)}>Cancel</button>
-      </div>
-    </form>
-  </div>
+  <VisitModal editing={editing} visits={visits} saveErr={saveErr} on:save={save} on:cancel={() => (editing = null)} />
 {/if}
 
 <style>
@@ -219,6 +164,4 @@
   .seg button.active { background: var(--primary); color: var(--on-primary); }
   .filters { margin-bottom: 16px; }
   .filters :global(select), .filters input { width: auto; }
-  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 10; }
-  .modal { width: 420px; max-height: 90vh; overflow: auto; }
 </style>

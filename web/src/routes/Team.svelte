@@ -24,7 +24,7 @@
     const activeTrip = trips.find((t) => t.officer_id === officerId && t.status === 'active')
     if (activeTrip) {
       const pv = visits.find((v) => v.trip_id === activeTrip.id && !v.is_additional)
-      return { tone: 'visit', label: 'On visit', detail: pv ? `${pv.institute}, ${pv.district}` : '', since: activeTrip.started_at }
+      return { tone: 'visit', label: 'On tour', detail: pv ? `${pv.institute}, ${pv.district}` : '', since: activeTrip.started_at }
     }
     // explicit lifecycle: only a started leave counts (matches android TeamStatus.kt)
     const onLeave = leaves.find((l) => l.officer_id === officerId && l.status === 'started')
