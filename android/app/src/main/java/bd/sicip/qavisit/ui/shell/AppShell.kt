@@ -119,9 +119,6 @@ fun AppShell(context: Context, officerId: String) {
                     db = db,
                     sessionStore = sessionStore,
                     onOpenTrip = { tripId -> navController.navigate("trip/$tripId") },
-                    onLogVisit = { tripId, hasPrimary ->
-                        navController.navigate("visit_form?tripId=$tripId&additional=$hasPrimary")
-                    },
                     onFinishTrip = { tripId -> navController.navigate("trip/$tripId?action=finish") },
                     onStartTrip = { visitId ->
                         navController.navigate(if (visitId != null) "start_trip?visitId=$visitId" else "start_trip")

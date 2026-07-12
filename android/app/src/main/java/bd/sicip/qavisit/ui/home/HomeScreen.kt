@@ -79,11 +79,6 @@ fun HomeScreen(
     db: AppDb,
     sessionStore: SessionStore,
     onOpenTrip: (String) -> Unit,
-    // dead: home no longer routes to the standalone visit-form screen for tour adds (Add visit
-    // opens VisitForm inline instead, see AddVisitRequest below). Kept only because AppShell.kt
-    // (owned by another agent, off-limits here) still wires this param in -- drop it there too
-    // next time that file is touched.
-    onLogVisit: (tripId: String, hasPrimary: Boolean) -> Unit,
     onFinishTrip: (String) -> Unit,
     onStartTrip: (visitId: String?) -> Unit,
     onScheduleVisit: () -> Unit,
