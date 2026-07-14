@@ -109,7 +109,7 @@ function tripRowsHtml(trip) {
       html += td(leg.mode === 'N/A' ? '-' : esc(leg.mode))
       html += td(esc(leg.travelClass || '-'))
       html += td(dashIfZero(leg.fare), { cls: 'money' })
-      html += td(esc(leg.remarks || '-'))
+      html += td(esc(leg.remarks || ''))
       html += '</tr>'
     }
     i = j + 1
@@ -146,7 +146,7 @@ function localTripRowsHtml(trip) {
       html += td(esc(leg.arrPlace), { cls: 'place' })
       html += td(leg.mode === 'N/A' ? '-' : esc(leg.mode))
       html += td(dashIfZero(leg.fare), { cls: 'money' })
-      html += td(esc(leg.remarks || '-'))
+      html += td(esc(leg.remarks || ''))
       html += '</tr>'
     }
     i = j + 1

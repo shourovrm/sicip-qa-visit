@@ -216,7 +216,7 @@ private fun tripRowsHtml(trip: BillTrip): String = buildString {
             append(td(modeCell(leg.mode)))
             append(td(esc(leg.travelClass ?: "-")))
             append(td(dashIfZero(leg.fare), cls = "money"))
-            append(td(esc(leg.remarks ?: "-")))
+            append(td(esc(leg.remarks ?: "")))
             append("</tr>")
         }
     }
@@ -242,7 +242,7 @@ private fun localTripRowsHtml(trip: BillTrip): String = buildString {
             append(td(esc(leg.arrPlace), cls = "place"))
             append(td(modeCell(leg.mode)))
             append(td(dashIfZero(leg.fare), cls = "money"))
-            append(td(esc(leg.remarks ?: "-")))
+            append(td(esc(leg.remarks ?: "")))
             append("</tr>")
         }
     }
