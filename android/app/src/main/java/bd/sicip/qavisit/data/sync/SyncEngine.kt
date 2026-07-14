@@ -16,6 +16,7 @@ import bd.sicip.qavisit.data.remote.SupabaseClient
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.time.Instant
 
 // ---- pure decision rules, tested without any Android/network glue ----
@@ -31,6 +32,11 @@ fun shouldApplyRemote(localDirty: Boolean): Boolean = !localDirty
 fun advanceWatermark(current: String, updatedAts: List<String>): String =
     (updatedAts + current).max()
 
+// reconciliation = retract rows hard-deleted on server; dirty rows excluded upstream
+// (unpushed local creates aren't on server yet).
+fun staleLocalIds(localNonDirtyIds: List<String>, serverIds: Set<String>): List<String> =
+    localNonDirtyIds.filter { it !in serverIds }
+
 data class SyncResult(
     val pushed: Map<String, Int> = emptyMap(),
     val pulled: Map<String, Int> = emptyMap(),
@@ -43,6 +49,9 @@ private const val NOTIFICATION_CHANNEL_ID = "informs"
 // dropped, and the watermark then jumped past it forever. page through with limit/offset
 // until a short page proves we've drained the table.
 private const val PAGE_SIZE = 1000
+
+// sqlite caps bound variables per statement (~999) -- chunk the DELETE ... IN (:ids) below it.
+private const val DELETE_CHUNK_SIZE = 500
 
 class SyncEngine(
     private val context: Context,
@@ -74,6 +83,18 @@ class SyncEngine(
             pulled["activities"] = pullActivities(token)
             pulled["leaves"] = pullLeaves(token)
             pulled["bills"] = pullBills(token)
+
+            // past incident: rows hard-DELETEd on the server never got retracted locally,
+            // since pull only upserts. reconcile every table against the server's live id
+            // set now that push+pull are both done. SyncResult stays as-is -- counts aren't
+            // surfaced, this is best-effort cleanup, not something callers need to react to.
+            reconcile("officers", token, db.officerDao().nonDirtyIds()) { db.officerDao().deleteByIds(it) }
+            reconcile("trips", token, db.tripDao().nonDirtyIds()) { db.tripDao().deleteByIds(it) }
+            reconcile("visits", token, db.visitDao().nonDirtyIds()) { db.visitDao().deleteByIds(it) }
+            reconcile("travel_legs", token, db.travelLegDao().nonDirtyIds()) { db.travelLegDao().deleteByIds(it) }
+            reconcile("activities", token, db.activityDao().nonDirtyIds()) { db.activityDao().deleteByIds(it) }
+            reconcile("leaves", token, db.leaveDao().nonDirtyIds()) { db.leaveDao().deleteByIds(it) }
+            reconcile("bills", token, db.billDao().nonDirtyIds()) { db.billDao().deleteByIds(it) }
 
             syncState.recordSuccess(Instant.now().toString())
             SyncResult(pushed, pulled)
@@ -166,6 +187,44 @@ class SyncEngine(
             offset += PAGE_SIZE
         }
         return all
+    }
+
+    // full id set for a table, ignoring the watermark -- reconciliation needs to know what's
+    // still on the server, not just what's new. same paging shape as pullPages, id-only column.
+    private suspend fun pullAllIds(table: String, token: String): Set<String> {
+        val ids = mutableSetOf<String>()
+        var offset = 0
+        while (true) {
+            val page = client.select(
+                table,
+                mapOf(
+                    "select" to "id",
+                    "order" to "id.asc",
+                    "limit" to "$PAGE_SIZE",
+                    "offset" to "$offset",
+                ),
+                token,
+            )
+            page.forEach { ids.add(it.jsonObject.getValue("id").jsonPrimitive.content) }
+            if (page.size < PAGE_SIZE) break
+            offset += PAGE_SIZE
+        }
+        return ids
+    }
+
+    // hard-delete reconciliation: a row absent from the server's id set but still local (and
+    // not a dirty unpushed edit) was deleted server-side -- retract it. chunked because sqlite
+    // caps bound variables per statement.
+    private suspend fun reconcile(
+        table: String,
+        token: String,
+        localNonDirtyIds: List<String>,
+        deleteByIds: suspend (List<String>) -> Unit,
+    ): Int {
+        val serverIds = pullAllIds(table, token)
+        val stale = staleLocalIds(localNonDirtyIds, serverIds)
+        stale.chunked(DELETE_CHUNK_SIZE).forEach { deleteByIds(it) }
+        return stale.size
     }
 
     private suspend fun pullOfficers(token: String): Int {

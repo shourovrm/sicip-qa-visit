@@ -42,6 +42,13 @@ interface OfficerDao {
     @Query("UPDATE officers SET dirty = 0 WHERE id IN (:ids)")
     suspend fun clearDirty(ids: List<String>)
 
+    // hard-delete reconciliation: candidates for retraction (never an unpushed local edit).
+    @Query("SELECT id FROM officers WHERE dirty = 0")
+    suspend fun nonDirtyIds(): List<String>
+
+    @Query("DELETE FROM officers WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<String>)
+
     @Query("SELECT MAX(updated_at) FROM officers")
     suspend fun maxUpdatedAt(): String?
 }

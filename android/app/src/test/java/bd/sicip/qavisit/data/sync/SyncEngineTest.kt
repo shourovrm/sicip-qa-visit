@@ -49,4 +49,28 @@ class SyncEngineTest {
         val result = advanceWatermark(current = "2024-01-01T00:00:00Z", updatedAts = emptyList())
         assertEquals("2024-01-01T00:00:00Z", result)
     }
+
+    @Test
+    fun `stale local ids returns id absent from server`() {
+        val result = staleLocalIds(localNonDirtyIds = listOf("a", "b"), serverIds = setOf("a"))
+        assertEquals(listOf("b"), result)
+    }
+
+    @Test
+    fun `stale local ids keeps id present on server`() {
+        val result = staleLocalIds(localNonDirtyIds = listOf("a"), serverIds = setOf("a"))
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `stale local ids wipes all local when server list is empty`() {
+        val result = staleLocalIds(localNonDirtyIds = listOf("a", "b"), serverIds = emptySet())
+        assertEquals(listOf("a", "b"), result)
+    }
+
+    @Test
+    fun `stale local ids returns empty when local list is empty`() {
+        val result = staleLocalIds(localNonDirtyIds = emptyList(), serverIds = setOf("a"))
+        assertTrue(result.isEmpty())
+    }
 }

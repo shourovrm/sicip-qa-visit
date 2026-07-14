@@ -74,4 +74,11 @@ interface TripDao {
 
     @Query("SELECT MAX(updated_at) FROM trips")
     suspend fun maxUpdatedAt(): String?
+
+    // hard-delete reconciliation: candidates for retraction (never an unpushed local edit).
+    @Query("SELECT id FROM trips WHERE dirty = 0")
+    suspend fun nonDirtyIds(): List<String>
+
+    @Query("DELETE FROM trips WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<String>)
 }

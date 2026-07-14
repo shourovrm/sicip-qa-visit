@@ -99,4 +99,11 @@ interface VisitDao {
     // distinctRefs above.
     @Query("SELECT DISTINCT institute FROM visits WHERE deleted = 0 AND institute != '' ORDER BY institute")
     suspend fun distinctInstitutes(): List<String>
+
+    // hard-delete reconciliation: candidates for retraction (never an unpushed local edit).
+    @Query("SELECT id FROM visits WHERE dirty = 0")
+    suspend fun nonDirtyIds(): List<String>
+
+    @Query("DELETE FROM visits WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<String>)
 }

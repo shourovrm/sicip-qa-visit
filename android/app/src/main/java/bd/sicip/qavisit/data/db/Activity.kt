@@ -55,4 +55,11 @@ interface ActivityDao {
 
     @Query("SELECT MAX(updated_at) FROM activities")
     suspend fun maxUpdatedAt(): String?
+
+    // hard-delete reconciliation: candidates for retraction (never an unpushed local edit).
+    @Query("SELECT id FROM activities WHERE dirty = 0")
+    suspend fun nonDirtyIds(): List<String>
+
+    @Query("DELETE FROM activities WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<String>)
 }

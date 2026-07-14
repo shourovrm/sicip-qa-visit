@@ -73,4 +73,11 @@ interface LeaveDao {
 
     @Query("SELECT MAX(updated_at) FROM leaves")
     suspend fun maxUpdatedAt(): String?
+
+    // hard-delete reconciliation: candidates for retraction (never an unpushed local edit).
+    @Query("SELECT id FROM leaves WHERE dirty = 0")
+    suspend fun nonDirtyIds(): List<String>
+
+    @Query("DELETE FROM leaves WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<String>)
 }
