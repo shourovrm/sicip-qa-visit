@@ -31,6 +31,11 @@ it.skipIf(!existsSync(TEMPLATE))('shrink path: 1 trip, 2 legs', async () => {
   expect(ws.getCell('C7').value).toBe('Test Officer, Program Officer (QA)')
   expect(ws.getCell('A13').value).toBe('Purpose: P1')
   expect(ws.getCell('K14').value).toBe(100)
+  // night/food: trip-level values on the trip's first leg row, merged down the whole trip
+  expect(ws.getCell('G14').value).toBe(1)
+  expect(ws.getCell('H14').value).toBe(1.5)
+  expect(ws.getCell('G15').master.address).toBe('G14')
+  expect(ws.getCell('H15').master.address).toBe('H14')
   // 3 plan rows -> delta -17 -> total row 33-17=16
   expect(ws.getCell('K16').value).toBe(150)
   expect(ws.getCell('K19').value).toBe(4400)

@@ -14,10 +14,9 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-// one itinerary row as it prints. night/food are per-leg display values (see
-// domain/BillMath.legDefaults) -- day-grouped, so only the first leg of a calendar day
-// carries a real number and the rest are blank, matching the template's merged cells (here,
-// literally merged via rowspan instead of the canvas version's repeated-blank trick).
+// one itinerary row as it prints. nightStay/foodDay per-leg fields still feed BillMath edit
+// defaults, but the printed night/food cells are TRIP-level (BillTrip.nights/foodDays) merged
+// over every leg row of the trip via rowspan.
 data class BillLeg(
     val depDate: String,
     val depTime: String,
@@ -172,8 +171,9 @@ private fun localTableHeadHtml(): String = """
     </thead>
 """.trimIndent()
 
-// -- one trip: a full-width purpose band, then its legs day-grouped so the date/night/food
-// cells rowspan over every leg that shares the same calendar (departure) day. --
+// -- one trip: a full-width purpose band, then its legs day-grouped so the date cells rowspan
+// over every leg that shares the same calendar (departure) day; night/food cells rowspan the
+// whole trip and carry the trip-level values. --
 
 // groups leg indices into same-departure-day runs, shared by both the full and local row
 // builders (only the per-leg cells they emit differ).
@@ -209,9 +209,11 @@ private fun tripRowsHtml(trip: BillTrip): String = buildString {
             }
             append(td(formatDisplayTime(leg.arrTime), cls = "time"))
             append(td(esc(leg.arrPlace), cls = "place"))
-            if (k == span.first) {
-                append(td(dashIfZero(first.nightStay.toDouble()), rowspan = span.count()))
-                append(td(dashIfZero(first.foodDay), rowspan = span.count()))
+            // night/food merge over the WHOLE trip (not per day) and show the trip-level
+            // selected values -- per-leg counts never printed, they confused reviewers.
+            if (k == 0) {
+                append(td(dashIfZero(trip.nights.toDouble()), rowspan = trip.legs.size))
+                append(td(dashIfZero(trip.foodDays), rowspan = trip.legs.size))
             }
             append(td(modeCell(leg.mode)))
             append(td(esc(leg.travelClass ?: "-")))

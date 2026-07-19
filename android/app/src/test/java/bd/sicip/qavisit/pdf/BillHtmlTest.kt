@@ -26,11 +26,13 @@ class BillHtmlTest {
         )
         val html = buildBillHtml("Officer", "2026-06-10", listOf(trip), BillTotals(0.0, 0.0, 0.0, 0.0))
 
-        // the two 2026-06-08 legs collapse into one rowspan="2" date cell (shared by dep date,
-        // arr date, night stay and food day), not two separate date cells -- that's the whole
-        // point of switching off the canvas's "blank the repeated leg" trick. (header's own six
-        // rowspan="2" cells -- Night/Food/Mode/Class/Fare/Remarks -- are excluded via <tbody>.)
-        assertEquals(4, Regex("rowspan=\"2\"").findAll(html.substringAfter("<tbody>")).count())
+        // the two 2026-06-08 legs collapse into one rowspan="2" date cell (dep + arr date);
+        // night/food merge over the WHOLE 3-leg trip (rowspan="3") and show the trip-level
+        // values, not per-leg counts. (header's own rowspan="2" cells excluded via <tbody>.)
+        val tbody = html.substringAfter("<tbody>")
+        assertEquals(2, Regex("rowspan=\"2\"").findAll(tbody).count())
+        assertTrue(tbody.contains("rowspan=\"3\">1</td>"))
+        assertTrue(tbody.contains("rowspan=\"3\">1.50</td>"))
         // one leg row per leg, day-grouping only merges cells (rowspan), never drops a <tr>.
         assertEquals(3, Regex("<td class=\"place\">A</td>").findAll(html).count())
     }

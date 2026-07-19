@@ -58,7 +58,7 @@ function unmergeAllFrom(ws, fromRow) {
 }
 
 // build the row plan: one purpose row + one row per leg, per trip; each leg's day-group
-// (same dep_date) shares merged date/night/food cells like the official bill.
+// (same dep_date) shares merged date cells; night/food merge across the whole trip.
 function planRows(trips) {
   const plan = [] // { kind: 'purpose'|'legFirst'|'legCont', trip, leg? }
   for (const t of trips) {
@@ -118,35 +118,41 @@ export async function fillBillTemplate(templateBuffer, officerName, billDate, tr
     try { ws.mergeCells(m.top + delta, m.left, m.bottom + delta, m.right) } catch { /* overlap */ }
   }
 
-  // write each planned row + merges for day-group spans (A/D/G/H)
+  // write each planned row. day-group merges span A/D (dates); night/food G/H merge over the
+  // WHOLE trip and carry the trip-level values (per-leg counts never printed).
   let r = ITIN_START
   let groupStart = null
-  const flushGroupMerge = (col, endRow) => {
-    if (groupStart !== null && endRow > groupStart) ws.mergeCells(groupStart, col, endRow, col)
+  let tripStart = null
+  const mergeCol = (col, startRow, endRow) => {
+    if (startRow !== null && endRow > startRow) ws.mergeCells(startRow, col, endRow, col)
+  }
+  const closeSpans = (endRow, { trip = false } = {}) => {
+    mergeCol(1, groupStart, endRow); mergeCol(4, groupStart, endRow)
+    groupStart = null
+    if (trip) { mergeCol(7, tripStart, endRow); mergeCol(8, tripStart, endRow); tripStart = null }
   }
 
   for (let i = 0; i < plan.length; i++) {
     const item = plan[i]
     const row = ws.getRow(r)
     if (item.kind === 'purpose') {
+      closeSpans(r - 1, { trip: true })
       applyRowStyle(ws, r, purposeStyle)
       row.getCell(1).value = `Purpose: ${item.trip.purposeLine}`
       ws.mergeCells(r, 1, r, COLS)
-      groupStart = null
     } else {
       const l = item.leg
       applyRowStyle(ws, r, item.kind === 'legFirst' ? legFirstStyle : legContStyle)
       if (item.kind === 'legFirst') {
-        // close the previous day-group's merges before starting a new one
-        if (groupStart !== null) {
-          flushGroupMerge(1, r - 1); flushGroupMerge(4, r - 1)
-          flushGroupMerge(7, r - 1); flushGroupMerge(8, r - 1)
-        }
+        closeSpans(r - 1)
         groupStart = r
         row.getCell(1).value = new Date(l.depDate)
         row.getCell(4).value = new Date(l.arrDate)
-        row.getCell(7).value = l.nightStay === 0 && l.foodDay === 0 ? '-' : l.nightStay
-        row.getCell(8).value = l.nightStay === 0 && l.foodDay === 0 ? '-' : l.foodDay
+      }
+      if (tripStart === null) {
+        tripStart = r
+        row.getCell(7).value = item.trip.nights || '-'
+        row.getCell(8).value = item.trip.foodDays || '-'
       }
       row.getCell(2).value = l.depTime
       row.getCell(3).value = l.depPlace
@@ -159,11 +165,8 @@ export async function fillBillTemplate(templateBuffer, officerName, billDate, tr
     }
     r++
   }
-  // close the final day-group's merges
-  if (groupStart !== null) {
-    flushGroupMerge(1, r - 1); flushGroupMerge(4, r - 1)
-    flushGroupMerge(7, r - 1); flushGroupMerge(8, r - 1)
-  }
+  // close the final trip's merges
+  closeSpans(r - 1, { trip: true })
 
   // Total/footer rows shift by `delta` from their original template positions
   const totalRow = 33 + delta

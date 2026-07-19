@@ -83,8 +83,9 @@ function localTableHeadHtml() {
   </thead>`
 }
 
-// one trip: a full-width purpose band, then its legs day-grouped so the date/night/food cells
-// rowspan over every leg sharing the same calendar (departure) day.
+// one trip: a full-width purpose band, then its legs day-grouped so the date cells rowspan
+// over every leg sharing the same calendar (departure) day; night/food cells rowspan the
+// whole trip and show the trip-level selected values (per-leg counts never printed).
 function tripRowsHtml(trip) {
   let html = `<tr class="purpose"><td colspan="12">Purpose: ${esc(trip.purposeLine)}</td></tr>`
   let i = 0
@@ -102,9 +103,9 @@ function tripRowsHtml(trip) {
       if (k === i) html += td(displayDate(first.arrDate), { rowspan: span })
       html += td(displayTime(leg.arrTime), { cls: 'time' })
       html += td(esc(leg.arrPlace), { cls: 'place' })
-      if (k === i) {
-        html += td(dashIfZero(first.nightStay), { rowspan: span })
-        html += td(dashIfZero(first.foodDay), { rowspan: span })
+      if (k === 0) {
+        html += td(dashIfZero(trip.nights), { rowspan: trip.legs.length })
+        html += td(dashIfZero(trip.foodDays), { rowspan: trip.legs.length })
       }
       html += td(leg.mode === 'N/A' ? '-' : esc(leg.mode))
       html += td(esc(leg.travelClass || '-'))

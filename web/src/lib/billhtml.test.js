@@ -38,18 +38,20 @@ it('itinerary dates render dd-MMM-yy and times render h:mm a', () => {
   expect(html).toContain('2:00 PM')
 })
 
-it('day-group shares rowspan=2 date/night/food cells, continuation leg repeats none', () => {
+it('day-group shares rowspan=2 date cells; night/food merge over the whole trip', () => {
   const html = buildBillHtml('X', '2026-07-01', [trip()], totals)
   const tbody = html.slice(html.indexOf('<tbody>'))
-  // one 2-leg day-group -> exactly 4 rowspan=2 cells (dep date, arr date, night, food);
-  // the continuation leg (2nd leg, same dep_date) contributes zero of its own.
+  // one 2-leg day-group -> exactly 2 rowspan=2 cells (dep date, arr date); night/food span
+  // the whole 3-leg trip and show trip-level values, not per-leg counts.
   const spanCells = (tbody.match(/rowspan="2"/g) || []).length
-  expect(spanCells).toBe(4)
+  expect(spanCells).toBe(2)
+  expect(tbody).toContain('rowspan="3">6</td>')
+  expect(tbody).toContain('rowspan="3">6.50</td>')
 })
 
 it('zero night/food cells render as dash', () => {
   const html = buildBillHtml('X', '2026-07-01', [trip({ nights: 0, foodDays: 0, legs: trip().legs.map((l) => ({ ...l, nightStay: 0, foodDay: 0 })) })], totals)
-  expect(html).toMatch(/rowspan="2">-<\/td>/)
+  expect(html).toMatch(/rowspan="3">-<\/td>/)
 })
 
 it('totals row sums nights/food across trips and shows net in words', () => {
