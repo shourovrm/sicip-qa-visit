@@ -48,6 +48,14 @@ export async function listTrips() {
   return data
 }
 
+// android StartTrip.kt mirror: client-generated id (caller passes crypto.randomUUID()), never
+// send updated_at -- server owns it via default/trigger (see Mappers.kt header note).
+export async function createTrip(row) {
+  const { data, error } = await supabase.from('trips').insert(row).select().single()
+  if (error) throw error
+  return data
+}
+
 export async function updateTrip(id, patch) {
   const { data, error } = await supabase.from('trips').update(patch).eq('id', id).select().single()
   if (error) throw error
@@ -84,6 +92,19 @@ export async function listTravelPlaces() {
   const { data, error } = await notDeleted(supabase.from('travel_legs').select('dep_place, arr_place'))
   if (error) throw error
   return [...new Set(data.flatMap((r) => [r.dep_place, r.arr_place]))].filter(Boolean).sort()
+}
+
+// ---- activities ---- (mirrors android Activity.kt / Mappers.kt: trip-level quick notes)
+export async function listActivitiesForTrip(tripId) {
+  const { data, error } = await notDeleted(supabase.from('activities').select('*').eq('trip_id', tripId)).order('at')
+  if (error) throw error
+  return data
+}
+
+export async function createActivity(row) {
+  const { data, error } = await supabase.from('activities').insert(row).select().single()
+  if (error) throw error
+  return data
 }
 
 // ---- leaves ----

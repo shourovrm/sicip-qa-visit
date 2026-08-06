@@ -1,7 +1,7 @@
 <!-- home dashboard: stat tiles, this-month line, active tour, upcoming visits. mirrors
      android ui/home/HomeScreen.kt (points/rank/visits + active trip + upcoming list). -->
 <script>
-  import { listVisits, listTrips, createVisit, createLeg, listTravelPlaces } from '../lib/db.js'
+  import { listVisits, listTrips, createVisit, createLeg, listTravelPlaces, listActivitiesForTrip, createActivity } from '../lib/db.js'
   import { officer } from '../lib/auth.js'
   import { officers } from '../lib/officers.js'
   import { totalPoints, rank, monthSummary, autoCategoryFromDates } from '../lib/scoring.js'
@@ -10,6 +10,8 @@
   import LegModal from '../components/LegModal.svelte'
   import VisitModal from '../components/VisitModal.svelte'
   import Pill from '../components/Pill.svelte'
+  import StartTourModal from '../components/StartTourModal.svelte'
+  import EndTourModal from '../components/EndTourModal.svelte'
 
   let visits = [], trips = []
   let loading = true
@@ -17,6 +19,11 @@
   // active-tour "Add travel" (LegModal) / "Add visit" + upcoming-card "+ Visit" (VisitModal)
   let legForm = null, legErr = '', places = []
   let editing = null, saveErr = ''
+
+  // start/end tour dialogs + this-trip activity notes
+  let showStartTour = false, startPreselect = null
+  let showEndTour = false
+  let activities = [], noteText = ''
 
   async function load() {
     ;[visits, trips] = await Promise.all([listVisits(), listTrips()])
@@ -56,6 +63,35 @@
   $: upcoming = mineVisits
     .filter((v) => v.status === 'scheduled' && v.trip_id !== activeTrip?.id)
     .sort((a, b) => a.start_date.localeCompare(b.start_date))
+
+  // this trip's quick notes (activities table) -- reload whenever a new trip becomes active.
+  async function loadActivities(tripId) {
+    activities = await listActivitiesForTrip(tripId)
+  }
+  $: if (activeTrip) loadActivities(activeTrip.id)
+
+  async function addNote() {
+    if (!noteText.trim()) return
+    const now = new Date().toISOString()
+    const created = await createActivity({ id: crypto.randomUUID(), trip_id: activeTrip.id, at: now, note: noteText })
+    activities = [...activities, created]
+    noteText = ''
+  }
+
+  // -- Start tour / End tour ------------------------------------------------------------------
+  function openStartTour(visitId = null) {
+    startPreselect = visitId
+    showStartTour = true
+  }
+  async function onTourStarted() {
+    showStartTour = false
+    startPreselect = null
+    await load()
+  }
+  async function onTourFinished() {
+    showEndTour = false
+    await load()
+  }
 
   // -- Add travel (active tour) --------------------------------------------------------------
   async function newLeg(tripId) {
@@ -126,6 +162,10 @@
   </div>
   <p class="muted month">This month: {monthVisits} visits · {monthPoints} pts</p>
 
+  {#if !activeTrip}
+    <button class="btn btn-primary start-tour-btn" on:click={() => openStartTour()}>Start tour</button>
+  {/if}
+
   {#if activeTrip}
     <div class="card active-trip">
       <div class="label">Active tour</div>
@@ -135,6 +175,18 @@
         <button class="btn btn-secondary" on:click={() => newLeg(activeTrip.id)}>Add travel</button>
         <button class="btn btn-secondary" on:click={addVisitToTrip}>Add visit</button>
       </div>
+
+      <div class="notes">
+        {#each activities as a (a.id)}
+          <p class="muted note-row">{a.at.slice(0, 16).replace('T', ' ')} — {a.note}</p>
+        {/each}
+        <div class="row">
+          <input type="text" placeholder="Quick note" bind:value={noteText} on:keydown={(e) => e.key === 'Enter' && addNote()} />
+          <button class="btn btn-secondary" on:click={addNote}>Add</button>
+        </div>
+      </div>
+
+      <button class="btn btn-primary end-tour-btn" on:click={() => (showEndTour = true)}>End tour</button>
     </div>
 
     {#if ongoing.length}<h2 class="section">Ongoing</h2>{/if}
@@ -159,7 +211,10 @@
           <b>{v.institute}</b>
           <span class="muted">{v.district} · {v.start_date}</span>
         </div>
-        <button class="btn-link" on:click={() => scheduleFromCard(v)}>+ Visit</button>
+        <div class="row upcoming-actions">
+          <button class="btn-link" on:click={() => scheduleFromCard(v)}>+ Visit</button>
+          <button class="btn btn-primary" on:click={() => openStartTour(v.id)}>Start</button>
+        </div>
       </div>
     {/each}
   {/if}
@@ -170,6 +225,19 @@
 {/if}
 {#if editing}
   <VisitModal editing={editing} visits={visits} saveErr={saveErr} on:save={saveVisit} on:cancel={() => (editing = null)} />
+{/if}
+{#if showStartTour}
+  <StartTourModal
+    officerId={mine}
+    visits={visits}
+    officers={$officers}
+    preselectedVisitId={startPreselect}
+    on:started={onTourStarted}
+    on:cancel={() => (showStartTour = false)}
+  />
+{/if}
+{#if showEndTour}
+  <EndTourModal trip={activeTrip} visits={ongoing} on:finished={onTourFinished} on:cancel={() => (showEndTour = false)} />
 {/if}
 
 <style>
@@ -184,6 +252,11 @@
   .active-trip h2 { margin: 4px 0; font-size: 18px; }
   .active-trip p { margin: 0 0 12px; opacity: 0.85; }
   .active-actions { gap: 8px; }
+  .notes { margin: 12px 0; }
+  .note-row { margin: 0 0 4px; font-size: 13px; }
+  .end-tour-btn { width: 100%; }
+  .start-tour-btn { margin-bottom: 16px; }
   .section { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; margin: 16px 0 8px; }
   .upcoming-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .upcoming-actions { gap: 8px; }
 </style>
