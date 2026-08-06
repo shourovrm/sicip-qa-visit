@@ -24,7 +24,7 @@ val ASSOCIATIONS: List<String> = listOf(
 
 val PURPOSES: List<String> = listOf(
     "Capacity Assessment", "Monitoring Visit", "Summative Assessment Monitoring",
-    "ToT Monitoring", "Recruitment", "Others",
+    "ToT Monitoring", "Trainer Engagement", "Others",
 )
 
 // transport mode -> its classes; empty list = free-text class (e.g. "Other")

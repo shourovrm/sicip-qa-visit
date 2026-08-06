@@ -21,7 +21,7 @@ export const ASSOCIATIONS = [
 
 export const PURPOSES = [
   'Capacity Assessment', 'Monitoring Visit', 'Summative Assessment Monitoring',
-  'ToT Monitoring', 'Recruitment', 'Others',
+  'ToT Monitoring', 'Trainer Engagement', 'Others',
 ]
 
 // mode -> its valid classes; empty list = free-text class ("Other")
