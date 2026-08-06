@@ -57,6 +57,35 @@ it.skipIf(!existsSync(TEMPLATE))('grow path: 24 plan rows shifts totals down', a
   expect(ws.getCell('A48').value).toBe('Test Officer')
 })
 
+it.skipIf(!existsSync(TEMPLATE))('merges consecutive identical purpose bands into one row', async () => {
+  const trips = [
+    { purposeLine: 'Same purpose', nights: 1, foodDays: 1, legs: [legRow('2026-06-08', 100, 1, 1)] },
+    { purposeLine: 'Same purpose', nights: 2, foodDays: 2, legs: [legRow('2026-06-09', 50, 2, 2)] },
+  ]
+  const totals = { ta: 150, accommodation: 2000, food: 2250, net: 4400 }
+  const out = await fillBillTemplate(readFileSync(TEMPLATE), 'Test Officer', '2026-06-15', trips, totals)
+  const ws = await loadOut(out)
+  expect(ws.getCell('A13').value).toBe('Purpose: Same purpose')
+  // no second purpose row -- trip2's leg flows directly under trip1's leg, one row down
+  expect(ws.getCell('A14').value).toBeInstanceOf(Date)
+  expect(ws.getCell('A15').value).toBeInstanceOf(Date)
+  // night/food still per-trip (not merged across the shared band)
+  expect(ws.getCell('G14').value).toBe(1)
+  expect(ws.getCell('G15').value).toBe(2)
+})
+
+it.skipIf(!existsSync(TEMPLATE))('different consecutive purpose bands stay separate', async () => {
+  const trips = [
+    { purposeLine: 'P1', nights: 1, foodDays: 1, legs: [legRow('2026-06-08', 100, 1, 1)] },
+    { purposeLine: 'P2', nights: 1, foodDays: 1, legs: [legRow('2026-06-09', 50, 1, 1)] },
+  ]
+  const totals = { ta: 150, accommodation: 2000, food: 2250, net: 4400 }
+  const out = await fillBillTemplate(readFileSync(TEMPLATE), 'Test Officer', '2026-06-15', trips, totals)
+  const ws = await loadOut(out)
+  expect(ws.getCell('A13').value).toBe('Purpose: P1')
+  expect(ws.getCell('A15').value).toBe('Purpose: P2')
+})
+
 it.skipIf(!existsSync(LOCAL_TEMPLATE))('local bill: shrink path, 2 trips / 3 legs', async () => {
   const trips = [
     { purposeLine: 'P1', legs: [localLegRow('2026-06-08', 100), localLegRow('2026-06-08', 50)] },
@@ -74,4 +103,19 @@ it.skipIf(!existsSync(LOCAL_TEMPLATE))('local bill: shrink path, 2 trips / 3 leg
   expect(ws.getCell('H18').value).toBe(225)
   expect(ws.getCell('A25').value).toBe('Test Officer')
   expect(ws.getCell('A26').value).toBe('Program Officer (QA) SICIP')
+})
+
+it.skipIf(!existsSync(LOCAL_TEMPLATE))('local bill merges consecutive identical purpose bands', async () => {
+  const trips = [
+    { purposeLine: 'Same', legs: [localLegRow('2026-06-08', 100)] },
+    { purposeLine: 'Same', legs: [localLegRow('2026-06-09', 50)] },
+  ]
+  const out = await fillLocalBillTemplate(readFileSync(LOCAL_TEMPLATE), 'Test Officer', '2026-06-15', trips)
+  const ws = await loadOut(out, 'Local')
+  expect(ws.getCell('A13').value).toBe('Purpose: Same')
+  // no second purpose row -- trip2's leg flows directly under trip1's leg
+  expect(ws.getCell('A14').value).toBeInstanceOf(Date)
+  expect(ws.getCell('A15').value).toBeInstanceOf(Date)
+  expect(ws.getCell('H14').value).toBe(100)
+  expect(ws.getCell('H15').value).toBe(50)
 })

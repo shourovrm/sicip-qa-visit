@@ -75,7 +75,7 @@ fun buildBillHtml(
     append("<table class=\"itinerary\">")
     append(tableHeadHtml())
     append("<tbody>")
-    trips.forEach { append(tripRowsHtml(it)) }
+    trips.forEachIndexed { i, trip -> append(tripRowsHtml(trip, showBand = i == 0 || trip.purposeLine != trips[i - 1].purposeLine)) }
     append(totalsRowsHtml(trips, totals))
     append("</tbody></table>")
     append(footerHtml(officerName))
@@ -95,7 +95,7 @@ fun buildLocalBillHtml(officerName: String, billDate: String, trips: List<BillTr
     append("<table class=\"itinerary\">")
     append(localTableHeadHtml())
     append("<tbody>")
-    filtered.forEach { append(localTripRowsHtml(it)) }
+    filtered.forEachIndexed { i, trip -> append(localTripRowsHtml(trip, showBand = i == 0 || trip.purposeLine != filtered[i - 1].purposeLine)) }
     append(localTotalsRowHtml(fareSum))
     append("</tbody></table>")
     append(footerHtml(officerName, includeRecommended = false))
@@ -192,8 +192,11 @@ private fun daySpans(legs: List<BillLeg>): List<IntRange> {
 // N/A means no mode claimed at all -- print the same dash the (null) class column already uses.
 private fun modeCell(mode: String): String = if (mode == "N/A") "-" else esc(mode)
 
-private fun tripRowsHtml(trip: BillTrip): String = buildString {
-    append("<tr class=\"purpose\"><td colspan=\"12\">${esc(trip.purposeLine)}</td></tr>")
+// showBand=false skips a band identical to the immediately preceding trip's (same purpose+ref
+// text) -- caller (buildBillHtml) decides via consecutive-trip comparison, rows just flow under
+// the earlier band instead of repeating it.
+private fun tripRowsHtml(trip: BillTrip, showBand: Boolean = true): String = buildString {
+    if (showBand) append("<tr class=\"purpose\"><td colspan=\"12\">${esc(trip.purposeLine)}</td></tr>")
     for (span in daySpans(trip.legs)) {
         val first = trip.legs[span.first]
         for (k in span) {
@@ -225,8 +228,8 @@ private fun tripRowsHtml(trip: BillTrip): String = buildString {
 }
 
 // local variant: same day-grouping, only the two date columns rowspan (no night/food/class).
-private fun localTripRowsHtml(trip: BillTrip): String = buildString {
-    append("<tr class=\"purpose\"><td colspan=\"9\">${esc(trip.purposeLine)}</td></tr>")
+private fun localTripRowsHtml(trip: BillTrip, showBand: Boolean = true): String = buildString {
+    if (showBand) append("<tr class=\"purpose\"><td colspan=\"9\">${esc(trip.purposeLine)}</td></tr>")
     for (span in daySpans(trip.legs)) {
         val first = trip.legs[span.first]
         for (k in span) {

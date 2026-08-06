@@ -60,6 +60,36 @@ it('totals row sums nights/food across trips and shows net in words', () => {
   expect(html).toContain('Forty Four Thousand One Hundred Twenty Three')
 })
 
+describe('purpose band merge (consecutive identical bands)', () => {
+  it('two consecutive trips with identical purpose+ref render one band', () => {
+    const html = buildBillHtml('X', '2026-07-01', [trip(), trip()], totals)
+    expect((html.match(/<tr class="purpose">/g) || []).length).toBe(1)
+  })
+
+  it('two consecutive trips with different purpose render two bands', () => {
+    const html = buildBillHtml('X', '2026-07-01', [trip(), trip({ purposeLine: 'Different purpose' })], totals)
+    expect((html.match(/<tr class="purpose">/g) || []).length).toBe(2)
+  })
+
+  it('local bill merges identical consecutive bands too', () => {
+    const localTrips = [
+      { purposeLine: 'P1', legs: [localLeg({ fare: 100 })] },
+      { purposeLine: 'P1', legs: [localLeg({ fare: 50, depDate: '2026-06-09', arrDate: '2026-06-09' })] },
+    ]
+    const html = buildLocalBillHtml('X', '2026-07-01', localTrips)
+    expect((html.match(/<tr class="purpose">/g) || []).length).toBe(1)
+  })
+
+  it('local bill keeps two bands for different purposes', () => {
+    const localTrips = [
+      { purposeLine: 'P1', legs: [localLeg({ fare: 100 })] },
+      { purposeLine: 'P2', legs: [localLeg({ fare: 50, depDate: '2026-06-09', arrDate: '2026-06-09' })] },
+    ]
+    const html = buildLocalBillHtml('X', '2026-07-01', localTrips)
+    expect((html.match(/<tr class="purpose">/g) || []).length).toBe(2)
+  })
+})
+
 describe('logos and print', () => {
   it('references /logos/*.jpg (public/, not android_asset)', () => {
     const html = buildBillHtml('X', '2026-07-01', [trip()], totals)

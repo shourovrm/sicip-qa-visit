@@ -79,6 +79,22 @@ class BillHtmlTest {
         assertTrue(html.contains("<td class=\"money\">-</td>"))
     }
 
+    @Test fun `consecutive trips with identical purpose band merge into one band row`() {
+        val t1 = BillTrip(purposeLine = "Purpose: X - Y (Ref: 123, 6 May 2026)", legs = listOf(leg("2026-06-08")), nights = 0, foodDays = 0.0)
+        val t2 = BillTrip(purposeLine = "Purpose: X - Y (Ref: 123, 6 May 2026)", legs = listOf(leg("2026-06-09")), nights = 0, foodDays = 0.0)
+        val html = buildBillHtml("Officer", "2026-06-10", listOf(t1, t2), BillTotals(0.0, 0.0, 0.0, 0.0))
+
+        assertEquals(1, Regex("class=\"purpose\"").findAll(html).count())
+    }
+
+    @Test fun `consecutive trips with different purpose bands both render`() {
+        val t1 = BillTrip(purposeLine = "Purpose: X - Y (Ref: 123, 6 May 2026)", legs = listOf(leg("2026-06-08")), nights = 0, foodDays = 0.0)
+        val t2 = BillTrip(purposeLine = "Purpose: A - B (Ref: 456, 7 May 2026)", legs = listOf(leg("2026-06-09")), nights = 0, foodDays = 0.0)
+        val html = buildBillHtml("Officer", "2026-06-10", listOf(t1, t2), BillTotals(0.0, 0.0, 0.0, 0.0))
+
+        assertEquals(2, Regex("class=\"purpose\"").findAll(html).count())
+    }
+
     @Test fun `N slash A mode leg prints a dash in the mode cell`() {
         // real N/A legs carry a null class too (see ui.bill.BillScreen.toBillTrip) -- both the
         // mode and class cells should print bare "-" (no rowspan/class attrs on either).

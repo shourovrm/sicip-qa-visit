@@ -86,8 +86,10 @@ function localTableHeadHtml() {
 // one trip: a full-width purpose band, then its legs day-grouped so the date cells rowspan
 // over every leg sharing the same calendar (departure) day; night/food cells rowspan the
 // whole trip and show the trip-level selected values (per-leg counts never printed).
-function tripRowsHtml(trip) {
-  let html = `<tr class="purpose"><td colspan="12">Purpose: ${esc(trip.purposeLine)}</td></tr>`
+// showBand=false (identical purpose+ref as the immediately preceding trip) skips the band --
+// this trip's rows just flow under the earlier one instead of repeating it.
+function tripRowsHtml(trip, showBand = true) {
+  let html = showBand ? `<tr class="purpose"><td colspan="12">Purpose: ${esc(trip.purposeLine)}</td></tr>` : ''
   let i = 0
   while (i < trip.legs.length) {
     let j = i
@@ -128,8 +130,9 @@ export function localBillTrips(trips) {
 }
 
 // same day-grouped rowspan as tripRowsHtml, 9-col local layout (no night/food/class).
-function localTripRowsHtml(trip) {
-  let html = `<tr class="purpose"><td colspan="9">Purpose: ${esc(trip.purposeLine)}</td></tr>`
+// same showBand merge rule as tripRowsHtml.
+function localTripRowsHtml(trip, showBand = true) {
+  let html = showBand ? `<tr class="purpose"><td colspan="9">Purpose: ${esc(trip.purposeLine)}</td></tr>` : ''
   let i = 0
   while (i < trip.legs.length) {
     let j = i
@@ -261,7 +264,7 @@ export function buildBillHtml(officerName, billDate, trips, totals) {
   html += '<table class="itinerary">'
   html += tableHeadHtml()
   html += '<tbody>'
-  trips.forEach((t) => { html += tripRowsHtml(t) })
+  trips.forEach((t, i) => { html += tripRowsHtml(t, i === 0 || t.purposeLine !== trips[i - 1].purposeLine) })
   html += totalsRowsHtml(trips, totals)
   html += '</tbody></table>'
   html += footerHtml(officerName)
@@ -280,7 +283,7 @@ export function buildLocalBillHtml(officerName, billDate, trips) {
   html += '<table class="itinerary">'
   html += localTableHeadHtml()
   html += '<tbody>'
-  localTrips.forEach((t) => { html += localTripRowsHtml(t) })
+  localTrips.forEach((t, i) => { html += localTripRowsHtml(t, i === 0 || t.purposeLine !== localTrips[i - 1].purposeLine) })
   html += localTotalsRowHtml(localTrips)
   html += '</tbody></table>'
   html += footerHtml(officerName, { recommended: false })

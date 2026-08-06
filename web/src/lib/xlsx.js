@@ -59,18 +59,26 @@ function unmergeAllFrom(ws, fromRow) {
 
 // build the row plan: one purpose row + one row per leg, per trip; each leg's day-group
 // (same dep_date) shares merged date cells; night/food merge across the whole trip.
+// purpose item always carries showBand: false when identical to the immediately preceding
+// trip's purposeLine -- write loop skips rendering that row (rows just flow under the earlier
+// band) but still uses the item as a trip-boundary marker.
 function planRows(trips) {
-  const plan = [] // { kind: 'purpose'|'legFirst'|'legCont', trip, leg? }
-  for (const t of trips) {
-    plan.push({ kind: 'purpose', trip: t })
+  const plan = [] // { kind: 'purpose'|'legFirst'|'legCont', trip, leg?, showBand? }
+  trips.forEach((t, i) => {
+    plan.push({ kind: 'purpose', trip: t, showBand: i === 0 || t.purposeLine !== trips[i - 1].purposeLine })
     const seenDays = new Set()
     for (const leg of t.legs) {
       const first = !seenDays.has(leg.depDate)
       seenDays.add(leg.depDate)
       plan.push({ kind: first ? 'legFirst' : 'legCont', trip: t, leg })
     }
-  }
+  })
   return plan
+}
+
+// rows actually consumed by the plan -- a hidden (merged) purpose band takes no row.
+function neededRows(plan) {
+  return plan.filter((item) => item.kind !== 'purpose' || item.showBand).length
 }
 
 export async function fillBillTemplate(templateBuffer, officerName, billDate, trips, totals) {
@@ -90,7 +98,7 @@ export async function fillBillTemplate(templateBuffer, officerName, billDate, tr
   const legContStyle = captureRowStyle(ws, 18) // continuation leg (same day)
 
   const plan = planRows(trips)
-  const needed = plan.length
+  const needed = neededRows(plan)
   const delta = needed - ITIN_TEMPLATE_ROWS
 
   // splice/insert are not merge-safe: remember the footer merges (Total/net/signature bands,
@@ -134,35 +142,39 @@ export async function fillBillTemplate(templateBuffer, officerName, billDate, tr
 
   for (let i = 0; i < plan.length; i++) {
     const item = plan[i]
-    const row = ws.getRow(r)
     if (item.kind === 'purpose') {
+      // trip boundary always closes the previous trip's spans, whether or not this band renders
       closeSpans(r - 1, { trip: true })
+      if (!item.showBand) continue // merged into the preceding band -- no row consumed
+      const row = ws.getRow(r)
       applyRowStyle(ws, r, purposeStyle)
       row.getCell(1).value = `Purpose: ${item.trip.purposeLine}`
       ws.mergeCells(r, 1, r, COLS)
-    } else {
-      const l = item.leg
-      applyRowStyle(ws, r, item.kind === 'legFirst' ? legFirstStyle : legContStyle)
-      if (item.kind === 'legFirst') {
-        closeSpans(r - 1)
-        groupStart = r
-        row.getCell(1).value = new Date(l.depDate)
-        row.getCell(4).value = new Date(l.arrDate)
-      }
-      if (tripStart === null) {
-        tripStart = r
-        row.getCell(7).value = item.trip.nights || '-'
-        row.getCell(8).value = item.trip.foodDays || '-'
-      }
-      row.getCell(2).value = l.depTime
-      row.getCell(3).value = l.depPlace
-      row.getCell(5).value = l.arrTime
-      row.getCell(6).value = l.arrPlace
-      row.getCell(9).value = l.mode || '-'
-      row.getCell(10).value = l.travelClass || '-'
-      row.getCell(11).value = l.fare ? l.fare : '-'
-      row.getCell(12).value = l.remarks || ''
+      r++
+      continue
     }
+    const row = ws.getRow(r)
+    const l = item.leg
+    applyRowStyle(ws, r, item.kind === 'legFirst' ? legFirstStyle : legContStyle)
+    if (item.kind === 'legFirst') {
+      closeSpans(r - 1)
+      groupStart = r
+      row.getCell(1).value = new Date(l.depDate)
+      row.getCell(4).value = new Date(l.arrDate)
+    }
+    if (tripStart === null) {
+      tripStart = r
+      row.getCell(7).value = item.trip.nights || '-'
+      row.getCell(8).value = item.trip.foodDays || '-'
+    }
+    row.getCell(2).value = l.depTime
+    row.getCell(3).value = l.depPlace
+    row.getCell(5).value = l.arrTime
+    row.getCell(6).value = l.arrPlace
+    row.getCell(9).value = l.mode || '-'
+    row.getCell(10).value = l.travelClass || '-'
+    row.getCell(11).value = l.fare ? l.fare : '-'
+    row.getCell(12).value = l.remarks || ''
     r++
   }
   // close the final trip's merges
@@ -209,7 +221,7 @@ export async function fillLocalBillTemplate(templateBuffer, officerName, billDat
   const legContStyle = captureRowStyle(ws, 15, LOCAL_COLS)
 
   const plan = planRows(trips)
-  const needed = plan.length
+  const needed = neededRows(plan)
   const delta = needed - LOCAL_ITIN_TEMPLATE_ROWS
 
   const footerMerges = listMerges(ws).filter((m) => m.top >= LOCAL_ITIN_START + LOCAL_ITIN_TEMPLATE_ROWS)
@@ -235,38 +247,45 @@ export async function fillLocalBillTemplate(templateBuffer, officerName, billDat
   // night/food columns to span in the local layout)
   let r = LOCAL_ITIN_START
   let groupStart = null
-  const flushGroupMerge = (col, endRow) => {
-    if (groupStart !== null && endRow > groupStart) ws.mergeCells(groupStart, col, endRow, col)
+  // closes the pending day-group span, if any -- called at every trip boundary too (previously
+  // a trip's last day-group merge was dropped there since 'purpose' only reset groupStart
+  // without flushing it first).
+  const flushGroupMerge = (endRow) => {
+    if (groupStart !== null && endRow > groupStart) { ws.mergeCells(groupStart, 1, endRow, 1); ws.mergeCells(groupStart, 4, endRow, 4) }
+    groupStart = null
   }
 
   for (let i = 0; i < plan.length; i++) {
     const item = plan[i]
-    const row = ws.getRow(r)
     if (item.kind === 'purpose') {
+      flushGroupMerge(r - 1)
+      if (!item.showBand) continue // merged into the preceding band -- no row consumed
+      const row = ws.getRow(r)
       applyRowStyle(ws, r, purposeStyle, LOCAL_COLS)
       row.getCell(1).value = `Purpose: ${item.trip.purposeLine}`
       ws.mergeCells(r, 1, r, LOCAL_COLS)
-      groupStart = null
-    } else {
-      const l = item.leg
-      applyRowStyle(ws, r, item.kind === 'legFirst' ? legFirstStyle : legContStyle, LOCAL_COLS)
-      if (item.kind === 'legFirst') {
-        if (groupStart !== null) { flushGroupMerge(1, r - 1); flushGroupMerge(4, r - 1) }
-        groupStart = r
-        row.getCell(1).value = new Date(l.depDate)
-        row.getCell(4).value = new Date(l.arrDate)
-      }
-      row.getCell(2).value = l.depTime
-      row.getCell(3).value = l.depPlace
-      row.getCell(5).value = l.arrTime
-      row.getCell(6).value = l.arrPlace
-      row.getCell(7).value = l.mode || '-'
-      row.getCell(8).value = l.fare ? l.fare : '-'
-      row.getCell(9).value = l.remarks || ''
+      r++
+      continue
     }
+    const row = ws.getRow(r)
+    const l = item.leg
+    applyRowStyle(ws, r, item.kind === 'legFirst' ? legFirstStyle : legContStyle, LOCAL_COLS)
+    if (item.kind === 'legFirst') {
+      flushGroupMerge(r - 1)
+      groupStart = r
+      row.getCell(1).value = new Date(l.depDate)
+      row.getCell(4).value = new Date(l.arrDate)
+    }
+    row.getCell(2).value = l.depTime
+    row.getCell(3).value = l.depPlace
+    row.getCell(5).value = l.arrTime
+    row.getCell(6).value = l.arrPlace
+    row.getCell(7).value = l.mode || '-'
+    row.getCell(8).value = l.fare ? l.fare : '-'
+    row.getCell(9).value = l.remarks || ''
     r++
   }
-  if (groupStart !== null) { flushGroupMerge(1, r - 1); flushGroupMerge(4, r - 1) }
+  flushGroupMerge(r - 1)
 
   // Total/signature rows shift by `delta`; template's A cell already reads "Total" -- footer
   // merges (re-merged above) carry the Total band, we just fill the fare sum into H
