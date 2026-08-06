@@ -121,12 +121,21 @@ private data class TripCandidate(val trip: Trip, val primary: Visit, val visits:
 
 // T5 #1: chrono order, earliest tour first -- min(leg dep date+time) fallback trip.started_at.
 // legs come from TravelLegDao.byTrip which is already dep_date/dep_time ascending.
-private suspend fun loadUnsubmitted(db: AppDb, officerId: String): List<TripCandidate> =
-    db.tripDao().finishedUnsubmittedByOfficer(officerId).mapNotNull { trip ->
+// a finished/unsubmitted trip with an empty visit list (visits got deleted after Start tour) has
+// no primary -- used to just vanish from the picker. now it's carried back as an orphan so
+// NewBillPicker can still show it (disabled) instead of silently dropping the tour.
+private suspend fun loadUnsubmitted(db: AppDb, officerId: String): Pair<List<TripCandidate>, List<Trip>> {
+    val candidates = mutableListOf<TripCandidate>()
+    val orphans = mutableListOf<Trip>()
+    db.tripDao().finishedUnsubmittedByOfficer(officerId).forEach { trip ->
         val visits = db.visitDao().byTrip(trip.id)
-        val primary = primaryVisit(visits) { it.isAdditional } ?: return@mapNotNull null
-        TripCandidate(trip, primary, visits, db.travelLegDao().byTrip(trip.id))
-    }.sortedBy { c -> tourStartKey(c.legs.map { it.depDate to it.depTime }, c.trip.startedAt) }
+        val primary = primaryVisit(visits) { it.isAdditional }
+        if (primary == null) { orphans += trip; return@forEach }
+        candidates += TripCandidate(trip, primary, visits, db.travelLegDao().byTrip(trip.id))
+    }
+    val sorted = candidates.sortedBy { c -> tourStartKey(c.legs.map { it.depDate to it.depTime }, c.trip.startedAt) }
+    return sorted to orphans.sortedBy { it.startedAt }
+}
 
 @Composable
 fun BillScreen(officerId: String, db: AppDb, onDone: () -> Unit) {
@@ -134,13 +143,16 @@ fun BillScreen(officerId: String, db: AppDb, onDone: () -> Unit) {
     var step by remember { mutableStateOf(Step.PICKER) }
     var showPrevious by remember { mutableStateOf(false) }
     var unsubmitted by remember { mutableStateOf<List<TripCandidate>>(emptyList()) }
+    var orphanTrips by remember { mutableStateOf<List<Trip>>(emptyList()) }
     var bills by remember { mutableStateOf<List<Bill>>(emptyList()) }
     var officerName by remember { mutableStateOf("") }
     val selected = remember { mutableStateOf(setOf<String>()) }
     var viewingBill by remember { mutableStateOf<Bill?>(null) }
 
     suspend fun reload() {
-        unsubmitted = loadUnsubmitted(db, officerId)
+        val (candidates, orphans) = loadUnsubmitted(db, officerId)
+        unsubmitted = candidates
+        orphanTrips = orphans
         bills = db.billDao().byOfficer(officerId)
     }
 
@@ -162,6 +174,7 @@ fun BillScreen(officerId: String, db: AppDb, onDone: () -> Unit) {
             } else {
                 NewBillPicker(
                     candidates = unsubmitted,
+                    orphans = orphanTrips,
                     selected = selected.value,
                     onToggle = { id, on -> selected.value = if (on) selected.value + id else selected.value - id },
                     onNext = { step = Step.PREVIEW },
@@ -190,6 +203,7 @@ fun BillScreen(officerId: String, db: AppDb, onDone: () -> Unit) {
 @Composable
 private fun NewBillPicker(
     candidates: List<TripCandidate>,
+    orphans: List<Trip>,
     selected: Set<String>,
     onToggle: (String, Boolean) -> Unit,
     onNext: () -> Unit,
@@ -229,7 +243,10 @@ private fun NewBillPicker(
                     }
                 }
             }
-            if (candidates.isEmpty()) {
+            // orphans render after the selectable cards -- non-clickable (no onClick), just
+            // visible so the tour doesn't silently disappear when its visits got deleted.
+            items(orphans, key = { it.id }) { t -> OrphanTripCard(t) }
+            if (candidates.isEmpty() && orphans.isEmpty()) {
                 item {
                     Text(
                         "No finished, unsubmitted tours right now.",
@@ -245,6 +262,26 @@ private fun NewBillPicker(
             enabled = selected.isNotEmpty(),
             modifier = Modifier.fillMaxWidth().padding(16.dp).height(48.dp),
         ) { Text("Next (${selected.size} selected)") }
+    }
+}
+
+// finished/unsubmitted trip with no visit left to bill against (see loadUnsubmitted) -- no
+// onClick (Card's plain overload), so it's plainly non-selectable, not just visually dimmed.
+@Composable
+private fun OrphanTripCard(trip: Trip) {
+    Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                "Tour started ${trip.startedAt.take(10).format()}",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "No visit attached — add or restore a visit to bill this tour",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
     }
 }
 

@@ -31,9 +31,9 @@
     const mine = $officer?.id
     const [allTrips, allVisits] = await Promise.all([listTrips(), listVisits()])
     visits = allVisits.filter((v) => v.officer_id === mine)
-    // no-primary-visit tours can't be billed (android loadUnsubmitted mapNotNull does the same)
-    trips = allTrips.filter((t) => t.officer_id === mine && t.status === 'finished' && !t.submitted
-      && visits.some((v) => v.trip_id === t.id && !v.is_additional && !v.deleted))
+    // keep orphan tours (all visits deleted/absent) in the list -- rendered disabled below
+    // instead of silently vanishing, so the officer can spot and fix them.
+    trips = allTrips.filter((t) => t.officer_id === mine && t.status === 'finished' && !t.submitted)
     legs = await listLegsForTrips(trips.map((t) => t.id))
     places = await listTravelPlaces()
     bills = await listBills(mine)
@@ -42,6 +42,11 @@
 
   function primaryVisit(tripId) {
     return visits.find((v) => v.trip_id === tripId && !v.is_additional)
+  }
+
+  // true when a tour has no live (non-deleted) primary visit left -- can't be billed
+  function isOrphanTour(tripId) {
+    return !visits.some((v) => v.trip_id === tripId && !v.is_additional && !v.deleted)
   }
 
   function newLeg(tripId) {
@@ -248,13 +253,18 @@
             {@const tVisits = visits.filter((v) => v.trip_id === t.id)}
             {@const pv = tVisits.find((v) => !v.is_additional)}
             {@const tLegs = legs.filter((l) => l.trip_id === t.id)}
-            <tr>
-              <td><input type="checkbox" checked={selected.has(t.id)} on:change={() => toggle(t.id)} /></td>
-              <td>{institutesForTrip(t.id, visits).join(', ') || '—'}</td>
-              <td>{pv ? `${pv.start_date} – ${pv.end_date}` : ''}</td>
-              <td>{tVisits.length} visit{tVisits.length === 1 ? '' : 's'}</td>
-              <td>{pv?.category ?? ''}</td>
-              <td>{tLegs.length} travel{tLegs.length === 1 ? '' : 's'} · ৳{tLegs.reduce((s, l) => s + Number(l.fare), 0)}</td>
+            {@const orphan = isOrphanTour(t.id)}
+            <tr class:orphan-row={orphan}>
+              <td><input type="checkbox" disabled={orphan} checked={selected.has(t.id)} on:change={() => toggle(t.id)} /></td>
+              {#if orphan}
+                <td colspan="5" class="muted">No visit attached — add or restore a visit to bill this tour</td>
+              {:else}
+                <td>{institutesForTrip(t.id, visits).join(', ') || '—'}</td>
+                <td>{pv ? `${pv.start_date} – ${pv.end_date}` : ''}</td>
+                <td>{tVisits.length} visit{tVisits.length === 1 ? '' : 's'}</td>
+                <td>{pv?.category ?? ''}</td>
+                <td>{tLegs.length} travel{tLegs.length === 1 ? '' : 's'} · ৳{tLegs.reduce((s, l) => s + Number(l.fare), 0)}</td>
+              {/if}
             </tr>
           {/each}
         </tbody>
@@ -347,6 +357,7 @@
   h3 { font-size: 13px; color: var(--muted); text-transform: uppercase; margin: 16px 0 8px; }
   .card { margin-bottom: 16px; }
   .preview-trip { border: 1px solid var(--outline); border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+  .orphan-row { opacity: 0.6; }
   .cat-row { align-items: flex-end; margin: 8px 0; }
   .derived { padding-bottom: 8px; }
   .totals { font-size: 14px; margin: 12px 0; }

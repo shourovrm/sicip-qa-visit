@@ -275,7 +275,17 @@ fun VisitForm(
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("Delete visit?") },
-            text = { Text("This removes \"${target.institute}\" from your visit list. This can't be undone from the app.") },
+            text = {
+                Text(
+                    "This removes \"${target.institute}\" from your visit list. This can't be undone from the app." +
+                        if (target.tripId != null) {
+                            " This visit is part of a tour -- deleting it removes it from that tour, and the tour" +
+                                " disappears from bill preparation until another visit is attached."
+                        } else {
+                            ""
+                        },
+                )
+            },
             confirmButton = {
                 Button(
                     onClick = {
