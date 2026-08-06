@@ -23,18 +23,29 @@ data class VisitFilter(
     val district: String = FILTER_ALL,
     val category: String = FILTER_ALL,
     val purpose: String = FILTER_ALL,
+    val query: String = "",
 )
 
 fun filterVisits(visits: List<Visit>, filter: VisitFilter, today: LocalDate = LocalDate.now()): List<Visit> {
     val range = periodRange(filter.period, today)
+    val q = filter.query.trim()
     return visits.filter { v ->
         val start = LocalDate.parse(v.startDate)
         (range == null || (!start.isBefore(range.first) && !start.isAfter(range.second))) &&
             (filter.district == FILTER_ALL || v.district == filter.district) &&
             (filter.category == FILTER_ALL || v.category == filter.category) &&
-            (filter.purpose == FILTER_ALL || v.purpose == filter.purpose)
+            (filter.purpose == FILTER_ALL || v.purpose == filter.purpose) &&
+            (q.isEmpty() || matchesQuery(v, q))
     }
 }
+
+// free-text search: case-insensitive contains over the fields a user would actually search by.
+private fun matchesQuery(v: Visit, q: String): Boolean =
+    v.institute.contains(q, ignoreCase = true) ||
+        v.association.contains(q, ignoreCase = true) ||
+        v.purpose.contains(q, ignoreCase = true) ||
+        v.district.contains(q, ignoreCase = true) ||
+        v.refNo?.contains(q, ignoreCase = true) == true
 
 // null = no bound (All time). every other range is inclusive on both ends.
 private fun periodRange(period: Period, today: LocalDate): Pair<LocalDate, LocalDate>? = when (period) {

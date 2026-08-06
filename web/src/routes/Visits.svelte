@@ -3,7 +3,7 @@
   import { onMount } from 'svelte'
   import { listVisits, createVisit, updateVisit, softDeleteVisit } from '../lib/db.js'
   import { officer, isAdmin } from '../lib/auth.js'
-  import { officers } from '../lib/officers.js'
+  import { officers, officerName } from '../lib/officers.js'
   import { DISTRICTS, ASSOCIATIONS, PURPOSES } from '../lib/seeds.js'
   import { CATEGORY_LABELS, autoCategoryFromDates } from '../lib/scoring.js'
   import Dropdown from '../components/Dropdown.svelte'
@@ -13,7 +13,17 @@
   let loading = true
   let tab = 'done' // scheduled | done -- Completed is the default
   let scope = 'mine' // mine | team
-  let fDistrict = '', fCategory = '', fPurpose = '', fOfficer = '', fFrom = '', fTo = ''
+  let fDistrict = '', fCategory = '', fPurpose = '', fOfficer = '', fFrom = '', fTo = '', fSearch = ''
+
+  // case-insensitive contains across the visible-ish text fields; officer name only in team
+  // scope (officerList null in mine scope skips that field) -- null-safe on every field.
+  function matchesSearch(v, term, officerList) {
+    if (!term) return true
+    const t = term.toLowerCase()
+    const fields = [v.institute, v.association, v.purpose, v.district, v.ref_no]
+    if (officerList) fields.push(officerName(v.officer_id, officerList))
+    return fields.some((f) => (f ?? '').toLowerCase().includes(t))
+  }
   let editing = null // visit being created/edited (copy); editing.id null == create mode
   let saveErr = ''
 
@@ -34,6 +44,7 @@
     .filter((v) => !fOfficer || v.officer_id === fOfficer)
     .filter((v) => !fFrom || v.start_date >= fFrom)
     .filter((v) => !fTo || v.start_date <= fTo)
+    .filter((v) => matchesSearch(v, fSearch, scope === 'team' ? $officers : null))
 
   function canEdit(v) {
     return v.officer_id === mine || $isAdmin
@@ -85,7 +96,11 @@
   }
 
   async function del(v) {
-    if (!confirm(`Delete visit "${v.institute}"?`)) return
+    // visit on a tour: deleting it also drops the tour from bill prep, warn loudly
+    const msg = v.trip_id
+      ? `Delete visit "${v.institute}"? It's part of a tour -- deleting removes it from the tour, and the tour will disappear from bill preparation.`
+      : `Delete visit "${v.institute}"?`
+    if (!confirm(msg)) return
     await softDeleteVisit(v.id)
     visits = visits.filter((x) => x.id !== v.id)
   }
@@ -108,6 +123,7 @@
 </div>
 
 <div class="card row-wrap filters">
+  <input type="text" bind:value={fSearch} placeholder="Search" />
   <Dropdown bind:value={fDistrict} options={DISTRICTS} placeholder="All districts" />
   <Dropdown bind:value={fCategory} options={Object.entries(CATEGORY_LABELS)} placeholder="All categories" />
   <Dropdown bind:value={fPurpose} options={PURPOSES} placeholder="All purposes" />

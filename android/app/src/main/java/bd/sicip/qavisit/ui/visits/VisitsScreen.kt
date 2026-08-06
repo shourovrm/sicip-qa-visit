@@ -32,6 +32,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -115,6 +116,15 @@ fun VisitsScreen(officerId: String, db: AppDb, onEditVisit: (String) -> Unit, on
     Column(modifier = Modifier.fillMaxSize()) {
         TwoTabRow("Scheduled", "Completed", scheduledTab, { scheduledTab = it })
         TwoTabRow("Personal", "Team", personal, { personal = it })
+
+        // free-text search -- shared VisitFilter.query, so it applies on both scopes/tabs for free.
+        OutlinedTextField(
+            value = filter.query,
+            onValueChange = { filter = filter.copy(query = it) },
+            placeholder = { Text("Search") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        )
 
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),

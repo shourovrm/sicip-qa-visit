@@ -14,10 +14,11 @@ private fun visit(
     district: String = "Dhaka",
     category: String = "N/A",
     purpose: String = "Monitoring Visit",
+    institute: String = "Inst",
 ) = Visit(
     id = id,
     officerId = "o1",
-    institute = "Inst",
+    institute = institute,
     association = "Assoc",
     district = district,
     purpose = purpose,
@@ -94,20 +95,20 @@ class VisitFilterTest {
 
     @Test fun purpose_filter() {
         val visits = listOf(
-            visit("v1", "2026-07-01", purpose = "Recruitment"),
+            visit("v1", "2026-07-01", purpose = "Trainer Engagement"),
             visit("v2", "2026-07-01", purpose = "Others"),
         )
-        assertEquals(listOf(visits[0]), filterVisits(visits, VisitFilter(purpose = "Recruitment"), TODAY))
+        assertEquals(listOf(visits[0]), filterVisits(visits, VisitFilter(purpose = "Trainer Engagement"), TODAY))
     }
 
     // ---- combined ----
     @Test fun combined_period_district_category_purpose() {
-        val match = visit("v1", "2026-07-05", district = "Dhaka", category = "E", purpose = "Recruitment")
-        val wrongDistrict = visit("v2", "2026-07-05", district = "Sylhet", category = "E", purpose = "Recruitment")
-        val wrongCategory = visit("v3", "2026-07-05", district = "Dhaka", category = "A", purpose = "Recruitment")
+        val match = visit("v1", "2026-07-05", district = "Dhaka", category = "E", purpose = "Trainer Engagement")
+        val wrongDistrict = visit("v2", "2026-07-05", district = "Sylhet", category = "E", purpose = "Trainer Engagement")
+        val wrongCategory = visit("v3", "2026-07-05", district = "Dhaka", category = "A", purpose = "Trainer Engagement")
         val wrongPurpose = visit("v4", "2026-07-05", district = "Dhaka", category = "E", purpose = "Others")
-        val wrongPeriod = visit("v5", "2026-01-05", district = "Dhaka", category = "E", purpose = "Recruitment")
-        val filter = VisitFilter(period = Period.ThisMonth, district = "Dhaka", category = "E", purpose = "Recruitment")
+        val wrongPeriod = visit("v5", "2026-01-05", district = "Dhaka", category = "E", purpose = "Trainer Engagement")
+        val filter = VisitFilter(period = Period.ThisMonth, district = "Dhaka", category = "E", purpose = "Trainer Engagement")
         val result = filterVisits(listOf(match, wrongDistrict, wrongCategory, wrongPurpose, wrongPeriod), filter, TODAY)
         assertEquals(listOf(match), result)
     }
@@ -116,5 +117,24 @@ class VisitFilterTest {
         assertEquals("Jun–Jul 2026", periodLabel(Period.Custom("2026-06-15", "2026-07-05")))
         assertEquals(null, periodLabel(Period.AllTime))
         assertEquals("This month", periodLabel(Period.ThisMonth))
+    }
+
+    // ---- text search: case-insensitive contains over institute/association/purpose/district/refNo ----
+    @Test fun query_matches_institute_case_insensitive() {
+        val visits = listOf(visit("v1", "2026-07-01", institute = "ABC College"), visit("v2", "2026-07-01", institute = "XYZ School"))
+        assertEquals(listOf(visits[0]), filterVisits(visits, VisitFilter(query = "abc"), TODAY))
+    }
+
+    @Test fun query_matches_purpose_or_district() {
+        val visits = listOf(
+            visit("v1", "2026-07-01", district = "Sylhet", purpose = "Others"),
+            visit("v2", "2026-07-01", district = "Dhaka", purpose = "Others"),
+        )
+        assertEquals(listOf(visits[0]), filterVisits(visits, VisitFilter(query = "sylhet"), TODAY))
+    }
+
+    @Test fun query_blank_keeps_everything() {
+        val visits = listOf(visit("v1", "2026-07-01"), visit("v2", "2026-07-01"))
+        assertEquals(visits, filterVisits(visits, VisitFilter(query = "  "), TODAY))
     }
 }
