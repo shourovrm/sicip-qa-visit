@@ -5,7 +5,7 @@
   import { officer, isAdmin } from '../lib/auth.js'
   import { officers, officerName } from '../lib/officers.js'
   import { DISTRICTS, ASSOCIATIONS, PURPOSES } from '../lib/seeds.js'
-  import { CATEGORY_LABELS, autoCategoryFromDates } from '../lib/scoring.js'
+  import { CATEGORY_LABELS, autoCategoryFromDates, points } from '../lib/scoring.js'
   import Dropdown from '../components/Dropdown.svelte'
   import VisitModal from '../components/VisitModal.svelte'
 
@@ -45,6 +45,9 @@
     .filter((v) => !fFrom || v.start_date >= fFrom)
     .filter((v) => !fTo || v.start_date <= fTo)
     .filter((v) => matchesSearch(v, fSearch, scope === 'team' ? $officers : null))
+
+  // summary line, deps on filtered directly (no wrapper fn) so svelte tracks it right
+  $: summaryPts = filtered.reduce((sum, v) => sum + points(v.category), 0)
 
   function canEdit(v) {
     return v.officer_id === mine || $isAdmin
@@ -137,6 +140,7 @@
 {#if loading}
   <p class="muted">Loading…</p>
 {:else}
+  <p class="muted summary">{filtered.length} visits · {summaryPts} pts</p>
   <table class="card">
     <thead>
       <tr>
@@ -179,5 +183,6 @@
   .seg button { border: none; background: none; padding: 6px 14px; border-radius: var(--radius-pill); cursor: pointer; font-weight: 700; color: var(--muted); }
   .seg button.active { background: var(--primary); color: var(--on-primary); }
   .filters { margin-bottom: 16px; }
+  .summary { margin: -4px 0 8px; }
   .filters :global(select), .filters input { width: auto; }
 </style>
