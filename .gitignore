@@ -50,3 +50,6 @@ web/.cf-token
 !assets/tada-template.example.xlsx
 !assets/local-tada-template.example.xlsx
 sample.claude.md
+
+# playwright mcp scratch output
+.playwright-mcp/
