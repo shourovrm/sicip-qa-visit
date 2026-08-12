@@ -1,6 +1,6 @@
-// one travel-leg form; used by bill prep's "Add travel" / edit-travel dialogs (BillScreen) and
-// Home's active-tour "Add travel" dialog (HomeScreen) -- travel entry never lives in start-tour
-// or the tour detail screen.
+// one travel-leg form; used by bill prep's "Add travel" / edit-travel dialogs (BillScreen),
+// Home's active-tour "Add travel" dialog (HomeScreen) and the mid-tour TravelsSheet (Home +
+// TripScreen). Still never lives in start-tour.
 package bd.sicip.qavisit.ui.home
 
 import androidx.compose.foundation.layout.Arrangement

@@ -1,11 +1,13 @@
 // home tab: dashboard (points/rank/visits + this-month line) on top, ACTIVE TOUR hero when a
-// tour is running (Add travel / Add visit / End tour), ONGOING visits attached to that tour,
+// tour is running (Add travel / Add visit / Travels summary -> TravelsSheet / End tour),
+// ONGOING visits attached to that tour,
 // then UPCOMING scheduled visits -- each with its own small "Start" button that opens the
 // start-tour sheet pre-checked for that visit, plus "+ Visit" to clone another scheduled visit
 // at the same date+district. FAB schedules a brand-new visit.
 package bd.sicip.qavisit.ui.home
 
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,6 +58,7 @@ import bd.sicip.qavisit.data.db.Visit
 import bd.sicip.qavisit.data.remote.SupabaseClient
 import bd.sicip.qavisit.data.sync.SyncNow
 import bd.sicip.qavisit.domain.dayNumber
+import bd.sicip.qavisit.domain.formatFare
 import bd.sicip.qavisit.domain.primaryVisit
 import bd.sicip.qavisit.ui.common.StatusPill
 import bd.sicip.qavisit.ui.theme.LocalStatusColors
@@ -93,6 +96,7 @@ fun HomeScreen(
 
     var addVisitRequest by remember { mutableStateOf<AddVisitRequest?>(null) }
     var showAddTravel by remember { mutableStateOf(false) }
+    var showTravels by remember { mutableStateOf(false) }
     var travelPlaces by remember { mutableStateOf<List<String>>(emptyList()) }
 
     // "Add visit" (active tour) and "+ Visit" (upcoming card) both reuse VisitForm inline --
@@ -163,8 +167,11 @@ fun HomeScreen(
                         primary = primaryVisit(state.activeTripVisits) { it.isAdditional },
                         startedAt = trip.startedAt,
                         visitCount = state.activeTripVisits.size,
+                        travelCount = state.activeTripLegs.size,
+                        travelFareTotal = state.activeTripLegs.sumOf { it.fare },
                         onOpen = { onOpenTrip(trip.id) },
                         onAddTravel = { showAddTravel = true },
+                        onOpenTravels = { showTravels = true },
                         onAddVisit = {
                             addVisitRequest = AddVisitRequest(
                                 tripId = trip.id,
@@ -240,6 +247,17 @@ fun HomeScreen(
                 dismissButton = { TextButton(onClick = { showAddTravel = false }) { Text("Cancel") } },
             )
         }
+
+        // Travels sheet: view/edit/delete every leg on the running tour -- legs come straight
+        // from state.activeTripLegs (byTripFlow), so an edit inside the sheet recomposes live.
+        if (showTravels && trip != null) {
+            TravelsSheet(
+                tripId = trip.id,
+                legs = state.activeTripLegs,
+                db = db,
+                onDismiss = { showTravels = false },
+            )
+        }
     }
 }
 
@@ -313,8 +331,11 @@ private fun ActiveTripHero(
     primary: Visit?,
     startedAt: String,
     visitCount: Int,
+    travelCount: Int,
+    travelFareTotal: Double,
     onOpen: () -> Unit,
     onAddTravel: () -> Unit,
+    onOpenTravels: () -> Unit,
     onAddVisit: () -> Unit,
     onFinishTrip: () -> Unit,
 ) {
@@ -336,7 +357,7 @@ private fun ActiveTripHero(
                 color = MaterialTheme.colorScheme.onPrimary,
             )
             Text(
-                "Started ${startedAt.take(10)} · $visitCount visits",
+                "Started ${startedAt.take(10)} · $visitCount visits · $travelCount travels",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimary,
             )
@@ -344,6 +365,7 @@ private fun ActiveTripHero(
                 OutlinedHeroButton("Add travel", onAddTravel, Modifier.weight(1f))
                 OutlinedHeroButton("Add visit", onAddVisit, Modifier.weight(1f))
             }
+            TravelsSummaryButton(travelCount, travelFareTotal, onOpenTravels)
             Button(
                 onClick = onFinishTrip,
                 colors = ButtonDefaults.buttonColors(
@@ -353,6 +375,39 @@ private fun ActiveTripHero(
                 shape = RoundedCornerShape(99),
                 modifier = Modifier.fillMaxWidth().height(48.dp),
             ) { Text("End tour") }
+        }
+    }
+}
+
+// full-width "Travels" row button on the active-tour hero -- opens TravelsSheet. count badge in
+// tertiary (orange) so it echoes the hero's own tertiary "End tour" accent; fare suffix dimmer.
+@Composable
+private fun TravelsSummaryButton(count: Int, fareTotal: Double, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ),
+        shape = RoundedCornerShape(99),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Travels")
+            Text(
+                "$count",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onTertiary,
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.tertiary, RoundedCornerShape(99))
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+            )
+            Text(
+                "· ${formatFare(fareTotal)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+            )
         }
     }
 }

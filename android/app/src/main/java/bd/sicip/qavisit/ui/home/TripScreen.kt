@@ -1,5 +1,6 @@
-// tour detail: attached visits (primary + N/A-pilled ad-hoc adds), activity notes, and the
-// add-visit / end-tour actions. Travel entry lives in bill prep now (BillScreen), not here.
+// tour detail: attached visits (primary + N/A-pilled ad-hoc adds), travel legs, activity notes,
+// and the add-visit / end-tour actions. Travel is viewable/editable here too now (TravelsSheet),
+// not just in bill prep -- that used to require a FINISHED tour to touch a leg at all.
 // `initialAction` lets the home hero's "End tour" shortcut drop straight into the finish
 // dialog on arrival.
 package bd.sicip.qavisit.ui.home
@@ -21,6 +22,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,6 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.Activity
 import bd.sicip.qavisit.data.db.AppDb
+import bd.sicip.qavisit.data.db.TravelLeg
 import bd.sicip.qavisit.data.db.Trip
 import bd.sicip.qavisit.data.db.Visit
 import bd.sicip.qavisit.domain.dayNumber
@@ -57,13 +60,16 @@ fun TripScreen(
     val scope = rememberCoroutineScope()
     var trip by remember { mutableStateOf<Trip?>(null) }
     var visits by remember { mutableStateOf<List<Visit>>(emptyList()) }
+    var legs by remember { mutableStateOf<List<TravelLeg>>(emptyList()) }
     var activities by remember { mutableStateOf<List<Activity>>(emptyList()) }
     var showFinish by remember { mutableStateOf(initialAction == "finish") }
+    var showTravels by remember { mutableStateOf(false) }
     var note by remember { mutableStateOf("") }
 
     suspend fun reload() {
         trip = db.tripDao().byId(tripId)
         visits = db.visitDao().byTrip(tripId)
+        legs = db.travelLegDao().byTrip(tripId)
         activities = db.activityDao().byTrip(tripId)
     }
 
@@ -95,6 +101,12 @@ fun TripScreen(
                     if (visit.isAdditional) StatusPill("N/A", LocalStatusColors.current.office)
                 }
             }
+        }
+
+        item { Text("TRAVELS", style = MaterialTheme.typography.labelSmall) }
+        items(legs) { leg -> TravelLegRow(leg, onClick = { showTravels = true }, onDelete = { showTravels = true }) }
+        item {
+            OutlinedButton(onClick = { showTravels = true }, modifier = Modifier.fillMaxWidth()) { Text("Add travel") }
         }
 
         item { Text("ACTIVITIES", style = MaterialTheme.typography.labelSmall) }
@@ -147,6 +159,19 @@ fun TripScreen(
             db = db,
             onDismiss = { showFinish = false },
             onFinished = onDone,
+        )
+    }
+
+    // one-shot `byTrip` load here (not a Flow like Home), so refresh legs on sheet close.
+    if (showTravels) {
+        TravelsSheet(
+            tripId = tripId,
+            legs = legs,
+            db = db,
+            onDismiss = {
+                showTravels = false
+                scope.launch { reload() }
+            },
         )
     }
 }

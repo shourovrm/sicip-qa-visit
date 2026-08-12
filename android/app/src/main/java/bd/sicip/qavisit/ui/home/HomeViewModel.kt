@@ -8,6 +8,7 @@ package bd.sicip.qavisit.ui.home
 import bd.sicip.qavisit.BuildConfig
 import bd.sicip.qavisit.data.auth.SessionStore
 import bd.sicip.qavisit.data.db.AppDb
+import bd.sicip.qavisit.data.db.TravelLeg
 import bd.sicip.qavisit.data.db.Trip
 import bd.sicip.qavisit.data.db.Visit
 import bd.sicip.qavisit.data.remote.SupabaseClient
@@ -37,6 +38,7 @@ data class HomeUiState(
     val loading: Boolean = true,
     val activeTrip: Trip? = null,
     val activeTripVisits: List<Visit> = emptyList(),
+    val activeTripLegs: List<TravelLeg> = emptyList(),
     val upcoming: List<Visit> = emptyList(),
     val myPoints: Int = 0,
     val myRank: Int = 0,
@@ -86,12 +88,16 @@ class HomeViewModel(
 
     val state: Flow<HomeUiState> = db.tripDao().activeTripFlow(officerId).flatMapLatest { trip ->
         val tripVisits = trip?.let { db.visitDao().byTripFlow(it.id) } ?: flowOf(emptyList())
+        // reactive so a background sync (or an edit in TravelsSheet) recomposes the hero's
+        // travel count/fare and the sheet's own list, no manual reload needed.
+        val tripLegs = trip?.let { db.travelLegDao().byTripFlow(it.id) } ?: flowOf(emptyList())
         combine(
             tripVisits,
+            tripLegs,
             db.visitDao().byOfficerFlow(officerId),
             db.visitDao().allFlow(),
             db.officerDao().allFlow(),
-        ) { visits, myVisits, allVisits, officers ->
+        ) { visits, legs, myVisits, allVisits, officers ->
             // scheduled visits already attached to the running tour show in ONGOING instead --
             // exclude them here so they don't double-list.
             // exclude only visits attached to the ACTIVE tour (they show under ONGOING); when no
@@ -114,6 +120,7 @@ class HomeViewModel(
                 loading = false,
                 activeTrip = trip,
                 activeTripVisits = visits,
+                activeTripLegs = legs,
                 upcoming = upcoming,
                 myPoints = ranked.firstOrNull { it.first == officerId }?.second ?: 0,
                 myRank = (ordered.indexOf(officerId) + 1).coerceAtLeast(1),

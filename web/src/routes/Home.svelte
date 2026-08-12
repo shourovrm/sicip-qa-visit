@@ -1,13 +1,14 @@
 <!-- home dashboard: stat tiles, this-month line, active tour, upcoming visits. mirrors
      android ui/home/HomeScreen.kt (points/rank/visits + active trip + upcoming list). -->
 <script>
-  import { listVisits, listTrips, createVisit, createLeg, listTravelPlaces, listActivitiesForTrip, createActivity } from '../lib/db.js'
+  import { listVisits, listTrips, createVisit, createLeg, updateLeg, softDeleteLeg, listLegsForTrips, listTravelPlaces, listActivitiesForTrip, createActivity } from '../lib/db.js'
   import { officer } from '../lib/auth.js'
   import { officers } from '../lib/officers.js'
   import { totalPoints, rank, monthSummary, autoCategoryFromDates } from '../lib/scoring.js'
   import { DISTRICTS, ASSOCIATIONS, PURPOSES } from '../lib/seeds.js'
-  import { newLegDraft, legPayload } from '../lib/legs.js'
+  import { newLegDraft, legFromRow, legPayload } from '../lib/legs.js'
   import LegModal from '../components/LegModal.svelte'
+  import TravelsModal from '../components/TravelsModal.svelte'
   import VisitModal from '../components/VisitModal.svelte'
   import Pill from '../components/Pill.svelte'
   import StartTourModal from '../components/StartTourModal.svelte'
@@ -19,6 +20,11 @@
   // active-tour "Add travel" (LegModal) / "Add visit" + upcoming-card "+ Visit" (VisitModal)
   let legForm = null, legErr = '', places = []
   let editing = null, saveErr = ''
+
+  // active-tour travel legs: view/edit list (TravelsModal) + its badge/meta count
+  let legs = []
+  let showTravels = false
+  let resumeTravels = false // reopen TravelsModal after legForm closes, when opened from there
 
   // start/end tour dialogs + this-trip activity notes
   let showStartTour = false, startPreselect = null
@@ -70,6 +76,12 @@
   }
   $: if (activeTrip) loadActivities(activeTrip.id)
 
+  // this trip's travel legs -- same reload-on-active-trip pattern as loadActivities above.
+  async function loadLegs(tripId) {
+    legs = await listLegsForTrips([tripId])
+  }
+  $: if (activeTrip) loadLegs(activeTrip.id)
+
   async function addNote() {
     if (!noteText.trim()) return
     const now = new Date().toISOString()
@@ -93,20 +105,48 @@
     await load()
   }
 
-  // -- Add travel (active tour) --------------------------------------------------------------
+  // -- Add/edit/delete travel (active tour) --------------------------------------------------
   async function newLeg(tripId) {
     if (!places.length) places = await listTravelPlaces()
     legForm = newLegDraft(tripId)
     legErr = ''
   }
+  // opened from the Travels list -> hide it while LegModal is up, no stacked modals.
+  async function addLegFromTravels() {
+    await newLeg(activeTrip.id)
+    showTravels = false
+    resumeTravels = true
+  }
+  function editLegFromTravels(l) {
+    legForm = legFromRow(l)
+    legErr = ''
+    showTravels = false
+    resumeTravels = true
+  }
+  function closeLeg() {
+    legForm = null
+    if (resumeTravels) { showTravels = true; resumeTravels = false }
+  }
+  // create or update branching on legForm.id, same shape as Bills.svelte's saveLeg.
   async function saveLeg() {
     legErr = ''
     try {
-      await createLeg(legPayload(legForm))
-      legForm = null
+      const payload = legPayload(legForm)
+      if (legForm.id) {
+        const updated = await updateLeg(legForm.id, payload)
+        legs = legs.map((l) => (l.id === updated.id ? updated : l))
+      } else {
+        const created = await createLeg(payload)
+        legs = [...legs, created]
+      }
+      closeLeg()
     } catch (e) {
       legErr = e.message
     }
+  }
+  async function delLegFromTravels(l) {
+    await softDeleteLeg(l.id)
+    legs = legs.filter((x) => x.id !== l.id)
   }
 
   // -- Add visit (attach to active tour) / + Visit (plain scheduled visit prefilled from a card)
@@ -170,9 +210,10 @@
     <div class="card active-trip">
       <div class="label">Active tour</div>
       <h2>{activeTripVisit?.institute ?? 'Ad-hoc tour'}</h2>
-      <p>Started {new Date(activeTrip.started_at).toLocaleString()}</p>
+      <p>Started {new Date(activeTrip.started_at).toLocaleString()} · {legs.length} travels</p>
       <div class="row active-actions">
         <button class="btn btn-secondary" on:click={() => newLeg(activeTrip.id)}>Add travel</button>
+        <button class="btn btn-secondary" on:click={() => (showTravels = true)}>Travels <span class="badge">{legs.length}</span></button>
         <button class="btn btn-secondary" on:click={addVisitToTrip}>Add visit</button>
       </div>
 
@@ -221,7 +262,16 @@
 {/if}
 
 {#if legForm}
-  <LegModal legForm={legForm} places={places} legErr={legErr} on:save={saveLeg} on:cancel={() => (legForm = null)} />
+  <LegModal legForm={legForm} places={places} legErr={legErr} on:save={saveLeg} on:cancel={closeLeg} />
+{/if}
+{#if showTravels}
+  <TravelsModal
+    legs={legs}
+    on:add={addLegFromTravels}
+    on:edit={(e) => editLegFromTravels(e.detail)}
+    on:delete={(e) => delLegFromTravels(e.detail)}
+    on:close={() => (showTravels = false)}
+  />
 {/if}
 {#if editing}
   <VisitModal editing={editing} visits={visits} saveErr={saveErr} on:save={saveVisit} on:cancel={() => (editing = null)} />
@@ -252,6 +302,7 @@
   .active-trip h2 { margin: 4px 0; font-size: 18px; }
   .active-trip p { margin: 0 0 12px; opacity: 0.85; }
   .active-actions { gap: 8px; }
+  .badge { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 5px; margin-left: 4px; border-radius: var(--radius-pill); background: var(--accent); color: var(--on-accent); font-size: 11px; font-weight: 700; }
   .notes { margin: 12px 0; }
   .note-row { margin: 0 0 4px; font-size: 13px; }
   .end-tour-btn { width: 100%; }

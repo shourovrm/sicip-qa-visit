@@ -1,6 +1,7 @@
 // start a tour: pick a start date+time, optionally attach scheduled visits (or create one
 // inline via VisitForm -- it auto-appears checked), optionally inform a colleague. No travel
-// form here -- travel entry now happens in bill prep (see BillScreen). Creates Trip(active).
+// form here -- travel is logged/edited mid-tour (TravelsSheet) or in bill prep (BillScreen).
+// Creates Trip(active).
 package bd.sicip.qavisit.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
