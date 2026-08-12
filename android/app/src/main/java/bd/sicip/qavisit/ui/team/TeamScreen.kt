@@ -1,4 +1,4 @@
-// Team screen: two tabs -- Status (per-officer derived status: on tour / on leave / in office)
+// Team screen: two tabs -- Status (per-officer derived status: on tour / in office)
 // and Rank (points leaderboard). Rank has its own Overall | Last month sub-filter: Overall is the
 // current all-time rank, Last month re-runs the same rank() over a cumulative snapshot -- every
 // visit that started on or before the last day of the previous month (e.g. 30 June when today is
@@ -31,12 +31,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.AppDb
-import bd.sicip.qavisit.data.db.Leave
 import bd.sicip.qavisit.data.db.Officer
 import bd.sicip.qavisit.data.db.Trip
 import bd.sicip.qavisit.data.db.Visit
 import bd.sicip.qavisit.data.sync.SyncNow
-import bd.sicip.qavisit.domain.LeaveFlag
 import bd.sicip.qavisit.domain.RankOfficer
 import bd.sicip.qavisit.domain.RankRow
 import bd.sicip.qavisit.domain.TeamStatus
@@ -65,7 +63,7 @@ fun TeamScreen(officerId: String, db: AppDb) {
     var rankOverall by remember { mutableStateOf(true) } // true = Overall, false = Last month
     val context = LocalContext.current
 
-    // fresh tours/leaves land via sync (RLS read-all pulls every officer's rows) -- kick a pull
+    // fresh tours land via sync (RLS read-all pulls every officer's rows) -- kick a pull
     // on entry so the status list doesn't wait for the next periodic sync.
     LaunchedEffect(Unit) { SyncNow.enqueue(context) }
 
@@ -74,10 +72,9 @@ fun TeamScreen(officerId: String, db: AppDb) {
         combine(
             db.officerDao().allFlow(), // dao already orders by name -- alphabetical for free
             db.tripDao().activeTripsFlow(),
-            db.leaveDao().startedFlow(),
             db.visitDao().allFlow(),
-        ) { officers, activeTrips, startedLeaves, allVisits ->
-            teamUiState(officers, activeTrips, startedLeaves, allVisits, today)
+        ) { officers, activeTrips, allVisits ->
+            teamUiState(officers, activeTrips, allVisits, today)
         }
     }.collectAsState(initial = TeamUiState())
 
@@ -103,25 +100,21 @@ fun TeamScreen(officerId: String, db: AppDb) {
     }
 }
 
-// pure combine step: officers x active trips x started leaves x all visits -> screen state.
+// pure combine step: officers x active trips x all visits -> screen state.
 // only 9 officers -- an in-memory groupBy/map here beats N extra per-officer flows.
 private fun teamUiState(
     officers: List<Officer>,
     activeTrips: List<Trip>,
-    startedLeaves: List<Leave>,
     allVisits: List<Visit>,
     today: LocalDate,
 ): TeamUiState {
     val tripByOfficer = activeTrips.associateBy { it.officerId }
-    val leavesByOfficer = startedLeaves.groupBy { it.officerId }
     val visitsByTrip = allVisits.groupBy { it.tripId }
 
     val rows = officers.map { officer ->
         val trip = tripByOfficer[officer.id]
         val tripFlags = listOfNotNull(trip).map { TripFlag(it.status, it.deleted, it.startedAt) }
-        val leaveFlags = leavesByOfficer[officer.id].orEmpty()
-            .map { LeaveFlag(it.type, it.status, it.deleted, it.startDate, it.endDate) }
-        val status = teamStatus(tripFlags, leaveFlags)
+        val status = teamStatus(tripFlags)
 
         val subtitle = when (status) {
             is TeamStatus.OnVisit -> {
@@ -129,7 +122,6 @@ private fun teamUiState(
                 val place = primary?.let { "${it.institute} · ${it.district} · " }.orEmpty()
                 "${place}since ${status.since}"
             }
-            is TeamStatus.OnLeave -> "${status.type} · until ${status.until}"
             TeamStatus.InOffice -> null
         }
         TeamRow(officer, status, subtitle)
@@ -170,7 +162,6 @@ private fun TeamStatusCard(row: TeamRow) {
             }
             val (label, colors) = when (row.status) {
                 is TeamStatus.OnVisit -> "ON TOUR" to LocalStatusColors.current.onVisit
-                is TeamStatus.OnLeave -> "ON LEAVE" to LocalStatusColors.current.onLeave
                 TeamStatus.InOffice -> "IN OFFICE" to LocalStatusColors.current.office
             }
             StatusPill(label, colors)

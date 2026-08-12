@@ -11,7 +11,6 @@ package bd.sicip.qavisit.data.sync
 
 import bd.sicip.qavisit.data.db.Activity
 import bd.sicip.qavisit.data.db.Bill
-import bd.sicip.qavisit.data.db.Leave
 import bd.sicip.qavisit.data.db.Officer
 import bd.sicip.qavisit.data.db.TravelLeg
 import bd.sicip.qavisit.data.db.Trip
@@ -168,33 +167,6 @@ fun JsonObject.toActivity(): Activity = Activity(
     visitId = strOrNull("visit_id"),
     at = str("at"),
     note = str("note"),
-    updatedAt = str("updated_at"),
-    deleted = bool("deleted"),
-    dirty = false,
-)
-
-// ============ leaves ============
-fun Leave.toJson(): JsonObject = buildJsonObject {
-    put("id", id)
-    put("officer_id", officerId)
-    put("type", type)
-    put("reason", reason)
-    put("informed_officer_id", informedOfficerId)
-    put("start_date", startDate)
-    put("end_date", endDate)
-    put("status", status)
-    put("deleted", deleted)
-}
-
-fun JsonObject.toLeave(): Leave = Leave(
-    id = str("id"),
-    officerId = str("officer_id"),
-    type = str("type"),
-    reason = strOrNull("reason"),
-    informedOfficerId = strOrNull("informed_officer_id"),
-    startDate = str("start_date"),
-    endDate = str("end_date"),
-    status = str("status"),
     updatedAt = str("updated_at"),
     deleted = bool("deleted"),
     dirty = false,

@@ -43,7 +43,6 @@ export const TRANSPORT = {
 // exact remark text the "Ticket/ receipt attached" tick box writes; local bill skips legs carrying it
 export const TICKET_REMARK = 'Ticket/ receipt attached'
 
-export const LEAVE_TYPES = ['Casual', 'Sick', 'Emergency', 'Others']
 
 // hardcoded per product spec -- not a DB column (see BillHtml.kt precedent)
 export const DESIGNATION = 'Program Officer (QA)'

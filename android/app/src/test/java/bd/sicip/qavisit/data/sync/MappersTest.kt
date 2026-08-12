@@ -10,7 +10,6 @@ package bd.sicip.qavisit.data.sync
 
 import bd.sicip.qavisit.data.db.Activity
 import bd.sicip.qavisit.data.db.Bill
-import bd.sicip.qavisit.data.db.Leave
 import bd.sicip.qavisit.data.db.TravelLeg
 import bd.sicip.qavisit.data.db.Trip
 import bd.sicip.qavisit.data.db.Visit
@@ -219,46 +218,6 @@ class MappersTest {
         val json = activity.toJson()
         assertFalse(json.containsKey("updated_at"))
         assertEquals(activity, json.withColumn("updated_at", activity.updatedAt).toActivity())
-    }
-
-    @Test
-    fun `leave round trips`() {
-        val leave = Leave(
-            id = "l1",
-            officerId = "o1",
-            type = "Casual",
-            reason = "reason text",
-            informedOfficerId = "o2",
-            startDate = "2024-01-01",
-            endDate = "2024-01-02",
-            status = "availed",
-            updatedAt = "2024-01-01T00:00:00Z",
-            deleted = true,
-            dirty = false,
-        )
-        val json = leave.toJson()
-        assertFalse(json.containsKey("updated_at"))
-        assertEquals(leave, json.withColumn("updated_at", leave.updatedAt).toLeave())
-    }
-
-    @Test
-    fun `leave round trips with nulls`() {
-        val leave = Leave(
-            id = "l2",
-            officerId = "o1",
-            type = "Sick",
-            reason = null,
-            informedOfficerId = null,
-            startDate = "2024-01-01",
-            endDate = "2024-01-01",
-            status = "scheduled",
-            updatedAt = "2024-01-01T00:00:00Z",
-            deleted = false,
-            dirty = false,
-        )
-        val json = leave.toJson()
-        assertFalse(json.containsKey("updated_at"))
-        assertEquals(leave, json.withColumn("updated_at", leave.updatedAt).toLeave())
     }
 
     @Test

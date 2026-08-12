@@ -15,21 +15,18 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 @Immutable
 data class StatusColors(
     val onVisit: StatusPair,
-    val onLeave: StatusPair,
     val office: StatusPair,
     val success: StatusPair,
 )
 
 private val LightStatusColors = StatusColors(
     onVisit = LightStatus.onVisit,
-    onLeave = LightStatus.onLeave,
     office = LightStatus.office,
     success = LightStatus.success,
 )
 
 private val DarkStatusColors = StatusColors(
     onVisit = DarkStatus.onVisit,
-    onLeave = DarkStatus.onLeave,
     office = DarkStatus.office,
     success = DarkStatus.success,
 )

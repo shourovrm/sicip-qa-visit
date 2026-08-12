@@ -35,7 +35,6 @@ data class StatusPair(val bg: Color, val ink: Color)
 
 object LightStatus {
     val onVisit = StatusPair(Color(0xFFE3E6FF), Color(0xFF2B2F7E))
-    val onLeave = StatusPair(Color(0xFFFFE9D6), Color(0xFF9A4A00))
     val office = StatusPair(Color(0xFFE6E7EE), Color(0xFF4C4F66))
     val success = StatusPair(Color(0xFFDDF2E2), Color(0xFF1C6B38))
 }
@@ -45,7 +44,6 @@ object LightStatus {
 // revisit if design hands over exact dark pill values.
 object DarkStatus {
     val onVisit = StatusPair(Color(0xFF2B2F7E), Color(0xFFC7CBFF))
-    val onLeave = StatusPair(Color(0xFF9A4A00), Color(0xFFFFD9B3))
     val office = StatusPair(Color(0xFF4C4F66), Color(0xFFD5D6E6))
     val success = StatusPair(Color(0xFF1C6B38), Color(0xFFB8F0C8))
 }

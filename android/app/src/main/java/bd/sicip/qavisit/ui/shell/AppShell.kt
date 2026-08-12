@@ -5,7 +5,6 @@ import android.content.Context
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
@@ -39,8 +38,6 @@ import bd.sicip.qavisit.ui.bill.BillScreen
 import bd.sicip.qavisit.ui.home.HomeScreen
 import bd.sicip.qavisit.ui.home.StartTrip
 import bd.sicip.qavisit.ui.home.TripScreen
-import bd.sicip.qavisit.ui.leaves.LeaveForm
-import bd.sicip.qavisit.ui.leaves.LeavesScreen
 import bd.sicip.qavisit.ui.profile.ProfileScreen
 import bd.sicip.qavisit.ui.team.TeamScreen
 import bd.sicip.qavisit.ui.visits.VisitForm
@@ -54,7 +51,6 @@ private val NAV_ITEMS = listOf(
     NavItem("home", "Home", Icons.Filled.Home),
     NavItem("team", "Team", Icons.Filled.Groups),
     NavItem("visits", "Visits", Icons.Filled.Checklist),
-    NavItem("leaves", "Leaves", Icons.Filled.EventBusy),
     NavItem("profile", "Profile", Icons.Filled.Person),
 )
 
@@ -139,30 +135,8 @@ fun AppShell(context: Context, officerId: String) {
             composable("bill") {
                 BillScreen(officerId = officerId, db = db, onDone = { navController.popBackStack() })
             }
-            composable("leaves") {
-                LeavesScreen(
-                    officerId = officerId,
-                    db = db,
-                    onAddLeave = { navController.navigate("leave_form") },
-                    onEditLeave = { leaveId -> navController.navigate("leave_form?leaveId=$leaveId") },
-                )
-            }
             composable("profile") {
                 ProfileScreen(officerId = officerId, db = db, themePrefs = themePrefs, sessionStore = sessionStore)
-            }
-
-            composable(
-                "leave_form?leaveId={leaveId}",
-                arguments = listOf(
-                    navArgument("leaveId") { type = NavType.StringType; nullable = true; defaultValue = null },
-                ),
-            ) { entry ->
-                LeaveForm(
-                    officerId = officerId,
-                    db = db,
-                    leaveId = entry.arguments?.getString("leaveId"),
-                    onDone = { navController.popBackStack() },
-                )
             }
 
             composable(

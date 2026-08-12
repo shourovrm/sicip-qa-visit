@@ -9,8 +9,8 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [Officer::class, Trip::class, Visit::class, TravelLeg::class, Activity::class, Leave::class, Bill::class],
-    version = 3,
+    entities = [Officer::class, Trip::class, Visit::class, TravelLeg::class, Activity::class, Bill::class],
+    version = 4,
     exportSchema = false,
 )
 abstract class AppDb : RoomDatabase() {
@@ -19,7 +19,6 @@ abstract class AppDb : RoomDatabase() {
     abstract fun visitDao(): VisitDao
     abstract fun travelLegDao(): TravelLegDao
     abstract fun activityDao(): ActivityDao
-    abstract fun leaveDao(): LeaveDao
     abstract fun billDao(): BillDao
 
     companion object {
@@ -48,13 +47,20 @@ abstract class AppDb : RoomDatabase() {
             }
         }
 
+        // leaves feature removed -- drop the table, nothing mirrors it anymore.
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS leaves")
+            }
+        }
+
         // single instance per process (room recommends this); double-checked lock avoids
         // two screens racing to open the db file at once.
         @Volatile private var instance: AppDb? = null
 
         fun get(context: Context): AppDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, AppDb::class.java, "app.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
                 .also { instance = it }
         }

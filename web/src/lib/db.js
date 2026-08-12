@@ -107,38 +107,6 @@ export async function createActivity(row) {
   return data
 }
 
-// ---- leaves ----
-export async function listLeaves() {
-  const { data, error } = await notDeleted(supabase.from('leaves').select('*')).order('start_date', { ascending: false })
-  if (error) throw error
-  return data
-}
-
-export async function createLeave(row) {
-  const { data, error } = await supabase.from('leaves').insert(row).select().single()
-  if (error) throw error
-  return data
-}
-
-export async function updateLeave(id, patch) {
-  const { data, error } = await supabase.from('leaves').update(patch).eq('id', id).select().single()
-  if (error) throw error
-  return data
-}
-
-export async function cancelLeave(id) {
-  return updateLeave(id, { status: 'cancelled' })
-}
-
-// scheduled -> started -> completed lifecycle (see migration 007).
-export async function updateLeaveStatus(id, status) {
-  return updateLeave(id, { status })
-}
-
-export async function softDeleteLeave(id) {
-  return updateLeave(id, { deleted: true })
-}
-
 // ---- bills ----
 export async function listBills(officerId) {
   const { data, error } = await notDeleted(supabase.from('bills').select('*').eq('officer_id', officerId)).order('bill_date', { ascending: false })

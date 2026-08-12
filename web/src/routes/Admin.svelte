@@ -1,4 +1,4 @@
-<!-- admin-only: app_meta editor + officer directory. edit/delete ANY visit/tour/leave happens on
+<!-- admin-only: app_meta editor + officer directory. edit/delete ANY visit/tour happens on
      those pages themselves (RLS is_admin() bypass + this app's canEdit checks already allow it). -->
 <script>
   import { onMount } from 'svelte'
@@ -119,7 +119,7 @@
 
   <div class="card">
     <h2>Edit/delete any record</h2>
-    <p class="muted">Use the Visits, Tours, and Leaves pages directly — admins can edit or delete any officer's rows there (not just their own).</p>
+    <p class="muted">Use the Visits and Tours pages directly — admins can edit or delete any officer's rows there (not just their own).</p>
   </div>
 {/if}
 

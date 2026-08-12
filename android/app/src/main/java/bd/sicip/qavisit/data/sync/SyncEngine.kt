@@ -73,7 +73,6 @@ class SyncEngine(
             pushed["visits"] = pushVisits(token)
             pushed["travel_legs"] = pushTravelLegs(token)
             pushed["activities"] = pushActivities(token)
-            pushed["leaves"] = pushLeaves(token)
             pushed["bills"] = pushBills(token)
 
             pulled["officers"] = pullOfficers(token)
@@ -81,7 +80,6 @@ class SyncEngine(
             pulled["visits"] = pullVisits(token)
             pulled["travel_legs"] = pullTravelLegs(token)
             pulled["activities"] = pullActivities(token)
-            pulled["leaves"] = pullLeaves(token)
             pulled["bills"] = pullBills(token)
 
             // past incident: rows hard-DELETEd on the server never got retracted locally,
@@ -93,7 +91,6 @@ class SyncEngine(
             reconcile("visits", token, db.visitDao().nonDirtyIds()) { db.visitDao().deleteByIds(it) }
             reconcile("travel_legs", token, db.travelLegDao().nonDirtyIds()) { db.travelLegDao().deleteByIds(it) }
             reconcile("activities", token, db.activityDao().nonDirtyIds()) { db.activityDao().deleteByIds(it) }
-            reconcile("leaves", token, db.leaveDao().nonDirtyIds()) { db.leaveDao().deleteByIds(it) }
             reconcile("bills", token, db.billDao().nonDirtyIds()) { db.billDao().deleteByIds(it) }
 
             syncState.recordSuccess(Instant.now().toString())
@@ -139,15 +136,6 @@ class SyncEngine(
         val dirty = dao.dirtyRows()
         if (dirty.isEmpty()) return 0
         client.upsert("activities", JsonArray(dirty.map { it.toJson() }), token)
-        dao.clearDirty(dirty.map { it.id to it.updatedAt })
-        return dirty.size
-    }
-
-    private suspend fun pushLeaves(token: String): Int {
-        val dao = db.leaveDao()
-        val dirty = dao.dirtyRows()
-        if (dirty.isEmpty()) return 0
-        client.upsert("leaves", JsonArray(dirty.map { it.toJson() }), token)
         dao.clearDirty(dirty.map { it.id to it.updatedAt })
         return dirty.size
     }
@@ -319,24 +307,6 @@ class SyncEngine(
             }
         }
         syncState.setWatermark("activities", advanceWatermark(watermark, remoteRows.map { it.updatedAt }))
-        return applied
-    }
-
-    private suspend fun pullLeaves(token: String): Int {
-        val dao = db.leaveDao()
-        val watermark = syncState.watermark("leaves")
-        val rows = pullPages("leaves", watermark, token)
-        if (rows.isEmpty()) return 0
-        val remoteRows = rows.map { it.jsonObject.toLeave() }
-        var applied = 0
-        for (remote in remoteRows) {
-            val local = dao.byId(remote.id)
-            if (shouldApplyRemote(localDirty = local?.dirty ?: false)) {
-                dao.upsert(remote)
-                applied++
-            }
-        }
-        syncState.setWatermark("leaves", advanceWatermark(watermark, remoteRows.map { it.updatedAt }))
         return applied
     }
 

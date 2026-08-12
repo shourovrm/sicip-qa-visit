@@ -1,13 +1,13 @@
-<!-- status list (derived: on tour / on leave / in office) + rank leaderboard (overall / last month) -->
+<!-- status list (derived: on tour / in office) + rank leaderboard (overall / last month) -->
 <script>
   import { onMount } from 'svelte'
-  import { listTrips, listVisits, listLeaves } from '../lib/db.js'
+  import { listTrips, listVisits } from '../lib/db.js'
   import { officers } from '../lib/officers.js'
   import { officer } from '../lib/auth.js'
   import { rank, lastDayOfPreviousMonth } from '../lib/scoring.js'
   import Pill from '../components/Pill.svelte'
 
-  let trips = [], visits = [], leaves = []
+  let trips = [], visits = []
   let loading = true
   let tab = 'status' // status | rank
   let period = 'overall' // overall | lastmonth
@@ -16,7 +16,7 @@
   const lastMonthCutoff = lastDayOfPreviousMonth(today)
 
   onMount(async () => {
-    ;[trips, visits, leaves] = await Promise.all([listTrips(), listVisits(), listLeaves()])
+    ;[trips, visits] = await Promise.all([listTrips(), listVisits()])
     loading = false
   })
 
@@ -26,9 +26,6 @@
       const pv = visits.find((v) => v.trip_id === activeTrip.id && !v.is_additional)
       return { tone: 'visit', label: 'On tour', detail: pv ? `${pv.institute}, ${pv.district}` : '', since: activeTrip.started_at }
     }
-    // explicit lifecycle: only a started leave counts (matches android TeamStatus.kt)
-    const onLeave = leaves.find((l) => l.officer_id === officerId && l.status === 'started')
-    if (onLeave) return { tone: 'leave', label: 'On leave', detail: onLeave.type, since: onLeave.end_date }
     return { tone: 'office', label: 'In office', detail: '', since: '' }
   }
 

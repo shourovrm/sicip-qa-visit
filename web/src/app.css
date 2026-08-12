@@ -12,9 +12,9 @@
   --ink: #20223a;
   --muted: #5a5d79;
   --danger: #c0392b;
+  --on-danger: #ffffff;
 
   --status-visit-bg: #e3e6ff; --status-visit-fg: #2b2f7e;
-  --status-leave-bg: #ffe9d6; --status-leave-fg: #9a4a00;
   --status-office-bg: #e6e7ee; --status-office-fg: #4c4f66;
   --status-success-bg: #ddf2e2; --status-success-fg: #1c6b38;
 
@@ -36,9 +36,9 @@
   --ink: #eef0fb;
   --muted: #b8bacc;
   --danger: #ff8a75;
+  --on-danger: #14151f; /* dark --danger is light coral, white text on it is only 2.2:1 */
 
   --status-visit-bg: #2e3170; --status-visit-fg: #c9cdff;
-  --status-leave-bg: #4a2c07; --status-leave-fg: #ffcf9e;
   --status-office-bg: #2c2e3d; --status-office-fg: #b8bacc;
   --status-success-bg: #1d3a26; --status-success-fg: #9fdcb0;
   color-scheme: dark;
@@ -77,7 +77,7 @@ a { color: var(--primary); }
 }
 .btn-primary { background: var(--accent); color: var(--on-accent); }
 .btn-secondary { background: var(--primary-container); color: var(--on-primary-container); }
-.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger { background: var(--danger); color: var(--on-danger); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-link { background: none; border: none; padding: 0; color: var(--primary); font-weight: 600; cursor: pointer; text-decoration: underline; }
 :root[data-theme='dark'] .btn-link { color: var(--on-primary-container); }

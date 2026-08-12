@@ -1,6 +1,6 @@
-<!-- status pill: visit/leave/office/success tone, derived state display only -->
+<!-- status pill: visit/office/success tone, derived state display only -->
 <script>
-  export let tone = 'office' // 'visit' | 'leave' | 'office' | 'success'
+  export let tone = 'office' // 'visit' | 'office' | 'success'
 </script>
 
 <span class="pill pill-{tone}"><slot /></span>
@@ -14,7 +14,6 @@
     font-weight: 700;
   }
   .pill-visit { background: var(--status-visit-bg); color: var(--status-visit-fg); }
-  .pill-leave { background: var(--status-leave-bg); color: var(--status-leave-fg); }
   .pill-office { background: var(--status-office-bg); color: var(--status-office-fg); }
   .pill-success { background: var(--status-success-bg); color: var(--status-success-fg); }
 </style>
