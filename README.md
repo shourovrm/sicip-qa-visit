@@ -1,6 +1,6 @@
 # SICIP QA Visit
 
-Visit management for field officers: schedule visits, run tours, log travel, auto-score
+Visit management for field officers: schedule visits, run tours, log travel, score
 performance, and generate official TA/DA bills. Built for the Program Officers (QA) of
 SICIP (Finance Division, Ministry of Finance, Bangladesh) — 9 users, zero hosting cost.
 

@@ -4,7 +4,7 @@
   import { listVisits, listTrips, createVisit, createLeg, updateLeg, softDeleteLeg, listLegsForTrips, listTravelPlaces, listActivitiesForTrip, createActivity } from '../lib/db.js'
   import { officer } from '../lib/auth.js'
   import { officers } from '../lib/officers.js'
-  import { totalPoints, rank, monthSummary, autoCategoryFromDates } from '../lib/scoring.js'
+  import { totalPoints, rank, monthSummary } from '../lib/scoring.js'
   import { DISTRICTS, ASSOCIATIONS, PURPOSES } from '../lib/seeds.js'
   import { newLegDraft, legFromRow, legPayload } from '../lib/legs.js'
   import LegModal from '../components/LegModal.svelte'
@@ -42,21 +42,22 @@
 
   $: mine = $officer?.id
   $: mineVisits = visits.filter((v) => v.officer_id === mine)
-  $: myPoints = totalPoints(mineVisits.map((v) => ({ officerId: v.officer_id, category: v.category, deleted: v.deleted })))
+  $: myPoints = totalPoints(mineVisits.map((v) => ({ officerId: v.officer_id, category: v.category, deleted: v.deleted, done: v.status === 'done' })))
 
-  // same "zero-point officers get a last-place slot" trick as Team.svelte's rank tab.
-  $: ranked = rank(visits.map((v) => ({ officerId: v.officer_id, category: v.category, deleted: v.deleted })))
+  // same "zero-point officers get a last-place slot" trick as Team.svelte's rank tab. ascending:
+  // fewest points = #1, so zero-point officers sort to the front already.
+  $: ranked = rank(visits.map((v) => ({ officerId: v.officer_id, category: v.category, deleted: v.deleted, done: v.status === 'done' })))
   $: rankedWithZeros = [
     ...ranked,
     ...$officers.filter((o) => !ranked.some(([id]) => id === o.id)).map((o) => [o.id, 0]),
-  ].sort((a, b) => b[1] - a[1])
+  ].sort((a, b) => a[1] - b[1])
   $: myRankPos = rankedWithZeros.findIndex(([id]) => id === mine) + 1
 
   $: visitCount = mineVisits.filter((v) => v.status === 'done').length
 
   const yearMonth = new Date().toISOString().slice(0, 7)
   $: [monthVisits, monthPoints] = monthSummary(
-    mineVisits.map((v) => ({ startDate: v.start_date, category: v.category, deleted: v.deleted })),
+    mineVisits.map((v) => ({ startDate: v.start_date, category: v.category, deleted: v.deleted, done: v.status === 'done' })),
     yearMonth,
   )
 
@@ -169,9 +170,10 @@
     }
     saveErr = ''
   }
-  // same create-branch shape as Visits.svelte's startCreate/save (auto category, status scheduled)
+  // same create-branch shape as Visits.svelte's startCreate/save (no auto category, status scheduled)
   async function saveVisit() {
     saveErr = ''
+    if (editing.end_date < editing.start_date) { saveErr = 'End date must be on/after start date'; return }
     try {
       const patch = {
         institute: editing.institute, association: editing.association, district: editing.district,
@@ -180,8 +182,7 @@
         start_date: editing.start_date, end_date: editing.end_date, remarks: editing.remarks || null,
         trip_id: editing.trip_id ?? null, is_additional: editing.is_additional ?? false,
       }
-      const auto = autoCategoryFromDates(editing.start_date, editing.end_date, editing.district, editing.dhaka_metro)
-      const created = await createVisit({ ...patch, officer_id: mine, status: 'scheduled', category: auto, category_override: false })
+      const created = await createVisit({ ...patch, officer_id: mine, status: 'scheduled', category: 'N/A', category_override: false })
       visits = [created, ...visits]
       editing = null
     } catch (e) {

@@ -33,8 +33,9 @@
   // earned during that month alone -- mirrors android TeamScreen/Rank.kt exactly.
   $: rankVisits = visits
     .filter((v) => period === 'overall' || v.start_date <= lastMonthCutoff)
-    .map((v) => ({ officerId: v.officer_id, category: v.category, deleted: v.deleted }))
+    .map((v) => ({ officerId: v.officer_id, category: v.category, deleted: v.deleted, done: v.status === 'done' }))
   $: ranked = rank(rankVisits)
+  // ascending: fewest points = #1, so zero-point officers land first already.
   $: rankedWithZeros = [
     ...ranked,
     ...$officers.filter((o) => !ranked.some(([id]) => id === o.id)).map((o) => [o.id, 0]),
@@ -72,7 +73,7 @@
   <table class="card">
     <thead><tr><th>#</th><th>Officer</th><th>Points</th></tr></thead>
     <tbody>
-      {#each rankedWithZeros.sort((a, b) => b[1] - a[1]) as [id, pts], i}
+      {#each rankedWithZeros.sort((a, b) => a[1] - b[1]) as [id, pts], i}
         <tr class:me={id === $officer?.id}><td>{i + 1}</td><td>{$officers.find((o) => o.id === id)?.name ?? '—'}</td><td>{pts}</td></tr>
       {/each}
     </tbody>

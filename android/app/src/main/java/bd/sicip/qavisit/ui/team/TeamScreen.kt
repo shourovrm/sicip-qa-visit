@@ -191,4 +191,4 @@ private fun RankRowCard(row: RankRow, isMe: Boolean) {
     }
 }
 
-private fun List<Visit>.toScores(): List<VisitScore> = map { VisitScore(it.officerId, it.category, it.deleted) }
+private fun List<Visit>.toScores(): List<VisitScore> = map { VisitScore(it.officerId, it.category, it.deleted, it.status == "done") }

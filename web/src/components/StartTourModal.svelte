@@ -6,7 +6,6 @@
 <script>
   import { createEventDispatcher } from 'svelte'
   import { createTrip, createVisit, updateVisit } from '../lib/db.js'
-  import { autoCategoryFromDates } from '../lib/scoring.js'
   import { DISTRICTS, ASSOCIATIONS, PURPOSES } from '../lib/seeds.js'
   import Dropdown from '../components/Dropdown.svelte'
   import VisitModal from '../components/VisitModal.svelte'
@@ -50,6 +49,7 @@
   }
   async function saveNewVisit() {
     err = ''
+    if (newVisitDraft.end_date < newVisitDraft.start_date) { err = 'End date must be on/after start date'; return }
     try {
       const d = newVisitDraft
       const patch = {
@@ -59,8 +59,7 @@
         start_date: d.start_date, end_date: d.end_date, remarks: d.remarks || null,
         trip_id: null, is_additional: false,
       }
-      const auto = autoCategoryFromDates(d.start_date, d.end_date, d.district, d.dhaka_metro)
-      const created = await createVisit({ ...patch, officer_id: officerId, status: 'scheduled', category: auto, category_override: false })
+      const created = await createVisit({ ...patch, officer_id: officerId, status: 'scheduled', category: 'N/A', category_override: false })
       extraVisits = [...extraVisits, created]
       selected.add(created.id)
       selected = selected

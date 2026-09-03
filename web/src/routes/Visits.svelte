@@ -5,7 +5,7 @@
   import { officer, isAdmin } from '../lib/auth.js'
   import { officers, officerName } from '../lib/officers.js'
   import { DISTRICTS, ASSOCIATIONS, PURPOSES } from '../lib/seeds.js'
-  import { CATEGORY_LABELS, autoCategoryFromDates, points } from '../lib/scoring.js'
+  import { CATEGORY_LABELS, points } from '../lib/scoring.js'
   import Dropdown from '../components/Dropdown.svelte'
   import VisitModal from '../components/VisitModal.svelte'
 
@@ -79,6 +79,7 @@
 
   async function save() {
     saveErr = ''
+    if (editing.end_date < editing.start_date) { saveErr = 'End date must be on/after start date'; return }
     try {
       const patch = {
         institute: editing.institute, association: editing.association, district: editing.district,
@@ -95,10 +96,9 @@
         const updated = await updateVisit(editing.id, patch)
         visits = visits.map((v) => (v.id === updated.id ? updated : v))
       } else {
-        // new visits keep computing+saving the auto category silently (no field shown until
-        // there's something to review, matching android's VisitForm) -- status stays scheduled.
-        const auto = autoCategoryFromDates(editing.start_date, editing.end_date, editing.district, editing.dhaka_metro)
-        const created = await createVisit({ ...patch, officer_id: mine, status: 'scheduled', category: auto, category_override: false })
+        // new visits save with no category (picked later when the visit is done) -- status
+        // stays scheduled.
+        const created = await createVisit({ ...patch, officer_id: mine, status: 'scheduled', category: 'N/A', category_override: false })
         visits = [created, ...visits]
       }
       editing = null

@@ -1,4 +1,5 @@
-// leaderboard: points sum, competition-ranking ties, deleted visits excluded.
+// leaderboard: points sum ascending (fewest points = #1), competition-ranking ties,
+// deleted/scheduled visits excluded.
 package bd.sicip.qavisit.domain
 
 import org.junit.Assert.assertEquals
@@ -14,23 +15,23 @@ class RankTest {
         RankOfficer("d", "Dave"),
     )
 
-    @Test fun sorts_desc_by_points() {
+    @Test fun sorts_asc_by_points() {
         val visits = listOf(
             VisitScore("a", "A**"), // 100
             VisitScore("b", "B"),   // 36
             VisitScore("c", "D"),   // 4
         )
         val rows = rank(officers.take(3), visits)
-        assertEquals(listOf("a", "b", "c"), rows.map { it.officerId })
+        assertEquals(listOf("c", "b", "a"), rows.map { it.officerId })
         assertEquals(listOf(1, 2, 3), rows.map { it.position })
     }
 
-    // two-way tie for 1st (100 each) -> next distinct score is 3rd, not dense-ranked 2nd.
+    // two-way tie for 1st (4 each) -> next distinct score is 3rd, not dense-ranked 2nd.
     @Test fun tie_uses_competition_ranking_not_dense() {
         val visits = listOf(
-            VisitScore("a", "A**"), // 100
-            VisitScore("c", "A**"), // 100
-            VisitScore("b", "B"),   // 36
+            VisitScore("a", "D"),  // 4
+            VisitScore("c", "D"),  // 4
+            VisitScore("b", "B"),  // 36
         )
         val rows = rank(officers.take(3), visits)
         val byId = rows.associateBy { it.officerId }
@@ -54,12 +55,22 @@ class RankTest {
         assertEquals(4, rows.single().points)
     }
 
-    @Test fun officer_with_no_visits_gets_zero_and_last_place() {
+    @Test fun scheduled_visits_excluded() {
+        val visits = listOf(
+            VisitScore("a", "A**", done = false), // scheduled, skipped
+            VisitScore("a", "D"),                  // done (default), 4
+        )
+        val rows = rank(officers.take(1), visits)
+        assertEquals(4, rows.single().points)
+    }
+
+    @Test fun officer_with_no_visits_gets_zero_and_first_place() {
+        // ascending order: fewest points wins, so a zero-visit officer lands first, not last.
         val visits = listOf(VisitScore("a", "A**")) // 100
         val rows = rank(officers.take(2), visits) // b has no visits
         val byId = rows.associateBy { it.officerId }
         assertEquals(0, byId.getValue("b").points)
-        assertEquals(2, byId.getValue("b").position)
+        assertEquals(1, byId.getValue("b").position)
     }
 
     // ---- lastDayOfPreviousMonth: cumulative "Last month" rank snapshot cutoff ----

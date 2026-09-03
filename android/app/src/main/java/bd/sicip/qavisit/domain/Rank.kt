@@ -1,5 +1,5 @@
-// team leaderboard: officers ranked by total scored points (Scoring.points), ties handled by
-// competition ranking. pure kotlin, no android deps -- same rule as Scoring.kt/TripMath.kt.
+// team leaderboard: officers ranked by total scored points (Scoring.points), fewest points first,
+// ties handled by competition ranking. pure kotlin, no android deps -- same rule as Scoring.kt.
 package bd.sicip.qavisit.domain
 
 import java.time.LocalDate
@@ -15,13 +15,13 @@ data class RankRow(val officerId: String, val name: String, val points: Int, val
 // is what medal tables use; a standings list reads more like sport-style competition ranking.)
 // falls out for free from a plain sort: a row's position is just "index of its first occurrence + 1".
 fun rank(officers: List<RankOfficer>, visits: List<VisitScore>): List<RankRow> {
-    val pointsByOfficer = visits.filterNot { it.deleted }
+    val pointsByOfficer = visits.filter { !it.deleted && it.done }
         .groupBy { it.officerId }
         .mapValues { (_, rows) -> rows.sumOf { points(it.category) } }
 
     val sorted = officers
         .map { it to (pointsByOfficer[it.id] ?: 0) }
-        .sortedWith(compareByDescending<Pair<RankOfficer, Int>> { it.second }.thenBy { it.first.name })
+        .sortedWith(compareBy<Pair<RankOfficer, Int>> { it.second }.thenBy { it.first.name })
 
     var position = 0
     var lastPoints: Int? = null

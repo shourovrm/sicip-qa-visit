@@ -61,7 +61,7 @@
     <div class="field"><label for="refd">Ref date</label><input id="refd" type="date" bind:value={editing.ref_date} /></div>
     <div class="row">
       <div class="field"><label for="sd">Start date</label><input id="sd" type="date" bind:value={editing.start_date} required /></div>
-      <div class="field"><label for="ed">End date</label><input id="ed" type="date" bind:value={editing.end_date} required /></div>
+      <div class="field"><label for="ed">End date</label><input id="ed" type="date" bind:value={editing.end_date} min={editing.start_date} required /></div>
     </div>
     {#if editing.status === 'done'}
       <div class="field">

@@ -19,7 +19,7 @@
 - **Scoring**: see CATEGORIES.md — 17 categories, Day=4 / Night=12 pts, cap A*** (8D7N=116). Category also fixes bill allowances: accommodation = nights × 2000, food = (nights + 0.5 × extra day) × 1500.
 - **Tour**: tap **Start** on an upcoming visit card → confirm start time (add more visits or inform a colleague if you like) → during the tour add activities or ad-hoc visits → **End tour** (end date+time; category auto-suggested, override allowed). Travel and fares are NOT entered during the tour.
 - **Travel & fares**: added later in Visits → TA/DA Bill → select tour(s) → "Add travel" rows (any movement: bus stand→institute, hotel→ghat; mode, class, fare) → totals update live.
-- **Multiple visits in one tour**: first visit scores, others auto N/A — matches the office scoring sheet.
+- **Multiple visits in one tour**: first visit scores, others N/A — matches the office scoring sheet. Category is picked by hand at End tour (no auto). Rank: fewest points = #1.
 - **Team**: who's on visit / on leave / in office (derived — no check-in needed) + points leaderboard.
 - **Leaves**: Leaves tab → Add leave (Casual / Sick / Emergency / Others).
 - **TA/DA bill**: Visits → TA/DA Bill → New bill tab → tick finished tour(s) → each tour shows its category (editable — changing it updates the visit itself and re-derives allowances) with read-only nights/food, plus travel rows → **Generate PDF** for a draft, or **Submit bill** to finalize — submitting freezes the values, files it under **Previous bills** (read-only, view PDF anytime), and cannot be edited after.

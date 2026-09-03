@@ -24,8 +24,8 @@
     const mine = $officer?.id
     const mineVisits = visits.filter((v) => v.officer_id === mine)
     visitCount = mineVisits.length
-    myPoints = totalPoints(mineVisits.map((v) => ({ officerId: v.officer_id, category: v.category, deleted: v.deleted })))
-    const ranked = rank(visits.map((v) => ({ officerId: v.officer_id, category: v.category, deleted: v.deleted })))
+    myPoints = totalPoints(mineVisits.map((v) => ({ officerId: v.officer_id, category: v.category, deleted: v.deleted, done: v.status === 'done' })))
+    const ranked = rank(visits.map((v) => ({ officerId: v.officer_id, category: v.category, deleted: v.deleted, done: v.status === 'done' })))
     myRankPos = ranked.findIndex(([id]) => id === mine) + 1
     loading = false
   }

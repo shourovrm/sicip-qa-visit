@@ -26,6 +26,6 @@ TA/DA nights/food are all keyed off the category code, not re-derived from raw d
 **Formula:** Days=4/Night=12 pts baseline; `accommodation = nights × 2000 BDT`;
 `food = (nights + 0.5×(days − nights)) × 1500 BDT`.
 
-**Rules:** Dhaka-metro visits score `E`; non-metro Dhaka or any single-day visit scores `D`; a
+**Rules (officer picks the category by hand at End tour — no auto-derivation since v1.12; use these as the guide):** Dhaka-metro visits score `E`; non-metro Dhaka or any single-day visit scores `D`; a
 trip's primary visit carries the score, additional visits on the same trip score `N/A`; the
 ladder caps at `A***` (8D7N or more).

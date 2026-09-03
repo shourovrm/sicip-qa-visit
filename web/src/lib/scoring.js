@@ -1,8 +1,8 @@
-// visit scoring: category -> points, auto-category rules, rank aggregation.
+// visit scoring: category -> points, rank aggregation.
 // ported 1:1 from android/app/src/main/java/bd/sicip/qavisit/domain/Scoring.kt
 
 // fixed points scale per category. classic ladder (nights = days-1) vs plus ladder
-// (nights >= days, i.e. an extra night beyond the classic span) -- see autoCategory.
+// (nights >= days, i.e. an extra night beyond the classic span).
 export const POINTS = {
   'A***': 116, 'A**+': 112, 'A**': 100, 'A++*': 96, 'A++': 84,
   'A+*': 80, 'A+': 68, 'A*': 64, 'A': 52, 'B+': 48, 'B': 36,
@@ -52,72 +52,25 @@ export const CATEGORY_LABELS = {
   'N/A': 'N/A — Additional (0 pts)',
 }
 
+// only done, non-deleted visits score (scheduled visits don't count yet). missing `done` = true.
 export function totalPoints(visits) {
-  return visits.filter((v) => !v.deleted).reduce((sum, v) => sum + points(v.category), 0)
+  return visits.filter((v) => !v.deleted && v.done !== false).reduce((sum, v) => sum + points(v.category), 0)
 }
 
-// officers ranked by summed points, highest first. returns [[officerId, points], ...]
+// officers ranked by summed points, fewest first (#1 = fewest points). returns [[officerId, points], ...]
 export function rank(visits) {
   const byOfficer = new Map()
   for (const v of visits) {
-    if (v.deleted) continue
+    if (v.deleted || v.done === false) continue
     byOfficer.set(v.officerId, (byOfficer.get(v.officerId) ?? 0) + points(v.category))
   }
-  return [...byOfficer.entries()].sort((a, b) => b[1] - a[1])
+  return [...byOfficer.entries()].sort((a, b) => a[1] - b[1])
 }
 
 // visits within a calendar month (yearMonth = "yyyy-MM"), for "this month: n visits · m pts".
 export function monthSummary(visits, yearMonth) {
-  const inMonth = visits.filter((v) => !v.deleted && v.startDate.slice(0, 7) === yearMonth)
+  const inMonth = visits.filter((v) => !v.deleted && v.done !== false && v.startDate.slice(0, 7) === yearMonth)
   return [inMonth.length, inMonth.reduce((sum, v) => sum + points(v.category), 0)]
-}
-
-// classic ladder: days worked == nights + 1 (leave morning, work every day, home same evening).
-function classicLadder(days) {
-  if (days <= 1) return 'D'
-  if (days === 2) return 'C'
-  if (days === 3) return 'B'
-  if (days === 4) return 'A'
-  if (days === 5) return 'A+'
-  if (days === 6) return 'A++'
-  if (days === 7) return 'A**'
-  return 'A***' // 8+ days
-}
-
-// plus ladder: an extra night tacked onto the span (nights >= days) -- one rung above classic.
-function plusLadder(days) {
-  if (days <= 1) return 'D+'
-  if (days === 2) return 'C+'
-  if (days === 3) return 'B+'
-  if (days === 4) return 'A*'
-  if (days === 5) return 'A+*'
-  if (days === 6) return 'A++*'
-  if (days === 7) return 'A**+'
-  return 'A***' // 8+ days, same cap as classic
-}
-
-// district=Dhaka -> metro sub-option decides; else category from days/nights via the ladders above.
-export function autoCategory(days, nights, district, dhakaMetro) {
-  if (district === 'Dhaka') {
-    // metro flag unset/null for a Dhaka visit: treat as outside metro -> "D"
-    return dhakaMetro === true ? 'E' : 'D'
-  }
-  const d = Math.max(days, 1)
-  return nights >= d ? plusLadder(d) : classicLadder(d)
-}
-
-// date-only overload for the scheduling preview: assumes classic (nights = days-1) shape.
-export function autoCategoryFromDates(startDate, endDate, district, dhakaMetro) {
-  const days = daysBetween(startDate, endDate) + 1
-  return autoCategory(days, Math.max(days - 1, 0), district, dhakaMetro)
-}
-
-function daysBetween(isoStart, isoEnd) {
-  const [ay, am, ad] = isoStart.split('-').map(Number)
-  const [by, bm, bd] = isoEnd.split('-').map(Number)
-  const a = Date.UTC(ay, am - 1, ad) // Date.UTC month is 0-indexed
-  const b = Date.UTC(by, bm - 1, bd)
-  return Math.round((b - a) / 86400000)
 }
 
 // "Last month" rank cutoff: last day of the month before `today` (iso "yyyy-MM-dd"). day 0 of
@@ -126,21 +79,4 @@ function daysBetween(isoStart, isoEnd) {
 export function lastDayOfPreviousMonth(todayIso) {
   const [y, m] = todayIso.split('-').map(Number)
   return new Date(Date.UTC(y, m - 1, 0)).toISOString().slice(0, 10)
-}
-
-// a return before this local time (24h "HH:mm") doesn't count as a working day.
-const RETURN_CUTOFF = '08:00'
-
-// days/nights for FinishTrip: nights = midnights crossed between the two instants; days = dates
-// touched, minus one (min 1) if the return lands before RETURN_CUTOFF.
-export function daysAndNights(startIso, endIso) {
-  const start = new Date(startIso)
-  const end = new Date(endIso)
-  const startDate = start.toISOString().slice(0, 10)
-  const endDate = end.toISOString().slice(0, 10)
-  const nights = daysBetween(startDate, endDate)
-  let days = nights + 1
-  const endTime = end.toISOString().slice(11, 16)
-  if (endTime < RETURN_CUTOFF) days -= 1
-  return [Math.max(days, 1), nights]
 }

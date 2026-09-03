@@ -1,15 +1,8 @@
-// visit scoring: category -> points, auto-category rules, rank aggregation.
-// pure kotlin, no android deps.
+// visit scoring: category -> points, rank aggregation. category is picked manually at
+// End tour (no more auto-derivation from dates). pure kotlin, no android deps.
 package bd.sicip.qavisit.domain
 
-import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalTime
-import java.time.ZoneOffset
-import java.time.temporal.ChronoUnit
-
-// fixed points scale per category. classic ladder (nights = days-1) vs plus ladder
-// (nights >= days, i.e. an extra night beyond the classic span) -- see autoCategory.
+// fixed points scale per category.
 val POINTS: Map<String, Int> = mapOf(
     "A***" to 116,
     "A**+" to 112,
@@ -88,85 +81,27 @@ val CATEGORY_LABELS: Map<String, String> = mapOf(
     "N/A" to "N/A — Additional (0 pts)",
 )
 
-// minimal shape scoring needs from a visit; keeps this file free of Room/android deps
-data class VisitScore(val officerId: String, val category: String, val deleted: Boolean = false)
+// minimal shape scoring needs from a visit; keeps this file free of Room/android deps.
+// done = visit.status == "done" -- only finished visits score, scheduled ones are worth 0.
+data class VisitScore(val officerId: String, val category: String, val deleted: Boolean = false, val done: Boolean = true)
 
 fun totalPoints(visits: List<VisitScore>): Int =
-    visits.filterNot { it.deleted }.sumOf { points(it.category) }
+    visits.filter { !it.deleted && it.done }.sumOf { points(it.category) }
 
-// officers ranked by summed points, highest first
+// officers ranked by summed points, lowest first (fewer points = better rank, see DECISIONS.md)
 fun rank(visits: List<VisitScore>): List<Pair<String, Int>> =
-    visits.filterNot { it.deleted }
+    visits.filter { !it.deleted && it.done }
         .groupBy { it.officerId }
         .mapValues { (_, v) -> v.sumOf { points(it.category) } }
-        .entries.sortedByDescending { it.value }
+        .entries.sortedBy { it.value }
         .map { it.key to it.value }
 
 // visits within a calendar month, for the home dashboard's "this month: n visits · m pts" line.
-data class MonthVisit(val startDate: String, val category: String, val deleted: Boolean = false)
+data class MonthVisit(val startDate: String, val category: String, val deleted: Boolean = false, val done: Boolean = true)
 
 // yearMonth as "yyyy-MM" (java.time.YearMonth.toString() shape); startDate compared by its
 // first 7 chars so this stays a plain string op, no date parsing needed.
 fun monthSummary(visits: List<MonthVisit>, yearMonth: String): Pair<Int, Int> {
-    val inMonth = visits.filterNot { it.deleted }.filter { it.startDate.take(7) == yearMonth }
+    val inMonth = visits.filter { !it.deleted && it.done }.filter { it.startDate.take(7) == yearMonth }
     return inMonth.size to inMonth.sumOf { points(it.category) }
-}
-
-// classic ladder: days worked == nights + 1 (leave morning, work every day, home same evening).
-private fun classicLadder(days: Int): String = when {
-    days <= 1 -> "D"
-    days == 2 -> "C"
-    days == 3 -> "B"
-    days == 4 -> "A"
-    days == 5 -> "A+"
-    days == 6 -> "A++"
-    days == 7 -> "A**"
-    else -> "A***" // 8+ days
-}
-
-// plus ladder: an extra night tacked onto the span (nights >= days) -- one rung above classic.
-private fun plusLadder(days: Int): String = when {
-    days <= 1 -> "D+"
-    days == 2 -> "C+"
-    days == 3 -> "B+"
-    days == 4 -> "A*"
-    days == 5 -> "A+*"
-    days == 6 -> "A++*"
-    days == 7 -> "A**+"
-    else -> "A***" // 8+ days, same cap as classic
-}
-
-// district=Dhaka -> metro sub-option decides; else category from days/nights via the ladders
-// above. computed from category at display time (not stored) so ranks auto-recalculate if the
-// formula ever changes again.
-fun autoCategory(days: Int, nights: Int, district: String, dhakaMetro: Boolean?): String {
-    if (district == "Dhaka") {
-        // metro flag unset (null) for a Dhaka visit: treat as outside metro -> "D"
-        return if (dhakaMetro == true) "E" else "D"
-    }
-    val d = maxOf(days, 1)
-    return if (nights >= d) plusLadder(d) else classicLadder(d)
-}
-
-// date-only overload for the scheduling preview, where there's no time-of-return yet to derive
-// nights from the 08:00 cutoff -- assumes the classic (nights = days-1) shape.
-fun autoCategory(startDate: String, endDate: String, district: String, dhakaMetro: Boolean?): String {
-    val days = (ChronoUnit.DAYS.between(LocalDate.parse(startDate), LocalDate.parse(endDate)) + 1).toInt()
-    return autoCategory(days, maxOf(days - 1, 0), district, dhakaMetro)
-}
-
-// a return before this local time doesn't count as a working day (e.g. leave 9pm, home 7am the
-// next morning never actually worked that day) -- office-tunable, change here if the cutoff moves.
-private val RETURN_CUTOFF: LocalTime = LocalTime.of(8, 0)
-
-// days/nights for FinishTrip: nights = midnights crossed between the two instants; days = dates
-// touched, minus one (min 1) if the return lands before RETURN_CUTOFF -- that's what turns a
-// leave-9pm/return-7am trip into 1D1N instead of 2D1N.
-fun daysAndNights(startIso: String, endIso: String): Pair<Int, Int> {
-    val startDate = Instant.parse(startIso).atZone(ZoneOffset.UTC).toLocalDate()
-    val end = Instant.parse(endIso).atZone(ZoneOffset.UTC)
-    val nights = ChronoUnit.DAYS.between(startDate, end.toLocalDate()).toInt()
-    var days = nights + 1
-    if (end.toLocalTime() < RETURN_CUTOFF) days -= 1
-    return maxOf(days, 1) to nights
 }

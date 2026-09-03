@@ -2,66 +2,9 @@
 import { describe, it, expect } from 'vitest'
 import {
   POINTS, CATEGORY_SPANS, CATEGORY_LABELS, points, suggestedNights, suggestedFood,
-  totalPoints, rank, monthSummary, autoCategory, autoCategoryFromDates, daysAndNights,
+  totalPoints, rank, monthSummary,
   lastDayOfPreviousMonth,
 } from './scoring.js'
-
-describe('autoCategory: Dhaka special-cases', () => {
-  it('metro is E', () => expect(autoCategory(1, 0, 'Dhaka', true)).toBe('E'))
-  it('non-metro is D', () => expect(autoCategory(1, 0, 'Dhaka', false)).toBe('D'))
-  it('non-metro multiday still D', () => expect(autoCategory(5, 4, 'Dhaka', false)).toBe('D'))
-  it('metro unset is D', () => expect(autoCategory(1, 0, 'Dhaka', null)).toBe('D'))
-})
-
-describe('autoCategory: classic ladder', () => {
-  const cases = [[1, 0, 'D'], [2, 1, 'C'], [3, 2, 'B'], [4, 3, 'A'], [5, 4, 'A+'],
-    [6, 5, 'A++'], [7, 6, 'A**'], [8, 7, 'A***'], [14, 13, 'A***']]
-  for (const [d, n, want] of cases) {
-    it(`${d}d${n}n -> ${want}`, () => expect(autoCategory(d, n, 'Sylhet', null)).toBe(want))
-  }
-})
-
-describe('autoCategory: plus ladder', () => {
-  const cases = [[1, 1, 'D+'], [2, 2, 'C+'], [3, 3, 'B+'], [4, 4, 'A*'], [5, 5, 'A+*'],
-    [6, 6, 'A++*'], [7, 7, 'A**+'], [8, 8, 'A***']]
-  for (const [d, n, want] of cases) {
-    it(`${d}d${n}n -> ${want}`, () => expect(autoCategory(d, n, 'Sylhet', null)).toBe(want))
-  }
-})
-
-it('gap short of classic still uses classic ladder', () => {
-  expect(autoCategory(3, 1, 'Sylhet', null)).toBe('B')
-})
-
-describe('autoCategoryFromDates', () => {
-  it('assumes classic shape', () => expect(autoCategoryFromDates('2026-06-01', '2026-06-05', 'Sylhet', null)).toBe('A+'))
-  it('spans month boundary correctly', () => expect(autoCategoryFromDates('2026-06-28', '2026-07-02', 'Sylhet', null)).toBe('A+'))
-  it('dhaka metro is E', () => expect(autoCategoryFromDates('2026-06-01', '2026-06-01', 'Dhaka', true)).toBe('E'))
-})
-
-describe('daysAndNights', () => {
-  it('same day is [1,0]', () => expect(daysAndNights('2026-06-01T09:00:00Z', '2026-06-01T17:00:00Z')).toEqual([1, 0]))
-  it('evening return next day is [2,1]', () => expect(daysAndNights('2026-06-01T21:00:00Z', '2026-06-02T17:00:00Z')).toEqual([2, 1]))
-  it('early morning return before cutoff is [1,1]', () => {
-    expect(daysAndNights('2026-06-01T21:00:00Z', '2026-06-02T07:00:00Z')).toEqual([1, 1])
-    expect(autoCategory(1, 1, 'Sylhet', null)).toBe('D+')
-  })
-  it('3-day tour returning before cutoff on day 4 is [3,3]', () => {
-    const [days, nights] = daysAndNights('2026-06-01T09:00:00Z', '2026-06-04T07:30:00Z')
-    expect([days, nights]).toEqual([3, 3])
-    expect(autoCategory(days, nights, 'Sylhet', null)).toBe('B+')
-  })
-  it('classic 4d3n trip', () => {
-    const [days, nights] = daysAndNights('2026-06-01T09:00:00Z', '2026-06-04T17:00:00Z')
-    expect([days, nights]).toEqual([4, 3])
-    expect(autoCategory(days, nights, 'Sylhet', null)).toBe('A')
-  })
-  it('8d7n caps at A***', () => {
-    const [days, nights] = daysAndNights('2026-06-01T09:00:00Z', '2026-06-08T17:00:00Z')
-    expect([days, nights]).toEqual([8, 7])
-    expect(autoCategory(days, nights, 'Sylhet', null)).toBe('A***')
-  })
-})
 
 it('points table matches fixed scale', () => {
   expect(points('A***')).toBe(116)
@@ -97,7 +40,7 @@ it('totalPoints sums skipping deleted', () => {
   expect(totalPoints(visits)).toBe(100)
 })
 
-it('rank sorts officers by points desc', () => {
+it('rank sorts officers by points asc (fewest points = #1)', () => {
   const visits = [
     { officerId: 'low', category: 'D' }, // 4
     { officerId: 'high', category: 'A**' }, // 100
@@ -105,7 +48,18 @@ it('rank sorts officers by points desc', () => {
     { officerId: 'mid', category: 'B' }, // 36
     { officerId: 'high', category: 'A++', deleted: true }, // skipped
   ]
-  expect(rank(visits)).toEqual([['high', 101], ['mid', 36], ['low', 4]])
+  expect(rank(visits)).toEqual([['low', 4], ['mid', 36], ['high', 101]])
+})
+
+it('scheduled (not done) visits do not score', () => {
+  const visits = [
+    { officerId: 'o1', category: 'A**', done: false }, // scheduled, skipped
+    { officerId: 'o1', category: 'D', done: true }, // 4
+    { officerId: 'o2', category: 'A***', done: false }, // scheduled, skipped -> no entry at all
+  ]
+  expect(totalPoints(visits)).toBe(4)
+  expect(rank(visits)).toEqual([['o1', 4]])
+  expect(monthSummary(visits.map((v) => ({ ...v, startDate: '2026-07-01' })), '2026-07')).toEqual([1, 4])
 })
 
 describe('monthSummary', () => {

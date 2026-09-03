@@ -53,7 +53,7 @@ function syncAll() {
 
     var rankRows = fetchAllPages(cfg, '/rest/v1/rank_summary',
       'name,total_visits,total_points,cat_counts',
-      { order: 'total_points.desc' });
+      { order: 'total_points.asc' }); // fewest points = #1 (house rule)
     writeRankingTab(rankSheet, rankRows);
     writeBreakdownTab(ss, rankRows);
     writeCategoriesTab(ss);

@@ -104,15 +104,15 @@ class HomeViewModel(
             // tour is active trip?.id is null and a null-tripId visit must still be upcoming
             val upcoming = myVisits.filter { it.status == "scheduled" && (trip == null || it.tripId != trip.id) }.sortedBy { it.startDate }
 
-            val scores = allVisits.map { VisitScore(it.officerId, it.category, it.deleted) }
+            val scores = allVisits.map { VisitScore(it.officerId, it.category, it.deleted, it.status == "done") }
             val ranked = rank(scores)
             val officerIds = officers.map { it.id }
-            // officers with zero points never show up in `rank`'s groupBy -- give them a
-            // last-place slot instead of dropping them off the leaderboard entirely.
-            val ordered = ranked.map { it.first } + officerIds.filterNot { id -> ranked.any { it.first == id } }
+            // ascending order: fewest points = #1, so officers with zero points (never show up
+            // in `rank`'s groupBy) go FIRST, not last.
+            val ordered = officerIds.filterNot { id -> ranked.any { it.first == id } } + ranked.map { it.first }
 
             val (monthVisitCount, monthPoints) = monthSummary(
-                myVisits.map { MonthVisit(it.startDate, it.category, it.deleted) },
+                myVisits.map { MonthVisit(it.startDate, it.category, it.deleted, it.status == "done") },
                 YearMonth.now().toString(),
             )
 

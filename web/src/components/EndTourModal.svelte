@@ -1,11 +1,12 @@
 <!-- end-tour dialog: mirrors android FinishTrip.kt -- asks end date+time (prefilled now,
-     editable), shows the primary visit's auto category + points with an editable override, then
-     marks every attached visit done (only the primary gets end_date/category/category_override
-     changed) and the trip finished. -->
+     editable), officer picks the primary visit's category manually (no auto-suggestion), then
+     marks every attached visit done (only the primary gets category/category_override changed --
+     visit dates are independent of tour dates, so end_date is never written here) and the trip
+     finished. -->
 <script>
   import { createEventDispatcher } from 'svelte'
   import { updateVisit, updateTrip } from '../lib/db.js'
-  import { POINTS, CATEGORY_LABELS, points, daysAndNights, autoCategory } from '../lib/scoring.js'
+  import { POINTS, CATEGORY_LABELS, points } from '../lib/scoring.js'
   import Dropdown from '../components/Dropdown.svelte'
 
   export let trip
@@ -21,12 +22,13 @@
   const now = new Date()
   let endDate = now.toISOString().slice(0, 10)
   let endTime = `${pad(now.getHours())}:${pad(now.getMinutes())}:00`
-  let overrideCategory = null
+  let category = '' // must be chosen -- no auto-category any more
   let err = ''
 
   $: finishedAt = `${endDate}T${endTime}Z`
-  $: autoCat = primary ? autoCategory(...daysAndNights(trip.started_at, finishedAt), primary.district, primary.dhaka_metro) : 'N/A'
-  $: finalCategory = overrideCategory ?? autoCat
+  // ISO strings, same zero-padded shape -- lexicographic compare works.
+  $: endBeforeStart = finishedAt < trip.started_at
+  $: canSubmit = !endBeforeStart && (primary === null || category)
 
   async function finish() {
     err = ''
@@ -34,7 +36,7 @@
       await Promise.all(
         visits.map((v) =>
           updateVisit(v.id, v.id === primary?.id
-            ? { end_date: endDate, category: finalCategory, category_override: overrideCategory !== null, status: 'done' }
+            ? { category, category_override: true, status: 'done' }
             : { status: 'done' }),
         ),
       )
@@ -55,26 +57,27 @@
       <div class="field"><label for="et-d">End date</label><input id="et-d" type="date" bind:value={endDate} required /></div>
       <div class="field"><label for="et-t">End time</label><input id="et-t" type="time" bind:value={endTime} required /></div>
     </div>
+    {#if endBeforeStart}<p class="err">End must be after tour start</p>{/if}
 
     {#if primary === null}
       <p class="muted">No visits attached -- this tour will end with none.</p>
     {:else}
       <p>Primary visit: {primary.institute}</p>
       <div class="field">
-        <label for="et-cat">Category (auto: {autoCat})</label>
+        <label for="et-cat">Category</label>
         <Dropdown
           id="et-cat"
-          value={finalCategory}
+          bind:value={category}
+          placeholder="Pick category"
           options={CATEGORIES.map((c) => [c, CATEGORY_LABELS[c] ?? c])}
-          on:change={(e) => (overrideCategory = e.target.value === autoCat ? null : e.target.value)}
         />
       </div>
-      <p class="muted">Points: {points(finalCategory)}</p>
+      {#if category}<p class="muted">Points: {points(category)}</p>{/if}
     {/if}
 
     {#if err}<p class="err">{err}</p>{/if}
     <div class="row">
-      <button type="submit" class="btn btn-primary">End tour</button>
+      <button type="submit" class="btn btn-primary" disabled={!canSubmit}>End tour</button>
       <button type="button" class="btn" on:click={() => dispatch('cancel')}>Cancel</button>
     </div>
   </form>

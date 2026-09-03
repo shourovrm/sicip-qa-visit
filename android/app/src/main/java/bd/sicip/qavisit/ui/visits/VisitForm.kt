@@ -1,8 +1,7 @@
 // schedule/edit a visit. same screen both ways: visitId != null -> prefill + update in place.
-// mirrors every field on the original paper/Google Form. Category only exists once a visit is
-// done (assigned by the finish-trip flow) -- the dropdown only shows when editing a done visit;
-// scheduled/new visits keep computing the autoCategory suggestion silently and save it, same as
-// before, they just don't surface it until there's something to review.
+// mirrors every field on the original paper/Google Form. Category is picked manually at End
+// tour only -- the dropdown here only shows (and is editable) once a visit is done, so its
+// category can be corrected after the fact; scheduled/new visits just stay "N/A".
 package bd.sicip.qavisit.ui.visits
 
 import androidx.compose.foundation.layout.Arrangement
@@ -46,7 +45,6 @@ import bd.sicip.qavisit.data.seed.DISTRICTS
 import bd.sicip.qavisit.data.seed.PURPOSES
 import bd.sicip.qavisit.domain.CATEGORY_LABELS
 import bd.sicip.qavisit.domain.POINTS
-import bd.sicip.qavisit.domain.autoCategory
 import bd.sicip.qavisit.ui.common.PickerDropdown
 import bd.sicip.qavisit.ui.common.showDatePicker
 import kotlinx.coroutines.launch
@@ -87,7 +85,6 @@ fun VisitForm(
     var startDate by remember { mutableStateOf(initialStartDate ?: Instant.now().toString().take(10)) }
     var endDate by remember { mutableStateOf(initialStartDate ?: Instant.now().toString().take(10)) }
     var category by remember { mutableStateOf("N/A") }
-    var categoryTouched by remember { mutableStateOf(false) } // true once the user picks a value themselves
     var remarks by remember { mutableStateOf("") }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var refOptions by remember { mutableStateOf(emptyList<String>()) }
@@ -112,7 +109,6 @@ fun VisitForm(
                 startDate = it.startDate
                 endDate = it.endDate
                 category = it.category
-                categoryTouched = it.categoryOverride
                 remarks = it.remarks ?: ""
             }
         }
@@ -131,11 +127,7 @@ fun VisitForm(
         return
     }
 
-    // what the app would pick on its own right now; N/A for ad-hoc adds (scored only at trip
-    // finish), else the span/district rule. picking anything else in the dropdown overrides it.
-    val isAdditional = forceAdditional || (existing?.isAdditional ?: false)
-    val auto = if (isAdditional) "N/A" else autoCategory(startDate, endDate, district, dhakaMetro)
-    LaunchedEffect(auto) { if (!categoryTouched) category = auto }
+    val datesOk = startDate <= endDate
 
     Column(
         modifier = Modifier
@@ -215,21 +207,15 @@ fun VisitForm(
             ) { Text("End: $endDate") }
         }
 
-        // category only exists once a visit is done -- finish-trip assigns it. scheduled/new
-        // visits keep computing+saving the auto suggestion (LaunchedEffect(auto) above), just
-        // without a field to show it in.
+        // category only exists once a visit is done -- End tour assigns it initially, this
+        // dropdown lets it be corrected afterward. scheduled/new visits stay "N/A", no field shown.
         if (existing?.status == "done") {
             PickerDropdown(
                 label = "Category",
                 options = CATEGORY_OPTIONS,
                 selected = category,
-                onSelect = { category = it; categoryTouched = true },
+                onSelect = { category = it },
                 displayLabel = { CATEGORY_LABELS[it] ?: it },
-            )
-            Text(
-                "Auto: $auto — change to override",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -239,6 +225,14 @@ fun VisitForm(
             label = { Text("Remarks (optional)") },
             modifier = Modifier.fillMaxWidth(),
         )
+
+        if (!datesOk) {
+            Text(
+                "End date must be on/after start date",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
 
         Button(
             onClick = {
@@ -259,13 +253,13 @@ fun VisitForm(
                         startDate = startDate,
                         endDate = endDate,
                         category = category,
-                        categoryOverride = category != auto,
+                        categoryOverride = existing?.categoryOverride ?: false,
                         remarks = remarks.ifBlank { null },
                     )
                     onDone()
                 }
             },
-            enabled = institute.isNotBlank(),
+            enabled = institute.isNotBlank() && datesOk,
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.tertiary,
                 contentColor = MaterialTheme.colorScheme.onTertiary,
@@ -319,8 +313,8 @@ fun VisitForm(
     }
 }
 
-// category/categoryOverride are resolved by the caller (dropdown value vs. the live auto
-// suggestion) -- this just persists them, same as every other field.
+// category/categoryOverride come straight from the caller (dropdown value, or unchanged for
+// scheduled visits) -- this just persists them, same as every other field.
 suspend fun saveVisit(
     dao: VisitDao,
     existing: Visit?,

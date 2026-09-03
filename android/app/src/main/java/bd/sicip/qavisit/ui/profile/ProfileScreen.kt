@@ -99,7 +99,7 @@ fun ProfileScreen(
     LaunchedEffect(officerId) {
         officer = db.officerDao().byId(officerId)
         val officers = db.officerDao().all()
-        val scores = db.visitDao().all().map { VisitScore(it.officerId, it.category, it.deleted) }
+        val scores = db.visitDao().all().map { VisitScore(it.officerId, it.category, it.deleted, it.status == "done") }
         val ranked = rank(officers.map { RankOfficer(it.id, it.name) }, scores)
         val mine = ranked.firstOrNull { it.officerId == officerId }
         stats = MyStats(
