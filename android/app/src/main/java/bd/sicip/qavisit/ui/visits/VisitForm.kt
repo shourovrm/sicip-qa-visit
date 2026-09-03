@@ -117,6 +117,16 @@ fun VisitForm(
 
     if (!loaded) return
 
+    // someone else's visit, opened from the Team tab -- read-only, no edit surface.
+    val readOnly = existing != null && existing?.officerId != officerId
+    if (readOnly) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Text("Visit", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(16.dp))
+            VisitDetail(existing!!)
+        }
+        return
+    }
+
     // what the app would pick on its own right now; N/A for ad-hoc adds (scored only at trip
     // finish), else the span/district rule. picking anything else in the dropdown overrides it.
     val isAdditional = forceAdditional || (existing?.isAdditional ?: false)

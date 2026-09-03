@@ -1,6 +1,8 @@
-// visits list: top level Scheduled|Completed, each with the Personal (own, tap to edit) / Team
-// (everyone, read-only + officer filter) subtabs. Completed is grouped by month header, newest
-// first, with a category pill (colored by whether it's actually scored). Scheduled has no
+// visits list: top level Scheduled|Completed, each with the Personal (own) / Team (everyone +
+// officer filter) subtabs. Every row is tappable -- own visits open the editable form, other
+// officers' visits open the same page read-only (VisitForm derives that from officerId).
+// Completed is grouped by month header, newest first, with a category pill (colored by whether
+// it's actually scored). Scheduled has no
 // category yet (only assigned at trip finish) -- rows get a SCHEDULED or ON TOUR status pill
 // instead, flat list, no month grouping. Below the subtabs, a scrollable FilterChip row narrows
 // by period/district/category/purpose (VisitFilter.kt, pure fn) plus -- Team only -- the
@@ -201,7 +203,7 @@ fun VisitsScreen(officerId: String, db: AppDb, onEditVisit: (String) -> Unit, on
                     VisitRow(
                         visit = visit,
                         officerName = if (personal) null else nameById[visit.officerId],
-                        onClick = if (personal) ({ onEditVisit(visit.id) }) else null,
+                        onClick = { onEditVisit(visit.id) },
                         pillLabel = if (onTour) "ON TOUR" else "SCHEDULED",
                         pillColors = LocalStatusColors.current.onVisit,
                     )
@@ -220,7 +222,7 @@ fun VisitsScreen(officerId: String, db: AppDb, onEditVisit: (String) -> Unit, on
                         VisitRow(
                             visit = visit,
                             officerName = if (personal) null else nameById[visit.officerId],
-                            onClick = if (personal) ({ onEditVisit(visit.id) }) else null,
+                            onClick = { onEditVisit(visit.id) },
                             pillLabel = visit.category,
                             pillColors = if (scored) LocalStatusColors.current.success else LocalStatusColors.current.office,
                         )
@@ -284,7 +286,7 @@ private fun PeriodFilterChip(period: Period, onChange: (Period) -> Unit) {
 }
 
 @Composable
-private fun VisitRow(visit: Visit, officerName: String?, onClick: (() -> Unit)?, pillLabel: String, pillColors: StatusPair) {
+private fun VisitRow(visit: Visit, officerName: String?, onClick: () -> Unit, pillLabel: String, pillColors: StatusPair) {
     val shape = RoundedCornerShape(16.dp)
     val body: @Composable () -> Unit = {
         Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -311,12 +313,8 @@ private fun VisitRow(visit: Visit, officerName: String?, onClick: (() -> Unit)?,
             StatusPill(pillLabel, pillColors)
         }
     }
-    // read-only (Team) rows get the plain Card; own (Personal) rows get the clickable overload.
-    if (onClick != null) {
-        Card(shape = shape, modifier = Modifier.fillMaxWidth(), onClick = onClick) { body() }
-    } else {
-        Card(shape = shape, modifier = Modifier.fillMaxWidth()) { body() }
-    }
+    // every row opens the visit page; VisitForm itself goes read-only for another officer's visit.
+    Card(shape = shape, modifier = Modifier.fillMaxWidth(), onClick = onClick) { body() }
 }
 
 private fun monthLabel(isoDate: String): String {
