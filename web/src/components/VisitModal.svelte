@@ -6,13 +6,19 @@
   import { createEventDispatcher } from 'svelte'
   import { DISTRICTS, ASSOCIATIONS, PURPOSES } from '../lib/seeds.js'
   import { CATEGORY_LABELS } from '../lib/scoring.js'
+  import { officers, officerName } from '../lib/officers.js'
   import Dropdown from './Dropdown.svelte'
 
   export let editing
   export let visits = [] // for institute/ref-no autosuggest -- pass the reactive array directly
   export let saveErr = ''
+  export let readonly = false
 
   const dispatch = createEventDispatcher()
+
+  // readonly title: "Visit · <officer name>", or plain "Visit" if officer not found in the list
+  $: viewName = officerName(editing.officer_id, $officers)
+  $: title = readonly ? (viewName === '—' ? 'Visit' : `Visit · ${viewName}`) : `${editing.id ? 'Edit' : 'Schedule'} visit`
 
   $: instituteOptions = [...new Set(visits.map((v) => v.institute))].filter(Boolean).sort()
   $: refOptions = [...new Set(visits.map((v) => v.ref_no))].filter(Boolean).sort()
@@ -31,7 +37,8 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div class="modal-backdrop" on:click|self={() => dispatch('cancel')}>
   <form class="card modal" on:submit|preventDefault={() => dispatch('save')}>
-    <h2>{editing.id ? 'Edit' : 'Schedule'} visit</h2>
+    <h2>{title}</h2>
+    <fieldset disabled={readonly}>
     <div class="field">
       <label for="inst">Institute</label>
       <input id="inst" type="text" list="visit-institute-list" bind:value={editing.institute} required />
@@ -63,10 +70,11 @@
       </div>
     {/if}
     <div class="field"><label for="rem">Remarks</label><textarea id="rem" bind:value={editing.remarks}></textarea></div>
+    </fieldset>
     {#if saveErr}<p class="err">{saveErr}</p>{/if}
     <div class="row">
-      <button type="submit" class="btn btn-primary">Save</button>
-      <button type="button" class="btn" on:click={() => dispatch('cancel')}>Cancel</button>
+      {#if !readonly}<button type="submit" class="btn btn-primary">Save</button>{/if}
+      <button type="button" class="btn" on:click={() => dispatch('cancel')}>{readonly ? 'Close' : 'Cancel'}</button>
     </div>
   </form>
 </div>
@@ -75,4 +83,5 @@
   h2 { font-size: 15px; margin: 0 0 12px; }
   .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 10; }
   .modal { width: 420px; max-height: 90vh; overflow: auto; }
+  fieldset { border: none; padding: 0; margin: 0; min-width: 0; }
 </style>

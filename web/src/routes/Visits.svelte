@@ -25,6 +25,7 @@
     return fields.some((f) => (f ?? '').toLowerCase().includes(t))
   }
   let editing = null // visit being created/edited (copy); editing.id null == create mode
+  let viewing = false // true when editing is open read-only (other officer's row)
   let saveErr = ''
 
   async function load() {
@@ -55,6 +56,13 @@
 
   function startEdit(v) {
     editing = { ...v }
+    viewing = false
+    saveErr = ''
+  }
+
+  function view(v) {
+    editing = { ...v }
+    viewing = true
     saveErr = ''
   }
 
@@ -65,6 +73,7 @@
       purpose: PURPOSES[0], ref_no: '', ref_date: '', start_date: todayIso, end_date: todayIso,
       category: 'N/A', status: 'scheduled', remarks: '',
     }
+    viewing = false
     saveErr = ''
   }
 
@@ -164,6 +173,8 @@
             {#if canEdit(v)}
               <button class="btn-link" on:click={() => startEdit(v)}>Edit</button>
               <button class="btn-link" on:click={() => del(v)}>Delete</button>
+            {:else}
+              <button class="btn-link" on:click={() => view(v)}>View</button>
             {/if}
           </td>
         </tr>
@@ -173,7 +184,8 @@
 {/if}
 
 {#if editing}
-  <VisitModal editing={editing} visits={visits} saveErr={saveErr} on:save={save} on:cancel={() => (editing = null)} />
+  <VisitModal editing={editing} visits={visits} saveErr={saveErr} readonly={viewing}
+    on:save={save} on:cancel={() => { editing = null; viewing = false }} />
 {/if}
 
 <style>
