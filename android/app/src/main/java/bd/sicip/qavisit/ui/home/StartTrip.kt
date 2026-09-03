@@ -71,6 +71,7 @@ fun StartTrip(officerId: String, db: AppDb, preselectedVisitId: String? = null, 
         VisitForm(
             officerId = officerId,
             visitDao = db.visitDao(),
+            officerDao = db.officerDao(),
             onDone = {
                 scope.launch {
                     val prevIds = candidates.map { it.id }.toSet()

@@ -150,6 +150,7 @@ fun AppShell(context: Context, officerId: String) {
                 VisitForm(
                     officerId = officerId,
                     visitDao = db.visitDao(),
+                    officerDao = db.officerDao(),
                     visitId = entry.arguments?.getString("visitId"),
                     tripId = entry.arguments?.getString("tripId"),
                     forceAdditional = entry.arguments?.getBoolean("additional") ?: false,

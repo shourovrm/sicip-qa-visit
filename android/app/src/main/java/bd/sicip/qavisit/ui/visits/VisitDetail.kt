@@ -2,11 +2,13 @@
 // of inputs, no Save/Delete.
 package bd.sicip.qavisit.ui.visits
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -17,10 +19,22 @@ import bd.sicip.qavisit.data.db.Visit
 import bd.sicip.qavisit.domain.CATEGORY_LABELS
 
 @Composable
-fun VisitDetail(visit: Visit) {
+fun VisitDetail(visit: Visit, officerName: String? = null) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
     ) {
+        // owner name up top, tinted so it pops against the plain rows below.
+        if (officerName != null) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            ) {
+                Text("Officer", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(officerName, style = MaterialTheme.typography.bodyLarge)
+            }
+        }
         Row2("Institute", visit.institute)
         Row2("Association", visit.association)
         Row2("District", if (visit.district == "Dhaka" && visit.dhakaMetro == true) "${visit.district} (metro)" else visit.district)

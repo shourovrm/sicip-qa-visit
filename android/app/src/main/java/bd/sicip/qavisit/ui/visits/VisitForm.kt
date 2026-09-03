@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import bd.sicip.qavisit.data.db.OfficerDao
 import bd.sicip.qavisit.data.db.Visit
 import bd.sicip.qavisit.data.db.VisitDao
 import bd.sicip.qavisit.data.seed.ASSOCIATIONS
@@ -59,6 +60,7 @@ private val CATEGORY_OPTIONS = POINTS.keys.toList()
 fun VisitForm(
     officerId: String,
     visitDao: VisitDao,
+    officerDao: OfficerDao,
     visitId: String? = null,
     tripId: String? = null,
     forceAdditional: Boolean = false,
@@ -73,6 +75,7 @@ fun VisitForm(
 
     var existing by remember { mutableStateOf<Visit?>(null) }
     var loaded by remember { mutableStateOf(visitId == null) }
+    var officerName by remember { mutableStateOf<String?>(null) }
 
     var institute by remember { mutableStateOf("") }
     var association by remember { mutableStateOf(ASSOCIATIONS.first()) }
@@ -97,6 +100,7 @@ fun VisitForm(
         if (visitId != null) {
             val row = visitDao.byId(visitId)
             existing = row
+            officerName = row?.let { officerDao.byId(it.officerId)?.name }
             row?.let {
                 institute = it.institute
                 association = it.association
@@ -122,7 +126,7 @@ fun VisitForm(
     if (readOnly) {
         Column(modifier = Modifier.fillMaxSize()) {
             Text("Visit", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(16.dp))
-            VisitDetail(existing!!)
+            VisitDetail(existing!!, officerName)
         }
         return
     }

@@ -106,6 +106,7 @@ fun HomeScreen(
         VisitForm(
             officerId = officerId,
             visitDao = db.visitDao(),
+            officerDao = db.officerDao(),
             tripId = visitReq.tripId,
             forceAdditional = visitReq.forceAdditional,
             initialDistrict = visitReq.initialDistrict,
