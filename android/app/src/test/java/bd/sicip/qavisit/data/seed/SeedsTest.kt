@@ -14,8 +14,8 @@ class SeedsTest {
         assertTrue(DISTRICTS.contains("Dhaka"))
     }
 
-    @Test fun associations_are_30() {
-        assertEquals(30, ASSOCIATIONS.size)
+    @Test fun associations_are_31() {
+        assertEquals(31, ASSOCIATIONS.size)
         assertEquals(ASSOCIATIONS.distinct().size, ASSOCIATIONS.size)
         assertTrue(ASSOCIATIONS.contains("Others"))
         assertTrue(ASSOCIATIONS.contains("BGMEA"))

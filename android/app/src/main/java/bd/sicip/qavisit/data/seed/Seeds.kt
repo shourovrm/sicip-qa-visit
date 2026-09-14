@@ -19,7 +19,7 @@ val DISTRICTS: List<String> = listOf(
 val ASSOCIATIONS: List<String> = listOf(
     "AEOSIB", "BACCO", "BACI", "BAPA", "BASIS", "BBSME", "BEIOA", "BGMEA", "BIGM", "BITAC",
     "BJMA", "BKMEA", "BMET", "BRTC", "BTMA", "BWCCI", "DTE", "EDC-BRACU", "EDC-BUTEX", "EDC-EWU",
-    "EDC-IBA", "IDCOL", "Kumudini", "LFMEAB", "PKSF", "REHAB", "ISC-TH", "WEAB", "BPI", "Others",
+    "EDC-IBA", "IDCOL", "Kumudini", "FLAXA", "PKSF", "REHAB", "ISC-TH", "WEAB", "BPI", "BSIA", "Others",
 )
 
 val PURPOSES: List<String> = listOf(
