@@ -61,6 +61,10 @@
      "c1": "na",
      "c2": "yes"
     }
+   },
+   "materials_4": {
+    "answer": "yes",
+    "remarks": ""
    }
   },
   "cards": {
@@ -162,22 +166,30 @@
    "arrival_1": {
     "answer": "",
     "remarks": "",
-    "courses": {}
+    "courses": {
+     "c1": "yes"
+    }
    },
    "arrival_2": {
     "answer": "",
     "remarks": "",
-    "courses": {}
+    "courses": {
+     "c1": "yes"
+    }
    },
    "arrival_3": {
     "answer": "",
     "remarks": "Theory instead of practical",
-    "courses": {}
+    "courses": {
+     "c1": "partial"
+    }
    },
    "arrival_4": {
     "answer": "",
     "remarks": "",
-    "courses": {}
+    "courses": {
+     "c1": "yes"
+    }
    },
    "materials_1": {
     "answer": "partial",
@@ -197,17 +209,23 @@
    "attendance_register_1": {
     "answer": "",
     "remarks": "",
-    "courses": {}
+    "courses": {
+     "c1": "yes"
+    }
    },
    "attendance_register_2": {
     "answer": "",
     "remarks": "",
-    "courses": {}
+    "courses": {
+     "c1": "yes"
+    }
    },
    "attendance_register_3": {
     "answer": "",
     "remarks": "",
-    "courses": {}
+    "courses": {
+     "c1": "na"
+    }
    },
    "materials_3": {
     "answer": "yes",
@@ -220,7 +238,9 @@
    "materials_4": {
     "answer": "",
     "remarks": "",
-    "courses": {}
+    "courses": {
+     "c1": "yes"
+    }
    },
    "materials_5": {
     "answer": "",
@@ -403,22 +423,30 @@
    "arrival_1": {
     "answer": "",
     "remarks": "",
-    "courses": {}
+    "courses": {
+     "c1": "yes"
+    }
    },
    "arrival_2": {
     "answer": "",
     "remarks": "",
-    "courses": {}
+    "courses": {
+     "c1": "yes"
+    }
    },
    "arrival_3": {
     "answer": "",
     "remarks": "Theory instead of practical",
-    "courses": {}
+    "courses": {
+     "c1": "partial"
+    }
    },
    "arrival_4": {
     "answer": "",
     "remarks": "",
-    "courses": {}
+    "courses": {
+     "c1": "yes"
+    }
    },
    "materials_1": {
     "answer": "partial",
@@ -438,17 +466,23 @@
    "attendance_register_1": {
     "answer": "",
     "remarks": "",
-    "courses": {}
+    "courses": {
+     "c1": "yes"
+    }
    },
    "attendance_register_2": {
     "answer": "",
     "remarks": "",
-    "courses": {}
+    "courses": {
+     "c1": "yes"
+    }
    },
    "attendance_register_3": {
     "answer": "",
     "remarks": "",
-    "courses": {}
+    "courses": {
+     "c1": "na"
+    }
    },
    "materials_3": {
     "answer": "yes",
@@ -461,7 +495,9 @@
    "materials_4": {
     "answer": "",
     "remarks": "",
-    "courses": {}
+    "courses": {
+     "c1": "yes"
+    }
    },
    "materials_5": {
     "answer": "",
@@ -730,6 +766,16 @@
   ],
   "customFlags": [
    "Trainees sharing one ID card"
+  ],
+  "sectionsWithContent": [
+   "visit",
+   "arrival",
+   "attendance",
+   "identity",
+   "materials",
+   "interview",
+   "followup",
+   "flags"
   ]
  }
 }

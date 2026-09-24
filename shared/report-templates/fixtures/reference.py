@@ -70,6 +70,10 @@ def sync_per_course(template, data):
                 continue
             check = checks.setdefault(item["id"], {"answer": "", "remarks": ""})
             per = check.get("courses", {})
+            # item answered before a 2nd course existed: that answer belonged to the first
+            # course, so it moves there instead of vanishing (new courses start blank)
+            if not per and not blank(check.get("answer")):
+                per = {ids[0]: check["answer"]}
             check["courses"] = {cid: per[cid] for cid in ids if cid in per}
             check["answer"] = derive_answer([check["courses"].get(cid, "") for cid in ids])
             check.setdefault("remarks", "")
@@ -153,6 +157,26 @@ def section_progress(section, data):
     return {"answered": answered, "total": total, "done": total > 0 and answered == total, "flagged": flagged}, custom_flags
 
 
+# optional sections print only when the officer filled something in them
+def section_has_content(section, data):
+    for block in section["blocks"]:
+        kind = block["type"]
+        if kind == "fields" and any(not blank(data.get("fields", {}).get(f["key"])) for f in block["fields"]):
+            return True
+        if kind == "checklist":
+            for item in block["items"]:
+                check = data.get("checks", {}).get(item["id"]) or {}
+                if not blank(check.get("answer")) or not blank(check.get("remarks")) or check.get("courses"):
+                    return True
+        if kind == "cards":
+            for card in data.get("cards", {}).get(block["key"], []):
+                if any(not blank(v) for k, v in card.items() if not k.startswith("_")):
+                    return True
+        if kind == "flags" and any(i["id"] in data.get("flags", []) for i in block["items"]):
+            return True
+    return False
+
+
 def report_progress(template, data):
     sections = {}
     custom_flags = []
@@ -183,6 +207,7 @@ def report_progress(template, data):
         "firstUnanswered": unanswered[0] if unanswered else None,
         "flagsTicked": data.get("flags", []),
         "customFlags": custom_flags,
+        "sectionsWithContent": [s["key"] for s in template["sections"] if section_has_content(s, data)],
     }
 
 
@@ -221,6 +246,8 @@ def fixture_1():
     data["checks"]["materials_1"] = {"answer": "", "remarks": "Electrical CS not received", "courses": {"c1": "yes", "c2": "no", "gone": "yes"}}
     data["checks"]["materials_2"] = {"answer": "yes", "remarks": "", "courses": {"c1": "yes"}}
     data["checks"]["materials_3"] = {"answer": "", "remarks": "", "courses": {"c1": "na", "c2": "yes"}}
+    # answered while only one course existed -> moves to the first course (c1), overall blank
+    data["checks"]["materials_4"] = {"answer": "yes", "remarks": ""}
     data["cards"]["interviews"] = [{"_id": "interviews:c1", "_link": "c1", "course": "Welding (SMAW)", "batch": "07",
                                     "trainees_interviewed": "6", "q1": "yes", "q2": "no", "tech_topic": "Electrode angle", "tech_result": "most"}]
     before = json.loads(json.dumps(data))

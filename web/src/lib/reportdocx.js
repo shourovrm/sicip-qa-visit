@@ -25,6 +25,7 @@ import {
   displayTime,
 } from './reportlayout.js'
 import * as reportTemplateModule from './reporttemplate.js'
+import { sectionHasContent } from './reporttemplate.js'
 
 // -- fonts/colours/sizes, read from the reference docx (sizes are half-points, i.e. the same
 // numbers as the file's w:sz val -- docx's TextRun `size` option takes the same unit) --
@@ -166,7 +167,7 @@ function noteParagraph(text) {
 
 function inlineChoiceParagraph(field, rawValue) {
   const options = field.kind === 'select' ? field.options.map((o) => ({ id: o, label: o })) : field.options
-  const children = [run(`${field.label}:`, { bold: true })]
+  const children = [run(labelWithColon(field.label), { bold: true })]
   for (const opt of options) {
     const checked = rawValue === opt.id
     const color = checked && opt.tone ? TONE_COLOR[opt.tone] : undefined
@@ -177,8 +178,13 @@ function inlineChoiceParagraph(field, rawValue) {
   return new Paragraph({ spacing: { before: 60, after: 60 }, children })
 }
 
+// a label that is already a question ("Could the trainees answer it?") gets no trailing colon
+function labelWithColon(label) {
+  return String(label).trim().endsWith('?') ? String(label) : `${label}:`
+}
+
 function plainFieldParagraph(field, rawValue) {
-  const children = [run(`${field.label}: `, { bold: true })]
+  const children = [run(`${labelWithColon(field.label)} `, { bold: true })]
   const shown = field.kind === 'time' ? displayTime(rawValue) : rawValue
   children.push(run(blank(rawValue) ? '' : String(shown)))
   return new Paragraph({ spacing: { before: 60, after: 60 }, children })
@@ -478,7 +484,11 @@ export function buildReportDocx(template, data, meta) {
   const normalizedData = withNormalizedData(template, data)
   const answerMap = answerMapOf(template)
   const children = headerParagraphs(template, meta)
-  for (const section of template.sections || []) children.push(...sectionDocx(section, normalizedData, template, answerMap))
+  for (const section of template.sections || []) {
+    // an optional section (K) nobody touched is left out of the report entirely
+    if (section.optional && !sectionHasContent(section, normalizedData)) continue
+    children.push(...sectionDocx(section, normalizedData, template, answerMap))
+  }
   children.push(legendParagraph())
 
   const doc = new Document({

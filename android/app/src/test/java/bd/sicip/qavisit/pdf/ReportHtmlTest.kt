@@ -92,7 +92,9 @@ class ReportHtmlTest {
         val html = buildReportHtml(template(listOf(section)), ReportData.EMPTY, META)
 
         assertFalse(html.contains("Not answered"))
-        assertTrue(html.contains("<span class=\"label\">Rating</span><span class=\"value\"></span>"))
+        // a blank choice prints every option unticked (paper-form style, same as web)
+        assertTrue(html.contains("<div class=\"line choice-line\"><span class=\"label\">Rating</span>"))
+        assertFalse(html.contains("choice-opt checked"))
         assertTrue(html.contains("<span class=\"label\">Notes</span><span class=\"value\"></span>"))
     }
 
@@ -256,12 +258,18 @@ class ReportHtmlTest {
     }
 
     @Test
-    fun `optional section shows the Optional tag next to its heading`() {
-        val section = ReportSection(letter = "K", key = "followup", short = "Follow-up", title = "Previous visit follow-up", optional = true, blocks = emptyList())
+    fun `optional section is left out when untouched and tagged Optional once filled`() {
+        val dateField = Field(key = "last_visit_date", label = "Date of last visit", kind = "date")
+        val section = ReportSection(
+            letter = "K", key = "followup", short = "Follow-up", title = "Previous visit follow-up", optional = true,
+            blocks = listOf(ReportBlock.Fields(listOf(dateField))),
+        )
 
-        val html = buildReportHtml(template(listOf(section)), ReportData.EMPTY, META)
+        val untouched = buildReportHtml(template(listOf(section)), ReportData.EMPTY, META)
+        val filled = buildReportHtml(template(listOf(section)), ReportData.EMPTY.withField("last_visit_date", "2026-08-01"), META)
 
-        assertTrue(html.contains("<span class=\"optional-tag\">Optional</span>"))
+        assertFalse(untouched.contains("Previous visit follow-up"))
+        assertTrue(filled.contains("<span class=\"optional-tag\">Optional</span>"))
     }
 
     @Test

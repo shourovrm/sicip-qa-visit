@@ -88,7 +88,10 @@ function syncPerCourse(template, data) {
     for (const item of block.items) {
       if (!item.perCourse) continue
       const check = data.checks[item.id] ?? (data.checks[item.id] = { answer: '', remarks: '' })
-      const previous = check.courses ?? {}
+      let previous = check.courses ?? {}
+      // answered before a 2nd course existed: that answer belonged to the first course, so it
+      // moves there instead of vanishing (new courses start blank)
+      if (Object.keys(previous).length === 0 && !isBlank(check.answer)) previous = { [ids[0]]: check.answer }
       const courses = {}
       for (const id of ids) if (id in previous) courses[id] = previous[id]
       check.courses = courses
@@ -216,7 +219,29 @@ export function computeProgress(template, data) {
     firstUnanswered: unanswered[0] ?? null,
     flagsTicked: data.flags ?? [],
     customFlags,
+    sectionsWithContent: template.sections.filter((section) => sectionHasContent(section, data)).map((section) => section.key),
   }
+}
+
+// optional sections print only when the officer filled something in them
+export function sectionHasContent(section, data) {
+  const checks = data.checks ?? {}
+  for (const block of section.blocks) {
+    if (block.type === 'fields' && block.fields.some((f) => !isBlank(data.fields?.[f.key]))) return true
+    if (block.type === 'checklist') {
+      for (const item of block.items) {
+        const check = checks[item.id] ?? {}
+        if (!isBlank(check.answer) || !isBlank(check.remarks) || Object.keys(check.courses ?? {}).length > 0) return true
+      }
+    }
+    if (block.type === 'cards') {
+      for (const card of data.cards?.[block.key] ?? []) {
+        if (Object.entries(card).some(([key, value]) => !key.startsWith('_') && !isBlank(value))) return true
+      }
+    }
+    if (block.type === 'flags' && block.items.some((i) => (data.flags ?? []).includes(i.id))) return true
+  }
+  return false
 }
 
 // new report: prefill fields from the visit + officer, seed every cards block with `start` blank

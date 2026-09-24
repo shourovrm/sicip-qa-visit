@@ -223,3 +223,12 @@ describe('fixture parity smoke test', () => {
     expect(html).toContain('Electrode angle')
   })
 })
+
+it('leaves out an optional section nobody touched, keeps it once anything is filled', () => {
+  const template = loadJson('../../../shared/report-templates/surprise-v1.json')
+  const followup = template.sections.find((s) => s.optional)
+  const empty = { fields: {}, checks: {}, cards: {}, flags: [] }
+  expect(reportHtml(template, empty, {})).not.toContain(followup.title)
+  const touched = { ...empty, fields: { last_visit_date: '2026-08-01' } }
+  expect(reportHtml(template, touched, {})).toContain(followup.title)
+})

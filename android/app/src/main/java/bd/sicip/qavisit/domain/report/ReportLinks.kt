@@ -99,7 +99,11 @@ private fun syncPerCourse(template: ReportTemplate, data: ReportData): ReportDat
             if (block !is ReportBlock.Checklist) return@forEach
             block.items.forEach { item ->
                 if (!item.perCourse) return@forEach
-                val existingCourses = result.checkCourses(item.id)
+                var existingCourses = result.checkCourses(item.id)
+                // answered before a 2nd course existed: that answer belonged to the first
+                // course, so it moves there instead of vanishing (new courses start blank)
+                val single = result.checkAnswer(item.id)
+                if (existingCourses.isEmpty() && single.isNotBlank()) existingCourses = mapOf(ids.first() to single)
                 // keep only today's course ids, dropping any course that's no longer present
                 // (removed in section A, or never had a per-course answer to begin with).
                 val keptCourses = ids.filter { it in existingCourses }.associateWith { existingCourses.getValue(it) }

@@ -17,6 +17,7 @@
 // pdf/BillPrinter.kt's WebView pipeline (renderBillPdf works for any HTML string, this one included).
 package bd.sicip.qavisit.pdf
 
+import bd.sicip.qavisit.domain.report.sectionHasContent
 import bd.sicip.qavisit.domain.report.AnswerOption
 import bd.sicip.qavisit.domain.report.CardsCompare
 import bd.sicip.qavisit.domain.report.ChecklistItem
@@ -105,6 +106,27 @@ private fun toneSpan(tone: String, label: String): String {
 
 // text for one field's value: choice fields render as a coloured tone label (blank = nothing,
 // never "Not answered" -- CHANGE SET 3); every other kind renders as escaped plain/multiline text.
+// a label that is already a question ("Could the trainees answer it?") gets no trailing colon
+private fun labelClass(label: String): String = if (label.trim().endsWith("?")) "label question" else "label"
+
+// choice/select fields print every option inline with a tick box, the chosen one filled (in its
+// tone colour for a choice field) -- port of web reporthtml.js inlineChoiceHtml.
+private fun inlineChoiceHtml(field: Field, rawValue: String?): String {
+    val options = if (field.kind == "select") {
+        field.selectOptions().map { AnswerOption(id = it, label = it, tone = "") }
+    } else {
+        field.choiceOptions()
+    }
+    val parts = options.joinToString(" ") { opt ->
+        val checked = rawValue == opt.id
+        val color = if (checked) TONE_COLOR[opt.tone] else null
+        val style = if (color != null) " style=\"color:$color\"" else ""
+        val tick = if (checked) TICK_CHECKED else TICK_UNCHECKED
+        "<span class=\"choice-opt${if (checked) " checked" else ""}\"$style>$tick ${esc(opt.label)}</span>"
+    }
+    return "<div class=\"line choice-line\"><span class=\"${labelClass(field.label)}\">${esc(field.label)}</span><span class=\"choices\">$parts</span></div>"
+}
+
 private fun fieldValueHtml(field: Field, rawValue: String?): String {
     if (field.kind == "choice") {
         if (blank(rawValue)) return ""
@@ -135,8 +157,10 @@ private fun fieldsListHtml(fields: List<Field>, value: (String) -> String?): Str
             val raw = value(f.key)
             val body = if (blank(raw)) "" else escMultiline(raw!!)
             "<div class=\"field-box\"><div class=\"label\">${esc(f.label)}</div><div class=\"box\">$body</div></div>"
+        } else if (f.kind == "choice" || f.kind == "select") {
+            inlineChoiceHtml(f, value(f.key))
         } else {
-            "<div class=\"line\"><span class=\"label\">${esc(f.label)}</span><span class=\"value\">${fieldValueHtml(f, value(f.key))}</span></div>"
+            "<div class=\"line\"><span class=\"${labelClass(f.label)}\">${esc(f.label)}</span><span class=\"value\">${fieldValueHtml(f, value(f.key))}</span></div>"
         }
     }
 
@@ -349,6 +373,10 @@ private val CSS = """
   .details .line { display: flex; align-items: baseline; gap: 4pt; min-height: 12pt; padding: 0.5pt 0; }
   .details .label { white-space: nowrap; font-weight: 700; }
   .details .label::after { content: ':'; }
+  .details .label.question::after { content: ''; }
+  .choice-line .choices { display: flex; flex-wrap: wrap; gap: 2pt 8pt; }
+  .choice-opt { white-space: nowrap; }
+  .choice-opt.checked { font-weight: 700; }
   .details .value { flex: 1; border-bottom: 0.6pt solid #ccc; }
   .field-box { margin: 2pt 0 5pt; }
   .field-box .label { font-weight: 700; display: block; margin-bottom: 1pt; }
@@ -399,7 +427,10 @@ private const val LEGEND = "T = total, F = female, TMS = Training Management Sys
 fun buildReportHtml(template: ReportTemplate, data: ReportData, meta: ReportMeta): String {
     val normalizedData = normalize(template, data)
     val answerMap = answerMapOf(template)
-    val sections = template.sections.joinToString("") { sectionHtml(it, normalizedData, template, answerMap) }
+    // an optional section (K) nobody touched is left out of the report entirely
+    val sections = template.sections
+        .filter { !it.optional || sectionHasContent(it, normalizedData) }
+        .joinToString("") { sectionHtml(it, normalizedData, template, answerMap) }
     return "<!doctype html><html><head><meta charset=\"utf-8\"><title>${esc(template.title)}</title>" +
         "<style>$CSS</style></head><body>" +
         headerHtml(template, meta) + sections +

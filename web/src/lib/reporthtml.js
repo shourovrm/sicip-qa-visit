@@ -16,6 +16,7 @@ import {
   displayTime,
 } from './reportlayout.js'
 import * as reportTemplateModule from './reporttemplate.js'
+import { sectionHasContent } from './reporttemplate.js'
 
 function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -58,6 +59,11 @@ function toneSpan(tone, label) {
 
 // text for one field's value: choice fields render as a coloured tone label (blank = nothing,
 // never "Not answered" -- CHANGE SET 3); every other kind renders as escaped plain/multiline text.
+// a label that is already a question ("Could the trainees answer it?") gets no trailing colon
+function labelClass(label) {
+  return String(label).trim().endsWith('?') ? 'label question' : 'label'
+}
+
 function fieldValueHtml(field, rawValue) {
   if (field.kind === 'choice') {
     if (blank(rawValue)) return ''
@@ -82,7 +88,7 @@ function inlineChoiceHtml(field, rawValue) {
     const style = color ? ` style="color:#${color}"` : ''
     return `<span class="choice-opt${checked ? ' checked' : ''}"${style}>${checked ? TICK_CHECKED : TICK_UNCHECKED} ${esc(opt.label)}</span>`
   })
-  return `<div class="line choice-line"><span class="label">${esc(field.label)}</span><span class="choices">${parts.join(' ')}</span></div>`
+  return `<div class="line choice-line"><span class="${labelClass(field.label)}">${esc(field.label)}</span><span class="choices">${parts.join(' ')}</span></div>`
 }
 
 // short-kind fields print "label: value" on one line; choice/select fields print an inline
@@ -97,7 +103,7 @@ function fieldsListHtml(fields, values) {
         return `<div class="field-box"><div class="label">${esc(f.label)}</div><div class="box">${body}</div></div>`
       }
       if (f.kind === 'choice' || f.kind === 'select') return inlineChoiceHtml(f, values[f.key])
-      return `<div class="line"><span class="label">${esc(f.label)}</span><span class="value">${fieldValueHtml(f, values[f.key])}</span></div>`
+      return `<div class="line"><span class="${labelClass(f.label)}">${esc(f.label)}</span><span class="value">${fieldValueHtml(f, values[f.key])}</span></div>`
     })
     .join('')
 }
@@ -325,6 +331,7 @@ const CSS = `
   .details .line { display: flex; align-items: baseline; gap: 4pt; min-height: 12pt; padding: 0.5pt 0; }
   .details .label { white-space: nowrap; font-weight: 700; }
   .details .label::after { content: ':'; }
+  .details .label.question::after { content: ''; }
   .details .value { flex: 1; border-bottom: 0.6pt solid #ccc; }
   .field-box { margin: 2pt 0 5pt; }
   .field-box .label { font-weight: 700; display: block; margin-bottom: 1pt; }
@@ -368,7 +375,11 @@ const CSS = `
 export function reportHtml(template, data, meta) {
   const normalizedData = withNormalizedData(template, data)
   const answerMap = answerMapOf(template)
-  const sections = (template.sections || []).map((s) => sectionHtml(s, normalizedData, template, answerMap)).join('')
+  // an optional section (K) nobody touched is left out of the report entirely
+  const sections = (template.sections || [])
+    .filter((s) => !s.optional || sectionHasContent(s, normalizedData))
+    .map((s) => sectionHtml(s, normalizedData, template, answerMap))
+    .join('')
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(template.title)}</title><style>${CSS}</style></head><body>` +
     headerHtml(template, meta) + sections +
     '<footer class="legend">T = total, F = female, TMS = Training Management System, TDP = training delivery plan, CS = competency standard, CBLM = competency-based learning material, PPE = personal protective equipment, OHS = occupational health and safety.</footer>' +

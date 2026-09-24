@@ -46,6 +46,7 @@ data class ReportProgress(
     val unansweredChecklistItemIds: List<String>,
     val flagsTicked: List<String>,
     val customFlags: List<String>,
+    val sectionsWithContent: List<String> = emptyList(),
 ) {
     val unansweredCount: Int get() = unansweredChecklistItemIds.size
     val firstUnanswered: String? get() = unansweredChecklistItemIds.firstOrNull()
@@ -198,5 +199,20 @@ fun computeProgress(template: ReportTemplate, data: ReportData): ReportProgress 
         // from the template's flag items.
         flagsTicked = data.flagsList(),
         customFlags = customFlags,
+        sectionsWithContent = template.sections.filter { sectionHasContent(it, data) }.map { it.key },
     )
+}
+
+// optional sections print only when the officer filled something in them
+fun sectionHasContent(section: ReportSection, data: ReportData): Boolean = section.blocks.any { block ->
+    when (block) {
+        is ReportBlock.Fields -> block.fields.any { !isBlank(data.field(it.key)) }
+        is ReportBlock.Checklist -> block.items.any {
+            !isBlank(data.checkAnswer(it.id)) || !isBlank(data.checkRemarks(it.id)) || data.checkCourses(it.id).isNotEmpty()
+        }
+        is ReportBlock.Cards -> data.cards(block.key).any { card ->
+            card.any { (key, value) -> !key.startsWith("_") && !isBlank(value.toString().trim('"')) }
+        }
+        is ReportBlock.Flags -> block.items.any { it.id in data.flags() }
+    }
 }

@@ -33,6 +33,7 @@ private data class ExpectedProgress(
     val firstUnanswered: String? = null,
     val flagsTicked: List<String>,
     val customFlags: List<String>,
+    val sectionsWithContent: List<String>,
 )
 
 @Serializable
@@ -91,5 +92,6 @@ class ReportProgressFixtureTest {
         assertEquals("firstUnanswered", fixture.expected.firstUnanswered, progress.firstUnanswered)
         assertEquals("flagsTicked", fixture.expected.flagsTicked, progress.flagsTicked)
         assertEquals("customFlags", fixture.expected.customFlags, progress.customFlags)
+        assertEquals("sectionsWithContent", fixture.expected.sectionsWithContent, progress.sectionsWithContent)
     }
 }
