@@ -6,6 +6,8 @@
 // submitted report just hides the Submit button.
 package bd.sicip.qavisit.ui.reports
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -112,9 +114,12 @@ fun ReportReview(
     val editor = registry.forReport(current)
     val progress = remember(editor.data) { computeProgress(template, editor.data) }
 
+    // insets already applied by AppShell's scaffold
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
+                windowInsets = WindowInsets(0, 0, 0, 0),
                 title = {
                     Column {
                         Text("Review")
@@ -132,7 +137,8 @@ fun ReportReview(
             )
         },
         bottomBar = {
-            Row(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // opaque bar: the list scrolls underneath it
+            Row(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = {
                         if (pdfBusy) return@OutlinedButton
@@ -147,6 +153,7 @@ fun ReportReview(
                 if (editor.report.status != "submitted") {
                     Button(
                         onClick = { showSubmitConfirm = true },
+                        colors = actionButtonColors(),
                         modifier = Modifier.weight(1.4f).height(48.dp),
                     ) { Text("Submit") }
                 }

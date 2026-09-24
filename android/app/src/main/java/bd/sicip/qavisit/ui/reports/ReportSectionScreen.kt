@@ -7,6 +7,8 @@
 // on disk before navigating, shrinking the window a process death could drop it in.
 package bd.sicip.qavisit.ui.reports
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -82,9 +84,12 @@ fun ReportSectionScreen(
 
     BackHandler(onBack = { leave(onBack) })
 
+    // insets already applied by AppShell's scaffold
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
+                windowInsets = WindowInsets(0, 0, 0, 0),
                 title = {
                     Column {
                         Text("${section.letter}. ${section.title}")
@@ -107,8 +112,9 @@ fun ReportSectionScreen(
             )
         },
         bottomBar = {
+            // opaque bar: the list scrolls underneath it
             Row(
-                modifier = Modifier.fillMaxWidth().padding(12.dp),
+                modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).padding(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (prevSection != null) {
@@ -118,6 +124,7 @@ fun ReportSectionScreen(
                 }
                 Button(
                     onClick = { leave { if (nextSection != null) onOpenSection(nextSection.key) else onReview() } },
+                    colors = actionButtonColors(),
                     modifier = Modifier.weight(1f).height(48.dp),
                 ) {
                     Text(if (nextSection != null) "Next: ${nextSection.letter}. ${nextSection.short}" else "Review")

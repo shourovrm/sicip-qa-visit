@@ -6,6 +6,10 @@
 // today's + upcoming 7 days, own) + Start.
 package bd.sicip.qavisit.ui.reports
 
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,7 +29,8 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -59,7 +64,6 @@ import bd.sicip.qavisit.ui.common.TwoTabRow
 import bd.sicip.qavisit.ui.shell.relativeTime
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
-import java.time.Instant
 import java.time.LocalDate
 
 private data class ReportsUiState(
@@ -98,19 +102,23 @@ fun ReportsScreen(officerId: String, db: AppDb, onOpenReport: (String) -> Unit) 
     val visitById = state.myVisits.associateBy { it.id }
     val drafts = state.reports.filter { it.status == "draft" }
     val submitted = state.reports.filter { it.status == "submitted" }
-    val today = Instant.now().toString().take(10)
+    val today = LocalDate.now().toString() // local date: the utc one is yesterday before 06:00 in dhaka
     val reportedVisitIds = state.reports.map { it.visitId }.toSet()
     val noReportVisits = state.myVisits.filter { v ->
         v.id !in reportedVisitIds && ((activeTrip != null && v.tripId == activeTrip.id) || v.startDate == today)
     }
 
     Scaffold(
+        // nested in AppShell's scaffold, which already pads for the system bars
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         floatingActionButton = {
-            FloatingActionButton(
+            ExtendedFloatingActionButton(
                 onClick = { showNewReportSheet = true },
+                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                text = { Text("New report") },
                 containerColor = MaterialTheme.colorScheme.tertiary,
                 contentColor = MaterialTheme.colorScheme.onTertiary,
-            ) { Icon(Icons.Filled.Add, contentDescription = "New report") }
+            )
         },
     ) { innerPadding ->
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
@@ -126,6 +134,17 @@ fun ReportsScreen(officerId: String, db: AppDb, onOpenReport: (String) -> Unit) 
                 modifier = Modifier.fillMaxSize(),
             ) {
                 val shown = if (showSubmitted) submitted else drafts
+                if (shown.isEmpty() && (showSubmitted || noReportVisits.isEmpty())) {
+                    item {
+                        Text(
+                            if (showSubmitted) "No submitted reports yet."
+                            else "No reports in progress. Tap New report and pick the visit you are on, or one from the last 30 days.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 24.dp),
+                        )
+                    }
+                }
                 items(shown) { report ->
                     val visit = visitById[report.visitId]
                     ReportCard(report, visit, template, onClick = { onOpenReport(report.id) })
@@ -167,14 +186,17 @@ fun ReportsScreen(officerId: String, db: AppDb, onOpenReport: (String) -> Unit) 
     }
 }
 
-// active tour visits + today's + upcoming 7 days, own -- same "own" scope as byOfficerFlow
-// already gives us (deleted rows excluded by the query).
+// active tour visits + last 30 days + next 7 days, own. reports get written during AND after
+// a visit, so recent past visits must be pickable. active tour first, then newest first.
 private fun candidateVisits(myVisits: List<Visit>, activeTrip: Trip?, today: String): List<Visit> {
     val todayDate = runCatching { LocalDate.parse(today) }.getOrDefault(LocalDate.now())
+    val monthBack = todayDate.minusDays(30).toString()
     val weekAhead = todayDate.plusDays(7).toString()
-    return myVisits.filter { v ->
-        (activeTrip != null && v.tripId == activeTrip.id) || (v.startDate in today..weekAhead)
-    }.distinctBy { it.id }
+    fun onActiveTour(v: Visit) = activeTrip != null && v.tripId == activeTrip.id
+    return myVisits
+        .filter { v -> onActiveTour(v) || v.startDate in monthBack..weekAhead }
+        .distinctBy { it.id }
+        .sortedWith(compareByDescending<Visit> { onActiveTour(it) }.thenByDescending { it.startDate })
 }
 
 @Composable
@@ -265,7 +287,9 @@ private fun NewReportSheet(
     var selectedVisitId by remember(visits) { mutableStateOf(visits.firstOrNull()?.id) }
     var starting by remember { mutableStateOf(false) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    // open fully: half-open hides the pinned Start button under the visit list
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("New report", style = MaterialTheme.typography.titleLarge)
 
@@ -276,17 +300,23 @@ private fun NewReportSheet(
             Text("FOR VISIT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (visits.isEmpty()) {
                 Text(
-                    "No eligible visits (active tour, today, or the next 7 days).",
+                    "No visits in the last 30 days or the next 7. Schedule the visit first.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            visits.forEach { visit ->
-                VisitOptionRow(
-                    visit = visit,
-                    selected = visit.id == selectedVisitId,
-                    onClick = { selectedVisitId = visit.id },
-                )
+            // the visit list scrolls on its own so Start report stays pinned below it
+            Column(
+                modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                visits.forEach { visit ->
+                    VisitOptionRow(
+                        visit = visit,
+                        selected = visit.id == selectedVisitId,
+                        onClick = { selectedVisitId = visit.id },
+                    )
+                }
             }
 
             Button(
@@ -301,6 +331,10 @@ private fun NewReportSheet(
                     }
                 },
                 enabled = !starting && selectedVisitId != null,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.tertiary,
+                    contentColor = MaterialTheme.colorScheme.onTertiary,
+                ),
                 modifier = Modifier.fillMaxWidth().height(48.dp),
             ) { Text(if (starting) "Starting…" else "Start report") }
         }

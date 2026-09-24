@@ -78,10 +78,12 @@ fun AppShell(context: Context, officerId: String) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: NAV_ITEMS.first().route
     val currentTitle = NAV_ITEMS.firstOrNull { it.route == currentRoute }?.label ?: "SICIP QA Visit"
+    // report screens bring their own top bar + action bar; the shell's would stack on top
+    val inReport = currentRoute.startsWith("report_")
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            if (!inReport) TopAppBar(
                 title = { Text(currentTitle) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -90,7 +92,7 @@ fun AppShell(context: Context, officerId: String) {
             )
         },
         bottomBar = {
-            NavigationBar {
+            if (!inReport) NavigationBar {
                 NAV_ITEMS.forEach { item ->
                     NavigationBarItem(
                         selected = currentRoute == item.route,

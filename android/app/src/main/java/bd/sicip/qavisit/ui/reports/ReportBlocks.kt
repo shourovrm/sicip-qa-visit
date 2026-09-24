@@ -7,6 +7,8 @@
 // card add/remove, flag tick) or editDebounced for free-typed text (spec: debounce ~400ms).
 package bd.sicip.qavisit.ui.reports
 
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material.icons.filled.Warning
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -31,7 +33,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -277,14 +278,12 @@ private fun CardEntryView(
     editor: ReportEditor,
 ) {
     val mismatch = block.compare?.let { cardCompareMismatch(it, entry) } ?: false
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = if (mismatch) {
-            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-        } else {
-            CardDefaults.cardColors()
-        },
-    ) {
+    // a filled card needs a confirm before removal; an empty seeded one goes straight away
+    var confirmRemove by remember { mutableStateOf(false) }
+    val hasContent = entry.values.any { it.toString().trim('"').isNotBlank() }
+    // mismatch = one warning line under the header, not a red card: a tinted card body
+    // hurts contrast outdoors (DESIGN.md sunlight rule)
+    Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -293,9 +292,19 @@ private fun CardEntryView(
                     modifier = Modifier.weight(1f),
                 )
                 if (!readOnly) {
-                    IconButton(onClick = { editor.editNow(data.withCardRemoved(block.key, index)) }) {
+                    IconButton(onClick = { if (hasContent) confirmRemove = true else editor.editNow(data.withCardRemoved(block.key, index)) }) {
                         Icon(Icons.Filled.Close, contentDescription = "Remove ${block.itemLabel}")
                     }
+                }
+            }
+            if (mismatch) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                    Text(
+                        block.compare.message, // mismatch can only be true when block.compare is non-null
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
                 }
             }
             block.fields.forEach { field ->
@@ -308,14 +317,21 @@ private fun CardEntryView(
                     onDebounced = { v -> editor.editDebounced(data.withCardField(block.key, index, field.key, v)) },
                 )
             }
-            if (mismatch) {
-                Text(
-                    block.compare.message, // mismatch can only be true when block.compare is non-null (see above)
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.labelMedium,
-                )
-            }
         }
+    }
+    if (confirmRemove) {
+        AlertDialog(
+            onDismissRequest = { confirmRemove = false },
+            title = { Text("Remove ${block.itemLabel.lowercase()} ${index + 1}?") },
+            text = { Text("Its answers will be deleted from this report.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmRemove = false
+                    editor.editNow(data.withCardRemoved(block.key, index))
+                }) { Text("Remove", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirmRemove = false }) { Text("Cancel") } },
+        )
     }
 }
 
@@ -348,3 +364,10 @@ fun ReportBlockView(block: ReportBlock, answers: List<AnswerOption>, data: Repor
         is ReportBlock.Flags -> FlagsBlockView(block, data, readOnly, editor)
     }
 }
+
+// orange = actions only (DESIGN.md); the primary button of every report action bar
+@Composable
+fun actionButtonColors() = ButtonDefaults.buttonColors(
+    containerColor = MaterialTheme.colorScheme.tertiary,
+    contentColor = MaterialTheme.colorScheme.onTertiary,
+)

@@ -5,6 +5,7 @@
 // only -- submitted reports are read-only, spec "Lifecycle").
 package bd.sicip.qavisit.ui.reports
 
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -101,9 +102,12 @@ fun ReportHub(
     val data = editor.data
     val progress = remember(data) { computeProgress(template, data) }
 
+    // insets already applied by AppShell's scaffold
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
+                windowInsets = WindowInsets(0, 0, 0, 0),
                 title = {
                     Column {
                         Text(reportTypeLabel(editor.report.type))
@@ -133,7 +137,8 @@ fun ReportHub(
             )
         },
         bottomBar = {
-            Row(modifier = Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // opaque bar: the list scrolls underneath it
+            Row(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = {
                         if (pdfBusy) return@OutlinedButton
@@ -145,7 +150,7 @@ fun ReportHub(
                     },
                     modifier = Modifier.weight(1f).height(48.dp),
                 ) { Text(if (pdfBusy) "Preparing…" else "Preview PDF") }
-                Button(onClick = onReview, modifier = Modifier.weight(1f).height(48.dp)) { Text("Review") }
+                Button(onClick = onReview, colors = actionButtonColors(), modifier = Modifier.weight(1f).height(48.dp)) { Text("Review") }
             }
         },
     ) { innerPadding ->
