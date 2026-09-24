@@ -22,6 +22,7 @@ import {
   MARGIN_BOTTOM_TWIPS, MARGIN_LEFT_TWIPS, MARGIN_RIGHT_TWIPS, MARGIN_TOP_TWIPS, PAGE_HEIGHT_TWIPS,
   PAGE_WIDTH_TWIPS, TICK_CHECKED, TICK_UNCHECKED, TONE_COLOR, isStandardAnswerChoice,
   weightedWidths,
+  displayTime,
 } from './reportlayout.js'
 import * as reportTemplateModule from './reporttemplate.js'
 
@@ -34,7 +35,6 @@ const BORDER_COLOR = '666666'
 const GRAY = '888888'
 const NOTE_COLOR = '333333'
 const OPTIONAL_COLOR = '8a4600' // "partial" tone -- reused as the Optional-tag colour
-const PER_COURSE_TAG_COLOR = '4c4f66' // "na" tone -- reused as the Per-course-tag colour
 
 const PROGRAM_SIZE = 16 // 8pt
 const TITLE_SIZE = 26 // 13pt
@@ -179,7 +179,8 @@ function inlineChoiceParagraph(field, rawValue) {
 
 function plainFieldParagraph(field, rawValue) {
   const children = [run(`${field.label}: `, { bold: true })]
-  children.push(run(blank(rawValue) ? '' : String(rawValue)))
+  const shown = field.kind === 'time' ? displayTime(rawValue) : rawValue
+  children.push(run(blank(rawValue) ? '' : String(shown)))
   return new Paragraph({ spacing: { before: 60, after: 60 }, children })
 }
 
@@ -255,7 +256,6 @@ function checklistBlockDocx(block, data, template, answerMap) {
     const entry = checks[item.id] || {}
     const tickCells = answerIds.map((id, ci) => bodyCellDxa(widths[2 + ci], [tickParagraph(entry.answer === id, answerMap[id]?.tone)]))
     const itemChildren = [run(item.text)]
-    if (item.perCourse && courses.length >= 2) itemChildren.push(run('  Per course', { bold: true, size: SMALL_SIZE, color: PER_COURSE_TAG_COLOR }))
     const itemParas = [new Paragraph({ children: itemChildren })]
     const perCourseText = perCourseLineText(item, entry, courses, answerMap)
     if (perCourseText) itemParas.push(new Paragraph({ children: [run(perCourseText, { size: SMALL_SIZE, color: NOTE_COLOR })] }))

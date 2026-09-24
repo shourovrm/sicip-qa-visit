@@ -112,7 +112,17 @@ private fun fieldValueHtml(field: Field, rawValue: String?): String {
         return if (opt != null) toneSpan(opt.tone, opt.label) else esc(rawValue)
     }
     if (blank(rawValue)) return ""
+    if (field.kind == "time") return esc(displayTime(rawValue!!))
     return escMultiline(rawValue!!)
+}
+
+// "13:29" or "13:29:00" -> "1:29 PM" for print; mirrors web reportlayout.js displayTime
+internal fun displayTime(value: String): String {
+    val match = Regex("^(\\d{1,2}):(\\d{2})").find(value) ?: return value
+    val hour24 = match.groupValues[1].toInt()
+    val suffix = if (hour24 < 12) "AM" else "PM"
+    val hour12 = if (hour24 % 12 == 0) 12 else hour24 % 12
+    return "$hour12:${match.groupValues[2]} $suffix"
 }
 
 // short-kind fields print "label: value" on one line; longtext fields print the label above a
@@ -175,8 +185,8 @@ private fun checklistBlockHtml(block: ReportBlock.Checklist, data: ReportData, t
     val rows = block.items.mapIndexed { i, item ->
         val answer = data.checkAnswer(item.id)
         val tickCells = answerIds.joinToString("") { id -> tickCellHtml(answer == id, answerMap[id]?.tone) }
-        val perCourseTag = if (item.perCourse && courses.size >= 2) " <span class=\"per-course-tag\">Per course</span>" else ""
-        val itemHtml = "${esc(item.text)}$perCourseTag${perCourseLineHtml(item, data, courses, answerMap)}"
+        // no "Per course" badge on paper: the course line under the item already says it
+        val itemHtml = "${esc(item.text)}${perCourseLineHtml(item, data, courses, answerMap)}"
         val remarks = data.checkRemarks(item.id)
         val remarksHtml = if (blank(remarks)) "" else escMultiline(remarks)
         "<tr><td class=\"num\">${i + 1}</td><td class=\"question\">$itemHtml</td>$tickCells<td class=\"remarks\">$remarksHtml</td></tr>"

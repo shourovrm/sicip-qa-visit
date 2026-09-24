@@ -71,7 +71,7 @@ it('a "yes" answer ticks the Yes column in its tone colour and leaves the rest u
   expect(row).toContain('style="color:#1c6b38"')
 })
 
-it('per-course items show a "Per course" tag and a per-course summary line once 2+ courses exist', () => {
+it('per-course items show a summary line and no "Per course" badge once 2+ courses exist', () => {
   const data = {
     fields: {},
     checks: { arrival_1: { answer: 'partial', remarks: '', courses: { c1: 'yes', c2: 'no' } } },
@@ -80,7 +80,7 @@ it('per-course items show a "Per course" tag and a per-course summary line once 
   }
   const html = reportHtml(template, data, meta)
   const row = html.slice(html.indexOf('Centre open and training'), html.indexOf('</tr>', html.indexOf('Centre open and training')))
-  expect(row).toContain('per-course-tag">Per course')
+  expect(row).not.toContain('per-course-tag')
   expect(row).toContain('Welding (SMAW) 07: Yes')
   expect(row).toContain('Electrical Installation 03: No')
 })

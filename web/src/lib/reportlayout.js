@@ -73,3 +73,13 @@ export function isStandardAnswerChoice(field, template) {
   const optionIds = (field.options || []).map((o) => o.id)
   return optionIds.length === answerIds.length && answerIds.every((id) => optionIds.includes(id))
 }
+
+// "13:29" or "13:29:00" -> "1:29 PM" for print; anything else passes through unchanged
+export function displayTime(value) {
+  const match = /^(\d{1,2}):(\d{2})/.exec(String(value ?? ''))
+  if (!match) return value
+  const hour24 = Number(match[1])
+  const suffix = hour24 < 12 ? 'AM' : 'PM'
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12
+  return `${hour12}:${match[2]} ${suffix}`
+}

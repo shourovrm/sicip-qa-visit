@@ -7,6 +7,7 @@
 // card add/remove, flag tick) or editDebounced for free-typed text (spec: debounce ~400ms).
 package bd.sicip.qavisit.ui.reports
 
+import java.time.LocalTime
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material.icons.filled.Warning
 import android.content.Intent
@@ -170,7 +171,16 @@ fun FieldEditor(
         "time" -> Column(modifier.fillMaxWidth()) {
             Text(field.label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(4.dp))
-            TimeField(value = value.ifBlank { "00:00:00" }, onChange = onImmediate)
+            // blank must LOOK blank: a default 12:00 reads as an answer the officer never gave
+            if (value.isBlank()) {
+                OutlinedButton(
+                    onClick = { onImmediate(LocalTime.now().withSecond(0).withNano(0).toString() + ":00") },
+                    enabled = !readOnly,
+                    modifier = Modifier.height(48.dp),
+                ) { Text("Set to now") }
+            } else {
+                TimeField(value = value, onChange = onImmediate)
+            }
         }
 
         "phone" -> Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -412,6 +422,9 @@ fun CardsBlockView(
     val entries = data.cards(block.key)
     val link = block.linkFrom
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // a section can hold several card blocks (A: persons + courses) -- the heading says which
+        block.heading?.let { Text(it, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp)) }
+        block.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         if (block.display == "tabs") {
             // section I's interviews: one course tab at a time instead of a stacked list --
             // spec CHANGE SET 3.
@@ -625,16 +638,25 @@ private fun CardEntryView(
                     )
                 }
             }
-            editableFields.forEach { field ->
-                val value = data.cardField(block.key, index, field.key)
-                FieldEditor(
-                    field = field,
-                    value = value,
-                    readOnly = readOnly,
-                    onImmediate = { v -> editor.editNow(data.withCardField(block.key, index, field.key, v)) },
-                    onDebounced = { v -> editor.editDebounced(data.withCardField(block.key, index, field.key, v)) },
-                    courseOptions = if (field.kind == "courseRef") courseRefOptions(data, field) else emptyList(),
-                )
+            @Composable
+            fun CardField(field: Field, modifier: Modifier = Modifier) = FieldEditor(
+                field = field,
+                value = data.cardField(block.key, index, field.key),
+                readOnly = readOnly,
+                onImmediate = { v -> editor.editNow(data.withCardField(block.key, index, field.key, v)) },
+                onDebounced = { v -> editor.editDebounced(data.withCardField(block.key, index, field.key, v)) },
+                modifier = modifier,
+                courseOptions = if (field.kind == "courseRef") courseRefOptions(data, field) else emptyList(),
+            )
+            // number fields two per row (total | female, register | TMS): halves the scroll per course
+            pairNumberFields(editableFields).forEach { group ->
+                if (group.size == 2) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        group.forEach { CardField(it, Modifier.weight(1f)) }
+                    }
+                } else {
+                    CardField(group.single())
+                }
             }
         }
     }
@@ -712,3 +734,20 @@ fun actionButtonColors() = ButtonDefaults.buttonColors(
     containerColor = MaterialTheme.colorScheme.tertiary,
     contentColor = MaterialTheme.colorScheme.onTertiary,
 )
+
+// consecutive number fields grouped in pairs; everything else stays one per row
+private fun pairNumberFields(fields: List<Field>): List<List<Field>> {
+    val groups = mutableListOf<List<Field>>()
+    var i = 0
+    while (i < fields.size) {
+        val pairable = fields[i].kind == "number" && i + 1 < fields.size && fields[i + 1].kind == "number"
+        if (pairable) {
+            groups += listOf(fields[i], fields[i + 1])
+            i += 2
+        } else {
+            groups += listOf(fields[i])
+            i += 1
+        }
+    }
+    return groups
+}

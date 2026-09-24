@@ -158,7 +158,7 @@ class ReportHtmlTest {
 
         val html = buildReportHtml(template(listOf(section)), data, META)
 
-        assertTrue(html.contains("<span class=\"per-course-tag\">Per course</span>"))
+        assertFalse(html.contains("per-course-tag\">Per course"))
         assertTrue(html.contains("class=\"per-course-line\">Welding 07: Yes &middot; Electrical 03: No</div>"))
     }
 

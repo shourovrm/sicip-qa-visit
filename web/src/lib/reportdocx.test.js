@@ -106,7 +106,7 @@ it('flags list shows every fixed item (ticked or not) plus custom flags as ticke
   expect(xml).toContain('Trainees sharing one ID card') // custom flag, non-blank -> merged in as ticked
 })
 
-it('per-course items carry a "Per course" tag and a per-course summary line once 2+ courses exist', async () => {
+it('per-course items carry a summary line and no "Per course" badge once 2+ courses exist', async () => {
   const data = {
     fields: {},
     checks: { arrival_1: { answer: 'partial', remarks: '', courses: { c1: 'yes', c2: 'no' } } },
@@ -115,7 +115,7 @@ it('per-course items carry a "Per course" tag and a per-course summary line once
   }
   const blob = await buildReportDocx(template, data, meta)
   const xml = await documentXml(blob)
-  expect(xml).toContain('Per course')
+  expect(xml).not.toContain('Per course')
   expect(xml).toContain('Welding (SMAW) 07: Yes')
   expect(xml).toContain('Electrical Installation 03: No')
 })

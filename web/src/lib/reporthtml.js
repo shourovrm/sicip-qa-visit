@@ -13,6 +13,7 @@
 import {
   CHECKLIST_COLUMNS, FLAGS_COLUMNS, INTERVIEW_TICK_COLUMNS, TICK_CHECKED, TICK_UNCHECKED,
   TONE_COLOR, isStandardAnswerChoice,
+  displayTime,
 } from './reportlayout.js'
 import * as reportTemplateModule from './reporttemplate.js'
 
@@ -64,6 +65,7 @@ function fieldValueHtml(field, rawValue) {
     return opt ? toneSpan(opt.tone, opt.label) : esc(rawValue)
   }
   if (blank(rawValue)) return ''
+  if (field.kind === 'time') return esc(displayTime(rawValue))
   return escMultiline(rawValue)
 }
 
@@ -152,8 +154,8 @@ function checklistBlockHtml(block, data, template, answerMap) {
     .map((item, i) => {
       const entry = checks[item.id] || {}
       const tickCells = answerIds.map((id) => tickCellHtml(entry.answer === id, answerMap[id]?.tone)).join('')
-      const perCourseTag = item.perCourse && courses.length >= 2 ? ' <span class="per-course-tag">Per course</span>' : ''
-      const itemHtml = `${esc(item.text)}${perCourseTag}${perCourseLineHtml(item, entry, courses, answerMap)}`
+      // no "Per course" badge on paper: the course line under the item already says it
+      const itemHtml = `${esc(item.text)}${perCourseLineHtml(item, entry, courses, answerMap)}`
       const remarksHtml = blank(entry.remarks) ? '' : escMultiline(entry.remarks)
       return `<tr><td class="num">${i + 1}</td><td class="question">${itemHtml}</td>${tickCells}<td class="remarks">${remarksHtml}</td></tr>`
     })
