@@ -235,7 +235,8 @@
       {
        "key": "remarks",
        "label": "Remarks",
-       "kind": "longtext"
+       "kind": "longtext",
+       "rewrite": true
       }
      ],
      "linkFrom": {
@@ -322,6 +323,7 @@
        "key": "remarks",
        "label": "Remarks",
        "kind": "longtext",
+       "rewrite": true,
        "placeholder": "ID checked, entry qualification, reason for absence…"
       }
      ]
@@ -746,6 +748,7 @@
        "key": "tech_topic",
        "label": "Technical topic asked (from a unit already covered)",
        "kind": "longtext",
+       "rewrite": true,
        "required": true
       },
       {
@@ -773,7 +776,8 @@
       {
        "key": "feedback",
        "label": "Complaints or other feedback",
-       "kind": "longtext"
+       "kind": "longtext",
+       "rewrite": true
       }
      ]
     }
@@ -866,6 +870,7 @@
        "key": "remarks",
        "label": "Remarks",
        "kind": "longtext",
+       "rewrite": true,
        "placeholder": "Job related to the trade? How long employed?"
       }
      ]
@@ -932,12 +937,14 @@
        "key": "issue",
        "label": "Issue still not resolved",
        "kind": "longtext",
+       "rewrite": true,
        "required": true
       },
       {
        "key": "remarks",
        "label": "Remarks",
-       "kind": "longtext"
+       "kind": "longtext",
+       "rewrite": true
       }
      ]
     }
@@ -1006,6 +1013,7 @@
        "key": "flag",
        "label": "Flag observed",
        "kind": "longtext",
+       "rewrite": true,
        "required": true
       }
      ]
@@ -1048,12 +1056,14 @@
        "key": "key_findings",
        "label": "Key findings",
        "kind": "longtext",
+       "rewrite": true,
        "required": true
       },
       {
        "key": "instructions_given",
        "label": "Instructions given to the TI on the spot",
-       "kind": "longtext"
+       "kind": "longtext",
+       "rewrite": true
       },
       {
        "key": "follow_up",
