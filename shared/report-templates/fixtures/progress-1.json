@@ -27,12 +27,20 @@
     "remarks": ""
    },
    "materials_1": {
-    "answer": "yes",
-    "remarks": ""
+    "answer": "",
+    "remarks": "Electrical CS not received",
+    "courses": {
+     "c1": "yes",
+     "c2": "no",
+     "gone": "yes"
+    }
    },
    "materials_2": {
-    "answer": "no",
-    "remarks": "Not printed yet"
+    "answer": "yes",
+    "remarks": "",
+    "courses": {
+     "c1": "yes"
+    }
    },
    "attendance_register_1": {
     "answer": "yes",
@@ -45,6 +53,14 @@
    "attendance_register_3": {
     "answer": "na",
     "remarks": ""
+   },
+   "materials_3": {
+    "answer": "",
+    "remarks": "",
+    "courses": {
+     "c1": "na",
+     "c2": "yes"
+    }
    }
   },
   "cards": {
@@ -114,6 +130,19 @@
      "_id": "f2",
      "flag": " "
     }
+   ],
+   "interviews": [
+    {
+     "_id": "interviews:c1",
+     "_link": "c1",
+     "course": "Welding (SMAW)",
+     "batch": "07",
+     "trainees_interviewed": "6",
+     "q1": "yes",
+     "q2": "no",
+     "tech_topic": "Electrode angle",
+     "tech_result": "most"
+    }
    ]
   },
   "flags": [
@@ -131,40 +160,142 @@
   },
   "checks": {
    "arrival_1": {
-    "answer": "yes",
-    "remarks": ""
+    "answer": "",
+    "remarks": "",
+    "courses": {}
    },
    "arrival_2": {
-    "answer": "yes",
-    "remarks": ""
+    "answer": "",
+    "remarks": "",
+    "courses": {}
    },
    "arrival_3": {
-    "answer": "partial",
-    "remarks": "Theory instead of practical"
+    "answer": "",
+    "remarks": "Theory instead of practical",
+    "courses": {}
    },
    "arrival_4": {
-    "answer": "yes",
-    "remarks": ""
+    "answer": "",
+    "remarks": "",
+    "courses": {}
    },
    "materials_1": {
-    "answer": "yes",
-    "remarks": ""
+    "answer": "partial",
+    "remarks": "Electrical CS not received",
+    "courses": {
+     "c1": "yes",
+     "c2": "no"
+    }
    },
    "materials_2": {
-    "answer": "no",
-    "remarks": "Not printed yet"
+    "answer": "",
+    "remarks": "",
+    "courses": {
+     "c1": "yes"
+    }
    },
    "attendance_register_1": {
-    "answer": "yes",
-    "remarks": ""
+    "answer": "",
+    "remarks": "",
+    "courses": {}
    },
    "attendance_register_2": {
-    "answer": "yes",
-    "remarks": ""
+    "answer": "",
+    "remarks": "",
+    "courses": {}
    },
    "attendance_register_3": {
-    "answer": "na",
-    "remarks": ""
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "materials_3": {
+    "answer": "yes",
+    "remarks": "",
+    "courses": {
+     "c1": "na",
+     "c2": "yes"
+    }
+   },
+   "materials_4": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "materials_5": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_1": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_2": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_3": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_4": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_5": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_7": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_8": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_9": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "assessment_1": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "assessment_2": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "assessment_3": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "assessment_4": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "assessment_5": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "registers_1": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
    }
   },
   "cards": {
@@ -234,6 +365,25 @@
      "_id": "f2",
      "flag": " "
     }
+   ],
+   "interviews": [
+    {
+     "_id": "interviews:c1",
+     "_link": "c1",
+     "course": "Welding (SMAW)",
+     "batch": "07",
+     "trainees_interviewed": "6",
+     "q1": "yes",
+     "q2": "no",
+     "tech_topic": "Electrode angle",
+     "tech_result": "most"
+    },
+    {
+     "_id": "interviews:c2",
+     "_link": "c2",
+     "course": "Electrical Installation",
+     "batch": "03"
+    }
    ]
   },
   "flags": [
@@ -251,40 +401,142 @@
   },
   "checks": {
    "arrival_1": {
-    "answer": "yes",
-    "remarks": ""
+    "answer": "",
+    "remarks": "",
+    "courses": {}
    },
    "arrival_2": {
-    "answer": "yes",
-    "remarks": ""
+    "answer": "",
+    "remarks": "",
+    "courses": {}
    },
    "arrival_3": {
-    "answer": "partial",
-    "remarks": "Theory instead of practical"
+    "answer": "",
+    "remarks": "Theory instead of practical",
+    "courses": {}
    },
    "arrival_4": {
-    "answer": "yes",
-    "remarks": ""
+    "answer": "",
+    "remarks": "",
+    "courses": {}
    },
    "materials_1": {
-    "answer": "yes",
-    "remarks": ""
+    "answer": "partial",
+    "remarks": "Electrical CS not received",
+    "courses": {
+     "c1": "yes",
+     "c2": "no"
+    }
    },
    "materials_2": {
-    "answer": "no",
-    "remarks": "Not printed yet"
+    "answer": "",
+    "remarks": "",
+    "courses": {
+     "c1": "yes"
+    }
    },
    "attendance_register_1": {
-    "answer": "yes",
-    "remarks": ""
+    "answer": "",
+    "remarks": "",
+    "courses": {}
    },
    "attendance_register_2": {
-    "answer": "yes",
-    "remarks": ""
+    "answer": "",
+    "remarks": "",
+    "courses": {}
    },
    "attendance_register_3": {
-    "answer": "na",
-    "remarks": ""
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "materials_3": {
+    "answer": "yes",
+    "remarks": "",
+    "courses": {
+     "c1": "na",
+     "c2": "yes"
+    }
+   },
+   "materials_4": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "materials_5": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_1": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_2": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_3": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_4": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_5": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_7": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_8": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_9": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "assessment_1": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "assessment_2": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "assessment_3": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "assessment_4": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "assessment_5": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "registers_1": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
    }
   },
   "cards": {
@@ -357,6 +609,25 @@
      "_id": "f2",
      "flag": " "
     }
+   ],
+   "interviews": [
+    {
+     "_id": "interviews:c1",
+     "_link": "c1",
+     "course": "Welding (SMAW)",
+     "batch": "07",
+     "trainees_interviewed": "6",
+     "q1": "yes",
+     "q2": "no",
+     "tech_topic": "Electrode angle",
+     "tech_result": "most"
+    },
+    {
+     "_id": "interviews:c2",
+     "_link": "c2",
+     "course": "Electrical Installation",
+     "batch": "03"
+    }
    ]
   },
   "flags": [
@@ -372,13 +643,13 @@
     "flagged": false
    },
    "arrival": {
-    "answered": 4,
+    "answered": 0,
     "total": 4,
-    "done": true,
+    "done": false,
     "flagged": false
    },
    "attendance": {
-    "answered": 6,
+    "answered": 3,
     "total": 7,
     "done": false,
     "flagged": true
@@ -414,10 +685,10 @@
     "flagged": false
    },
    "interview": {
-    "answered": 0,
-    "total": 7,
+    "answered": 5,
+    "total": 20,
     "done": false,
-    "flagged": false
+    "flagged": true
    },
    "graduates": {
     "answered": 0,
@@ -444,16 +715,16 @@
     "flagged": false
    }
   },
-  "sectionsDone": 1,
+  "sectionsDone": 0,
   "sectionsCounted": 10,
   "answerCounts": {
-   "yes": 6,
-   "no": 1,
+   "yes": 1,
+   "no": 0,
    "partial": 1,
-   "na": 1
+   "na": 0
   },
   "unansweredCount": 29,
-  "firstUnanswered": "identity_1",
+  "firstUnanswered": "arrival_1",
   "flagsTicked": [
    "flag_3"
   ],

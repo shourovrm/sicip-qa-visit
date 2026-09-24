@@ -137,19 +137,23 @@
      "items": [
       {
        "id": "arrival_1",
-       "text": "Centre open and training in session at the scheduled time"
+       "text": "Centre open and training in session at the scheduled time",
+       "perCourse": true
       },
       {
        "id": "arrival_2",
-       "text": "Trainer present in each scheduled batch"
+       "text": "Trainer present in each scheduled batch",
+       "perCourse": true
       },
       {
        "id": "arrival_3",
-       "text": "Session being taught matches today's topic in the session plan / TDP"
+       "text": "Session being taught matches today's topic in the session plan / TDP",
+       "perCourse": true
       },
       {
        "id": "arrival_4",
-       "text": "Training calendar displayed and followed"
+       "text": "Training calendar displayed and followed",
+       "perCourse": true
       }
      ]
     }
@@ -245,15 +249,18 @@
      "items": [
       {
        "id": "attendance_register_1",
-       "text": "Attendance register up to date (no blank days)"
+       "text": "Attendance register up to date (no blank days)",
+       "perCourse": true
       },
       {
        "id": "attendance_register_2",
-       "text": "No attendance marked in advance for later sessions"
+       "text": "No attendance marked in advance for later sessions",
+       "perCourse": true
       },
       {
        "id": "attendance_register_3",
-       "text": "Long-absent trainees entered in the dropout register"
+       "text": "Long-absent trainees entered in the dropout register",
+       "perCourse": true
       }
      ],
      "heading": "Attendance register"
@@ -344,23 +351,28 @@
      "items": [
       {
        "id": "materials_1",
-       "text": "Competency Standard (CS) available"
+       "text": "Competency Standard (CS) available",
+       "perCourse": true
       },
       {
        "id": "materials_2",
-       "text": "CBLM provided to each trainee"
+       "text": "CBLM provided to each trainee",
+       "perCourse": true
       },
       {
        "id": "materials_3",
-       "text": "Apron / T-shirt provided to each trainee"
+       "text": "Apron / T-shirt provided to each trainee",
+       "perCourse": true
       },
       {
        "id": "materials_4",
-       "text": "Required PPE provided to trainees"
+       "text": "Required PPE provided to trainees",
+       "perCourse": true
       },
       {
        "id": "materials_5",
-       "text": "PPE worn during practical session"
+       "text": "PPE worn during practical session",
+       "perCourse": true
       }
      ]
     }
@@ -379,23 +391,28 @@
      "items": [
       {
        "id": "delivery_1",
-       "text": "Job sheets / information sheets in use"
+       "text": "Job sheets / information sheets in use",
+       "perCourse": true
       },
       {
        "id": "delivery_2",
-       "text": "Trainees doing hands-on practice (80:20 practice to theory)"
+       "text": "Trainees doing hands-on practice (80:20 practice to theory)",
+       "perCourse": true
       },
       {
        "id": "delivery_3",
-       "text": "Required tools and equipment available and in use"
+       "text": "Required tools and equipment available and in use",
+       "perCourse": true
       },
       {
        "id": "delivery_4",
-       "text": "Consumables available and being used"
+       "text": "Consumables available and being used",
+       "perCourse": true
       },
       {
        "id": "delivery_5",
-       "text": "Fire extinguisher available and inspection date valid"
+       "text": "Fire extinguisher available and inspection date valid",
+       "perCourse": true
       },
       {
        "id": "delivery_6",
@@ -403,15 +420,18 @@
       },
       {
        "id": "delivery_7",
-       "text": "Safety and PPE signs displayed in workshop"
+       "text": "Safety and PPE signs displayed in workshop",
+       "perCourse": true
       },
       {
        "id": "delivery_8",
-       "text": "Women and trainees with disabilities taking part equally"
+       "text": "Women and trainees with disabilities taking part equally",
+       "perCourse": true
       },
       {
        "id": "delivery_9",
-       "text": "Industry logbook filled up to date (industry-based centres only)"
+       "text": "Industry logbook filled up to date (industry-based centres only)",
+       "perCourse": true
       }
      ]
     }
@@ -422,7 +442,7 @@
    "key": "assessment",
    "short": "Assessment",
    "title": "Formative assessment",
-   "note": "Ask for the latest formative assessment paper and result sheet of one running batch.",
+   "note": "Ask for the latest formative assessment paper and result sheet of each running batch.",
    "blocks": [
     {
      "type": "checklist",
@@ -430,23 +450,28 @@
      "items": [
       {
        "id": "assessment_1",
-       "text": "Formative assessments held as per assessment plan"
+       "text": "Formative assessments held as per assessment plan",
+       "perCourse": true
       },
       {
        "id": "assessment_2",
-       "text": "Formative assessment includes relevant technical questions for the unit of competency"
+       "text": "Formative assessment includes relevant technical questions for the unit of competency",
+       "perCourse": true
       },
       {
        "id": "assessment_3",
-       "text": "Practical assessment uses a demonstration / observation checklist"
+       "text": "Practical assessment uses a demonstration / observation checklist",
+       "perCourse": true
       },
       {
        "id": "assessment_4",
-       "text": "OHS included in the assessment"
+       "text": "OHS included in the assessment",
+       "perCourse": true
       },
       {
        "id": "assessment_5",
-       "text": "Formative assessment results recorded"
+       "text": "Formative assessment results recorded",
+       "perCourse": true
       }
      ]
     }
@@ -464,7 +489,8 @@
      "items": [
       {
        "id": "registers_1",
-       "text": "Daily consumption register updated today"
+       "text": "Daily consumption register updated",
+       "perCourse": true
       },
       {
        "id": "registers_2",
@@ -483,62 +509,265 @@
    "key": "interview",
    "short": "Trainees",
    "title": "Trainee interviews (no staff present)",
-   "note": "Talk with a group of trainees away from centre staff and record their general response.",
+   "note": "Talk with a group of trainees of each course away from centre staff. Ask one technical question from a unit they have covered.",
    "blocks": [
     {
-     "type": "fields",
+     "type": "cards",
+     "key": "interviews",
+     "itemLabel": "Course",
+     "start": 0,
+     "titleField": "course",
+     "display": "tabs",
+     "linkFrom": {
+      "cards": "courses",
+      "fields": [
+       "course",
+       "batch"
+      ]
+     },
      "fields": [
       {
-       "key": "interview_trainee_count",
-       "label": "Trainees interviewed",
-       "kind": "number"
-      },
-      {
-       "key": "interview_courses",
-       "label": "Course(s)",
+       "key": "course",
+       "label": "Course",
        "kind": "text"
-      }
-     ]
-    },
-    {
-     "type": "checklist",
-     "key": "interview",
-     "items": [
-      {
-       "id": "interview_1",
-       "text": "Classes run on all scheduled days and hours"
       },
       {
-       "id": "interview_2",
-       "text": "No fee charged to trainees"
+       "key": "batch",
+       "label": "Batch no.",
+       "kind": "text"
       },
       {
-       "id": "interview_3",
-       "text": "Trainees receive stipend / allowance on time"
+       "key": "trainees_interviewed",
+       "label": "Trainees interviewed",
+       "kind": "number",
+       "required": true
       },
       {
-       "id": "interview_4",
-       "text": "Trainees received CBLM and apron / T-shirt"
+       "key": "q1",
+       "label": "Classes run on all scheduled days and hours",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "yes",
+         "label": "Yes",
+         "tone": "yes"
+        },
+        {
+         "id": "no",
+         "label": "No",
+         "tone": "no"
+        },
+        {
+         "id": "partial",
+         "label": "Partial",
+         "tone": "partial"
+        },
+        {
+         "id": "na",
+         "label": "N/A",
+         "tone": "na"
+        }
+       ],
+       "required": true
       },
       {
-       "id": "interview_5",
-       "text": "Trainees get enough hands-on practice with tools"
+       "key": "q2",
+       "label": "No fee charged to trainees",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "yes",
+         "label": "Yes",
+         "tone": "yes"
+        },
+        {
+         "id": "no",
+         "label": "No",
+         "tone": "no"
+        },
+        {
+         "id": "partial",
+         "label": "Partial",
+         "tone": "partial"
+        },
+        {
+         "id": "na",
+         "label": "N/A",
+         "tone": "na"
+        }
+       ],
+       "required": true
       },
       {
-       "id": "interview_6",
-       "text": "Formative assessments have been held"
+       "key": "q3",
+       "label": "Trainees receive stipend / allowance on time",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "yes",
+         "label": "Yes",
+         "tone": "yes"
+        },
+        {
+         "id": "no",
+         "label": "No",
+         "tone": "no"
+        },
+        {
+         "id": "partial",
+         "label": "Partial",
+         "tone": "partial"
+        },
+        {
+         "id": "na",
+         "label": "N/A",
+         "tone": "na"
+        }
+       ],
+       "required": true
       },
       {
-       "id": "interview_7",
-       "text": "Job placement / career counselling provided"
-      }
-     ]
-    },
-    {
-     "type": "fields",
-     "fields": [
+       "key": "q4",
+       "label": "Trainees received CBLM and apron / T-shirt",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "yes",
+         "label": "Yes",
+         "tone": "yes"
+        },
+        {
+         "id": "no",
+         "label": "No",
+         "tone": "no"
+        },
+        {
+         "id": "partial",
+         "label": "Partial",
+         "tone": "partial"
+        },
+        {
+         "id": "na",
+         "label": "N/A",
+         "tone": "na"
+        }
+       ],
+       "required": true
+      },
       {
-       "key": "interview_feedback",
+       "key": "q5",
+       "label": "Trainees get enough hands-on practice with tools",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "yes",
+         "label": "Yes",
+         "tone": "yes"
+        },
+        {
+         "id": "no",
+         "label": "No",
+         "tone": "no"
+        },
+        {
+         "id": "partial",
+         "label": "Partial",
+         "tone": "partial"
+        },
+        {
+         "id": "na",
+         "label": "N/A",
+         "tone": "na"
+        }
+       ],
+       "required": true
+      },
+      {
+       "key": "q6",
+       "label": "Formative assessments have been held",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "yes",
+         "label": "Yes",
+         "tone": "yes"
+        },
+        {
+         "id": "no",
+         "label": "No",
+         "tone": "no"
+        },
+        {
+         "id": "partial",
+         "label": "Partial",
+         "tone": "partial"
+        },
+        {
+         "id": "na",
+         "label": "N/A",
+         "tone": "na"
+        }
+       ],
+       "required": true
+      },
+      {
+       "key": "q7",
+       "label": "Job placement / career counselling provided",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "yes",
+         "label": "Yes",
+         "tone": "yes"
+        },
+        {
+         "id": "no",
+         "label": "No",
+         "tone": "no"
+        },
+        {
+         "id": "partial",
+         "label": "Partial",
+         "tone": "partial"
+        },
+        {
+         "id": "na",
+         "label": "N/A",
+         "tone": "na"
+        }
+       ],
+       "required": true
+      },
+      {
+       "key": "tech_topic",
+       "label": "Technical topic asked (from a unit already covered)",
+       "kind": "longtext",
+       "required": true
+      },
+      {
+       "key": "tech_result",
+       "label": "Could the trainees answer it?",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "most",
+         "label": "Most could",
+         "tone": "yes"
+        },
+        {
+         "id": "some",
+         "label": "Some could",
+         "tone": "partial"
+        },
+        {
+         "id": "none",
+         "label": "None could",
+         "tone": "no"
+        }
+       ]
+      },
+      {
+       "key": "feedback",
        "label": "Complaints or other feedback",
        "kind": "longtext"
       }

@@ -40,6 +40,49 @@ def sync_links(template, data):
     return data
 
 
+# ids of today's courses (section A) that per-course items split by
+def course_ids(data):
+    return [c["_id"] for c in data.get("cards", {}).get("courses", []) if not blank(c.get("course"))]
+
+
+def derive_answer(values):
+    if any(blank(v) for v in values):
+        return ""
+    real = [v for v in values if v != "na"]
+    if not real:
+        return "na"
+    return real[0] if all(v == real[0] for v in real) else "partial"
+
+
+# per-course items (template "perCourse": true) with 2+ courses: keep only current course ids
+# in checks[item].courses and store the derived overall answer in checks[item].answer
+# ("" until every course is answered). with 0-1 courses the item is a plain single answer.
+def sync_per_course(template, data):
+    ids = course_ids(data)
+    if len(ids) < 2:
+        return data
+    checks = data.setdefault("checks", {})
+    for _, block in all_blocks(template):
+        if block["type"] != "checklist":
+            continue
+        for item in block["items"]:
+            if not item.get("perCourse"):
+                continue
+            check = checks.setdefault(item["id"], {"answer": "", "remarks": ""})
+            per = check.get("courses", {})
+            check["courses"] = {cid: per[cid] for cid in ids if cid in per}
+            check["answer"] = derive_answer([check["courses"].get(cid, "") for cid in ids])
+            check.setdefault("remarks", "")
+    return data
+
+
+# the one normalisation step every client runs after each edit and on open
+def normalize(template, data):
+    sync_links(template, data)
+    sync_per_course(template, data)
+    return data
+
+
 def compare_mismatch(compare, card):
     values = [int(card[k]) for k in compare["fields"] if not blank(card.get(k))]
     return len(values) >= 2 and len(set(values)) > 1
@@ -65,10 +108,12 @@ def section_progress(section, data):
         if kind == "checklist":
             for item in block["items"]:
                 total += 1
-                answer = (data.get("checks", {}).get(item["id"]) or {}).get("answer")
+                check = data.get("checks", {}).get(item["id"]) or {}
+                answer = check.get("answer")
                 if not blank(answer):
                     answered += 1
-                if answer == "no":
+                per_course = check.get("courses", {}) if item.get("perCourse") and len(course_ids(data)) >= 2 else {}
+                if answer == "no" or "no" in per_course.values():
                     flagged = True
         elif kind == "fields":
             for field in block["fields"]:
@@ -172,14 +217,20 @@ def fixture_1():
         },
         "flags": ["flag_3"],
     }
+    # E1 CS: welding yes, electrical no -> partial + flagged. E2: only one course answered -> blank
+    data["checks"]["materials_1"] = {"answer": "", "remarks": "Electrical CS not received", "courses": {"c1": "yes", "c2": "no", "gone": "yes"}}
+    data["checks"]["materials_2"] = {"answer": "yes", "remarks": "", "courses": {"c1": "yes"}}
+    data["checks"]["materials_3"] = {"answer": "", "remarks": "", "courses": {"c1": "na", "c2": "yes"}}
+    data["cards"]["interviews"] = [{"_id": "interviews:c1", "_link": "c1", "course": "Welding (SMAW)", "batch": "07",
+                                    "trainees_interviewed": "6", "q1": "yes", "q2": "no", "tech_topic": "Electrode angle", "tech_result": "most"}]
     before = json.loads(json.dumps(data))
-    sync_links(TEMPLATE, data)
+    normalize(TEMPLATE, data)
     synced = json.loads(json.dumps(data))
     # fill the newly linked c1 card after sync, as an officer would
     for card in data["cards"]["attendance"]:
         if card["_link"] == "c1":
             card.update({"present_total": "17", "register": "23", "tms": "23"})
-    # tests: syncLinks(before_sync) == synced; progress(data) == expected
+    # tests: normalize(before_sync) == synced; progress(data) == expected
     return {"template": "surprise-v1.json", "before_sync": before, "synced": synced, "data": data,
             "expected": report_progress(TEMPLATE, data)}
 
