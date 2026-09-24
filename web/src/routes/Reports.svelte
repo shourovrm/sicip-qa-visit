@@ -162,7 +162,7 @@
           <Dropdown id="rvisit" bind:value={newVisitId} placeholder="Select a visit"
             options={myVisits.map((v) => [v.id, `${v.institute} — ${v.start_date}`])} />
           {#if myVisits.length === 0}
-            <p class="hint">No matching visits. This report is for visits with purpose: {newTypePurposes.join(' or ')}.</p>
+            <p class="hint">No matching visits.</p>
           {/if}
         </div>
         <div class="row">

@@ -302,7 +302,7 @@ private fun NewReportSheet(
             Text("FOR VISIT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (visits.isEmpty()) {
                 Text(
-                    "No matching visits in the last 30 days or the next 7. This report is for visits with purpose: ${template.purposes.joinToString(" or ")}.",
+                    "No matching visits in the last 30 days or the next 7.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
