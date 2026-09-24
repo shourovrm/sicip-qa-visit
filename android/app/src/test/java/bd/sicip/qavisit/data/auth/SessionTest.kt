@@ -2,6 +2,7 @@
 // android context and is compile-checked, not unit-tested (no robolectric here — yagni).
 package bd.sicip.qavisit.data.auth
 
+import bd.sicip.qavisit.data.remote.SupabaseException
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -30,5 +31,22 @@ class SessionTest {
 
     @Test fun valid_just_outside_skew_window() {
         assertTrue(session(expiresAt = 1_000).valid(nowEpochSeconds = 939))
+    }
+
+    // offline officers must not be logged out by a dead network
+    @Test fun network_failure_keeps_session() {
+        assertFalse(isRefreshRejected(java.net.SocketTimeoutException("timeout")))
+        assertFalse(isRefreshRejected(java.io.IOException("no route")))
+    }
+
+    @Test fun server_error_and_rate_limit_keep_session() {
+        assertFalse(isRefreshRejected(SupabaseException(503, "")))
+        assertFalse(isRefreshRejected(SupabaseException(429, "")))
+    }
+
+    @Test fun refused_refresh_token_clears_session() {
+        val body = """{"code":400,"error_code":"refresh_token_already_used","msg":"Invalid Refresh Token: Already Used"}"""
+        assertTrue(isRefreshRejected(SupabaseException(400, body)))
+        assertTrue(isRefreshRejected(SupabaseException(403, "")))
     }
 }

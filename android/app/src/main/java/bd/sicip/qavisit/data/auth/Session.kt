@@ -8,9 +8,12 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import bd.sicip.qavisit.data.remote.SupabaseClient
+import bd.sicip.qavisit.data.remote.SupabaseException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 data class Session(
     val accessToken: String,
@@ -26,6 +29,18 @@ private const val SKEW_SECONDS = 60L
 
 fun Session.valid(nowEpochSeconds: Long = System.currentTimeMillis() / 1000): Boolean =
     nowEpochSeconds < expiresAt - SKEW_SECONDS
+
+// only a 4xx from gotrue means the refresh token itself was refused (revoked, already
+// used, user gone). network errors, timeouts, 5xx and 429 are transient: keep the session.
+fun isRefreshRejected(error: Throwable): Boolean {
+    if (error !is SupabaseException) return false
+    if (error.code == 408 || error.code == 429) return false
+    return error.code in 400..499
+}
+
+// one refresh in flight app-wide: gotrue rotates refresh tokens, and a second caller
+// reusing the old one gets the whole session logged out server-side.
+private val refreshLock = Mutex()
 
 private val Context.sessionDataStore by preferencesDataStore(name = "session_prefs")
 private val ACCESS_TOKEN = stringPreferencesKey("access_token")
@@ -63,18 +78,19 @@ class SessionStore(private val context: Context) {
     }
 
     // returns a session with a still-fresh access token, refreshing it first if it's
-    // near expiry. if the refresh itself fails (refresh token revoked/expired), the
-    // stored session is cleared so the app falls back to the login screen.
-    suspend fun ensureFresh(client: SupabaseClient): Session? {
-        val current = current() ?: return null
-        if (current.valid()) return current
-        return try {
+    // near expiry. clears the session (-> login screen) only when the server refuses the
+    // refresh token; a transient failure returns null and the next sync retries.
+    suspend fun ensureFresh(client: SupabaseClient): Session? = refreshLock.withLock {
+        // re-read under the lock: a concurrent caller may have just refreshed
+        val current = current() ?: return@withLock null
+        if (current.valid()) return@withLock current
+        try {
             val r = client.refresh(current.refreshToken)
             val fresh = Session(r.accessToken, r.refreshToken, r.expiresAt, r.userId, current.email)
             save(fresh)
             fresh
         } catch (e: Exception) {
-            clear()
+            if (isRefreshRejected(e)) clear()
             null
         }
     }

@@ -64,7 +64,9 @@ class SyncEngine(
     // cycle (next scheduled run picks up where this one left off) -- the error is carried
     // in the result, never thrown, so a worker/caller doesn't need a try/catch of its own.
     suspend fun syncAll(): SyncResult {
-        val session = sessionStore.ensureFresh(client) ?: return SyncResult(error = "not logged in")
+        // null = logged out, or refresh failed offline (session kept, retry later)
+        val session = sessionStore.ensureFresh(client)
+            ?: return SyncResult(error = if (sessionStore.current() == null) "not logged in" else "refresh failed")
         val token = session.accessToken
         val pushed = mutableMapOf<String, Int>()
         val pulled = mutableMapOf<String, Int>()
