@@ -294,7 +294,7 @@ private fun NewReportSheet(
             Text("New report", style = MaterialTheme.typography.titleLarge)
 
             Text("TYPE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            TypeOptionRow(label = "Surprise visit", subtitle = "13 sections · 38 items", selected = true, enabled = true, onClick = {})
+            TypeOptionRow(label = "Surprise visit", subtitle = templateSummary(template), selected = true, enabled = true, onClick = {})
             TypeOptionRow(label = "Monitoring / QA visit", subtitle = "Coming in a later version", selected = false, enabled = false, onClick = {})
 
             Text("FOR VISIT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

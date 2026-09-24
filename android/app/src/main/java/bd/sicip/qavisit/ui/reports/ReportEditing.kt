@@ -32,7 +32,7 @@ import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Report
 import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportTemplate
-import bd.sicip.qavisit.domain.report.syncLinks
+import bd.sicip.qavisit.domain.report.normalize
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -51,7 +51,7 @@ class ReportEditor(initialReport: Report, private val db: AppDb, private val tem
 
     var report by mutableStateOf(initialReport)
         private set
-    var data by mutableStateOf(syncLinks(template, ReportData.parse(initialReport.data)))
+    var data by mutableStateOf(normalize(template, ReportData.parse(initialReport.data)))
         private set
 
     // submitted reports are read-only on both platforms (spec, "Lifecycle") -- the UI must not
@@ -59,12 +59,13 @@ class ReportEditor(initialReport: Report, private val db: AppDb, private val tem
     val readOnly: Boolean get() = report.status == "submitted"
 
     init {
-        // spec: "Run [syncLinks] after EVERY edit and when a report is opened" -- opening this
+        // spec: "Run [normalize] after EVERY edit and when a report is opened" -- opening this
         // report just now may already have changed something (a course added/renamed in section
-        // A since this report's last save, a stale linked card whose source is gone). Persist
-        // that immediately so Room -- and the other platform, next sync -- see it without
-        // waiting for the officer's next edit. No-op (no write) when syncLinks changed nothing,
-        // which keeps re-opening an already-synced report free of churn.
+        // A since this report's last save, a stale linked card whose source is gone, a course
+        // removed since a perCourse item's per-course breakdown was last saved). Persist that
+        // immediately so Room -- and the other platform, next sync -- see it without waiting for
+        // the officer's next edit. No-op (no write) when normalize changed nothing, which keeps
+        // re-opening an already-normalized report free of churn.
         val parsed = ReportData.parse(initialReport.data)
         if (!readOnly && data.toJsonString() != parsed.toJsonString()) {
             saveJob = scope.launch { persist() }
@@ -82,8 +83,9 @@ class ReportEditor(initialReport: Report, private val db: AppDb, private val tem
     private fun commit(newData: ReportData, debounceMs: Long) {
         if (readOnly) return
         // spec: "Run it after EVERY edit" -- e.g. filling in a course in section A must
-        // immediately (re)link section C's attendance card, not wait for the next edit there.
-        data = syncLinks(template, newData)
+        // immediately (re)link section C's attendance card (and re-derive every perCourse
+        // item's overall answer), not wait for the next edit there.
+        data = normalize(template, newData)
         saveJob?.cancel()
         saveJob = scope.launch {
             if (debounceMs > 0) delay(debounceMs)

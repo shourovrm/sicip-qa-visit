@@ -62,6 +62,15 @@ data class ReportData(val root: JsonObject) {
     fun checkRemarks(itemId: String): String =
         (checksObj[itemId] as? JsonObject)?.get("remarks")?.jsonPrimitive?.contentOrNull ?: ""
 
+    // a perCourse checklist item's per-course answers (spec CHANGE SET 3), keyed by course
+    // card _id -- empty for a non-perCourse item or one nobody has answered per-course yet.
+    // the item's overall `answer` (checkAnswer above) is DERIVED from these by
+    // ReportLinks.kt's syncPerCourse, never written here directly.
+    fun checkCourses(itemId: String): Map<String, String> {
+        val coursesObj = (checksObj[itemId] as? JsonObject)?.get("courses") as? JsonObject ?: return emptyMap()
+        return coursesObj.mapValues { (_, v) -> v.jsonPrimitive.contentOrNull ?: "" }
+    }
+
     // raw per-card objects for a cards block -- read a field with card[key]?.jsonPrimitive?.contentOrNull.
     fun cards(cardsKey: String): List<JsonObject> =
         (cardsObj[cardsKey] as? JsonArray)?.map { it.jsonObject } ?: emptyList()
@@ -96,6 +105,32 @@ data class ReportData(val root: JsonObject) {
         if (!existing.containsKey("remarks")) existing["remarks"] = JsonPrimitive("")
         if (answer != null) existing["answer"] = JsonPrimitive(answer)
         if (remarks != null) existing["remarks"] = JsonPrimitive(remarks)
+        val newChecks = JsonObject(checksObj.toMutableMap().apply { put(itemId, JsonObject(existing)) })
+        return withRoot("checks", newChecks)
+    }
+
+    // the officer's actual edit action on one course's row of a perCourse item -- this only
+    // writes that one course's answer, it does NOT touch the item's overall `answer`;
+    // normalize() (ReportLinks.kt's syncPerCourse) derives that on the next pass, same as every
+    // other autosaved edit.
+    fun withCheckCourse(itemId: String, courseId: String, answer: String): ReportData {
+        val existing = (checksObj[itemId] as? JsonObject)?.toMutableMap() ?: mutableMapOf()
+        if (!existing.containsKey("answer")) existing["answer"] = JsonPrimitive("")
+        if (!existing.containsKey("remarks")) existing["remarks"] = JsonPrimitive("")
+        val coursesObj = ((existing["courses"] as? JsonObject)?.toMutableMap()) ?: mutableMapOf()
+        coursesObj[courseId] = JsonPrimitive(answer)
+        existing["courses"] = JsonObject(coursesObj)
+        val newChecks = JsonObject(checksObj.toMutableMap().apply { put(itemId, JsonObject(existing)) })
+        return withRoot("checks", newChecks)
+    }
+
+    // ReportLinks.kt's syncPerCourse writes the derived overall answer + the filtered
+    // per-course map back in one shot; remarks (and any other unknown key) pass through untouched.
+    fun withCheckCoursesReplaced(itemId: String, courses: Map<String, String>, derivedAnswer: String): ReportData {
+        val existing = (checksObj[itemId] as? JsonObject)?.toMutableMap() ?: mutableMapOf()
+        if (!existing.containsKey("remarks")) existing["remarks"] = JsonPrimitive("")
+        existing["answer"] = JsonPrimitive(derivedAnswer)
+        existing["courses"] = JsonObject(courses.mapValues { (_, v) -> JsonPrimitive(v) })
         val newChecks = JsonObject(checksObj.toMutableMap().apply { put(itemId, JsonObject(existing)) })
         return withRoot("checks", newChecks)
     }

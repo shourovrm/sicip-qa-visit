@@ -32,7 +32,7 @@ fun newReport(
                 }
 
                 is ReportBlock.Cards -> {
-                    // linked blocks (e.g. attendance) get their rows from syncLinks below, never
+                    // linked blocks (e.g. attendance) get their rows from normalize below, never
                     // from `start` seeding -- their own `start` is 0 in the template anyway, but
                     // this guard is the one place that rule actually lives in code.
                     if (block.linkFrom == null) {
@@ -49,7 +49,7 @@ fun newReport(
     // spec: "Run it after EVERY edit and when a report is opened" -- a brand-new report counts
     // as both (its first open), so a template whose seeded source cards already carry linked
     // field values would show its derived cards immediately instead of after the first edit.
-    return syncLinks(template, data)
+    return normalize(template, data)
 }
 
 private fun prefillValue(

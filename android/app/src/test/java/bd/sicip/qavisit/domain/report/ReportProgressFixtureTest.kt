@@ -4,10 +4,12 @@
 // "../../shared/..." lands on the repo-root shared/ folder both platforms read from. No test
 // fixture is duplicated into this module: a change to the shared JSON is what this test reacts to.
 //
-// CHANGE SET 2 added a second contract on top of progress: syncLinks(before_sync) must equal
+// CHANGE SET 2 added a second contract on top of progress: normalize(before_sync) must equal
 // `synced` exactly (deep equal) -- reference.py's fixture_1() proves both rules against the same
 // hand-built scenario (a stale linked card whose source is gone gets dropped, an existing linked
-// card keeps its own answers, a newly-linkable source gets a fresh target card).
+// card keeps its own answers, a newly-linkable source gets a fresh target card). CHANGE SET 3
+// folded syncPerCourse into that same normalize() step (a perCourse item's per-course answers
+// derive its overall answer once section A has 2+ named courses).
 package bd.sicip.qavisit.domain.report
 
 import kotlinx.serialization.SerialName
@@ -54,10 +56,10 @@ private fun loadFixture(): Pair<ReportTemplate, FixtureFile> {
 
 class ReportProgressFixtureTest {
     @Test
-    fun `syncLinks(before_sync) matches synced exactly`() {
+    fun `normalize(before_sync) matches synced exactly`() {
         val (template, fixture) = loadFixture()
 
-        val actual = syncLinks(template, ReportData(fixture.beforeSync))
+        val actual = normalize(template, ReportData(fixture.beforeSync))
 
         // deep-equal on the parsed JsonObject, not the raw string -- key order inside an
         // object never matters for this contract, only the structure/values do.

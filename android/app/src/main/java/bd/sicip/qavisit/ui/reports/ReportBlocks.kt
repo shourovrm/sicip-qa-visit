@@ -14,6 +14,7 @@ import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -55,12 +57,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.domain.report.AnswerOption
+import bd.sicip.qavisit.domain.report.ChecklistItem
 import bd.sicip.qavisit.domain.report.Field
 import bd.sicip.qavisit.domain.report.ReportBlock
 import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportSection
 import bd.sicip.qavisit.domain.report.ReportTemplate
 import bd.sicip.qavisit.domain.report.cardCompareMismatch
+import bd.sicip.qavisit.domain.report.cardCountedProgress
+import bd.sicip.qavisit.domain.report.courseIds
 import bd.sicip.qavisit.ui.common.PickerDropdown
 import bd.sicip.qavisit.ui.common.TimeField
 import bd.sicip.qavisit.ui.common.showDatePicker
@@ -238,7 +243,9 @@ fun FieldsBlockView(block: ReportBlock.Fields, data: ReportData, readOnly: Boole
 
 // one checklist item: numbered question, 4 answer buttons (template.answers, always in that
 // order regardless of how many options a `choice` field elsewhere has), remarks collapsed
-// behind an "Add remarks" link until tapped or already non-blank.
+// behind an "Add remarks" link until tapped or already non-blank. A `perCourse` item (spec
+// CHANGE SET 3) switches to one answer row per today's course -- see coursesForPerCourseRows
+// below for the 2+-courses threshold -- with a single shared remarks box underneath.
 @Composable
 fun ChecklistBlockView(
     block: ReportBlock.Checklist,
@@ -249,40 +256,135 @@ fun ChecklistBlockView(
     startIndex: Int = 1,
     modifier: Modifier = Modifier,
 ) {
+    // computed once per recomposition of the whole block, not per item -- every perCourse item
+    // in this block (and there can be several) shares the same "is per-course active" answer.
+    val perCourseIds = courseIds(data).takeIf { it.size >= 2 } ?: emptyList()
+
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         block.heading?.let { Text(it, style = MaterialTheme.typography.titleSmall) }
         block.items.forEachIndexed { i, item ->
-            val answer = data.checkAnswer(item.id)
-            val remarks = data.checkRemarks(item.id)
-            var remarksOpen by remember(item.id) { mutableStateOf(remarks.isNotBlank()) }
-
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        "${startIndex + i}. ${item.text}",
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                    AnswerButtons(
-                        options = answers,
-                        selected = answer,
-                        readOnly = readOnly,
-                        onSelect = { v -> editor.editNow(data.withCheck(item.id, answer = v)) },
-                    )
-                    if (remarksOpen) {
-                        OutlinedTextField(
-                            value = remarks,
-                            onValueChange = { v -> editor.editDebounced(data.withCheck(item.id, remarks = v)) },
-                            label = { Text("Remarks") },
-                            readOnly = readOnly,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    } else if (!readOnly) {
-                        TextButton(onClick = { remarksOpen = true }) { Text("Add remarks") }
-                    }
-                }
+            val number = startIndex + i
+            if (item.perCourse && perCourseIds.isNotEmpty()) {
+                PerCourseChecklistItemCard(item, number, perCourseIds, answers, data, readOnly, editor)
+            } else {
+                SingleAnswerChecklistItemCard(item, number, answers, data, readOnly, editor)
             }
         }
     }
+}
+
+@Composable
+private fun SingleAnswerChecklistItemCard(
+    item: ChecklistItem,
+    number: Int,
+    answers: List<AnswerOption>,
+    data: ReportData,
+    readOnly: Boolean,
+    editor: ReportEditor,
+) {
+    val answer = data.checkAnswer(item.id)
+    val remarks = data.checkRemarks(item.id)
+    var remarksOpen by remember(item.id) { mutableStateOf(remarks.isNotBlank()) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("$number. ${item.text}", style = MaterialTheme.typography.bodyLarge)
+            AnswerButtons(
+                options = answers,
+                selected = answer,
+                readOnly = readOnly,
+                onSelect = { v -> editor.editNow(data.withCheck(item.id, answer = v)) },
+            )
+            ChecklistRemarksField(item, remarks, remarksOpen, readOnly, data, editor) { remarksOpen = true }
+        }
+    }
+}
+
+// spec: "such an item shows ONE ROW PER COURSE ... plus one shared remarks box; a small 'Per
+// course' tag next to the question. Writes go to checks.<item>.courses.<courseCardId>" --
+// normalize() (ReportLinks.kt's syncPerCourse) derives the item's overall answer from these on
+// the next pass, this view never computes or writes that derived value itself.
+@Composable
+private fun PerCourseChecklistItemCard(
+    item: ChecklistItem,
+    number: Int,
+    courseCardIds: List<String>,
+    answers: List<AnswerOption>,
+    data: ReportData,
+    readOnly: Boolean,
+    editor: ReportEditor,
+) {
+    val coursesByid = remember(data) { data.cards("courses").associateBy { it["_id"]?.jsonPrimitive?.contentOrNull } }
+    val perCourseAnswers = data.checkCourses(item.id)
+    val remarks = data.checkRemarks(item.id)
+    var remarksOpen by remember(item.id) { mutableStateOf(remarks.isNotBlank()) }
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("$number. ${item.text}", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                PerCourseTag()
+            }
+            courseCardIds.forEach { courseId ->
+                val course = coursesByid[courseId]
+                val courseLabel = course?.get("course")?.jsonPrimitive?.contentOrNull.orEmpty()
+                val batch = course?.get("batch")?.jsonPrimitive?.contentOrNull.orEmpty()
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column {
+                        Text(courseLabel, style = MaterialTheme.typography.bodyMedium)
+                        if (batch.isNotBlank()) {
+                            Text("Batch $batch", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    AnswerButtons(
+                        options = answers,
+                        selected = perCourseAnswers[courseId] ?: "",
+                        readOnly = readOnly,
+                        onSelect = { v -> editor.editNow(data.withCheckCourse(item.id, courseId, v)) },
+                    )
+                }
+            }
+            ChecklistRemarksField(item, remarks, remarksOpen, readOnly, data, editor) { remarksOpen = true }
+        }
+    }
+}
+
+// the one remarks box, shared by both the single-answer and per-course checklist item cards --
+// spec: perCourse items still get "one shared remarks box", not one per course.
+@Composable
+private fun ChecklistRemarksField(
+    item: ChecklistItem,
+    remarks: String,
+    remarksOpen: Boolean,
+    readOnly: Boolean,
+    data: ReportData,
+    editor: ReportEditor,
+    onOpen: () -> Unit,
+) {
+    if (remarksOpen) {
+        OutlinedTextField(
+            value = remarks,
+            onValueChange = { v -> editor.editDebounced(data.withCheck(item.id, remarks = v)) },
+            label = { Text("Remarks") },
+            readOnly = readOnly,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    } else if (!readOnly) {
+        TextButton(onClick = onOpen) { Text("Add remarks") }
+    }
+}
+
+// small "PER COURSE" tag next to a perCourse item's question (spec).
+@Composable
+fun PerCourseTag(modifier: Modifier = Modifier) {
+    Text(
+        "PER COURSE",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(99))
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+    )
 }
 
 // the section whose OWN cards block a `linkFrom` block follows (e.g. "courses" lives in
@@ -310,8 +412,14 @@ fun CardsBlockView(
     val entries = data.cards(block.key)
     val link = block.linkFrom
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        entries.forEachIndexed { index, entry ->
-            CardEntryView(block, entry, index, data, readOnly, editor)
+        if (block.display == "tabs") {
+            // section I's interviews: one course tab at a time instead of a stacked list --
+            // spec CHANGE SET 3.
+            if (entries.isNotEmpty()) InterviewTabsView(block, entries, template.answers, data, readOnly, editor)
+        } else {
+            entries.forEachIndexed { index, entry ->
+                CardEntryView(block, entry, index, data, readOnly, editor)
+            }
         }
         when {
             // linked cards are entirely derived (syncLinks) -- officer never adds/removes one
@@ -338,6 +446,119 @@ fun CardsBlockView(
                     Spacer(Modifier.width(6.dp))
                     Text("Add ${block.itemLabel}")
                 }
+            }
+        }
+    }
+}
+
+// section I: a course tab strip (one tab per linked interview card, label = course · batch from
+// linkedCardHeader, "x/y answered" subtitle, green once that card's own counted fields are all
+// answered) showing one course's card at a time -- spec CHANGE SET 3's `"display": "tabs"`.
+@Composable
+private fun InterviewTabsView(
+    block: ReportBlock.Cards,
+    entries: List<JsonObject>,
+    templateAnswers: List<AnswerOption>,
+    data: ReportData,
+    readOnly: Boolean,
+    editor: ReportEditor,
+) {
+    var selectedIndex by remember(block.key) { mutableStateOf(0) }
+    val safeIndex = selectedIndex.coerceIn(0, entries.size - 1)
+
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            entries.forEachIndexed { index, entry ->
+                val (answered, total) = cardCountedProgress(block, entry)
+                InterviewTab(
+                    title = linkedCardHeader(block, entry),
+                    subtitle = "$answered/$total answered",
+                    selected = index == safeIndex,
+                    done = total > 0 && answered == total,
+                    onClick = { selectedIndex = index },
+                )
+            }
+        }
+        val selectedEntry = entries.getOrNull(safeIndex)
+        if (selectedEntry != null) {
+            InterviewCardFields(block, selectedEntry, safeIndex, templateAnswers, data, readOnly, editor)
+        }
+    }
+}
+
+@Composable
+private fun InterviewTab(title: String, subtitle: String, selected: Boolean, done: Boolean, onClick: () -> Unit) {
+    val tones = LocalToneColors.current
+    val bg = when {
+        done -> tones.yes
+        selected -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.surface
+    }
+    val fg = when {
+        done -> Color.White
+        selected -> MaterialTheme.colorScheme.onPrimaryContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Column(
+        modifier = Modifier
+            .width(128.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(bg)
+            .border(1.5.dp, if (selected || done) bg else MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(title, style = MaterialTheme.typography.labelMedium, color = fg, maxLines = 2)
+        Text(subtitle, style = MaterialTheme.typography.labelSmall, color = fg)
+    }
+}
+
+// q1..q7 (a choice field whose options are exactly the template's own yes/no/partial/na answer
+// set) render like a checklist answer row; every other field on the card (trainees_interviewed,
+// tech_topic, tech_result, feedback) renders through the normal FieldEditor. course/batch are
+// skipped entirely -- already shown read-only as the tab's own label.
+private fun looksLikeAnswerChoice(field: Field, templateAnswers: List<AnswerOption>): Boolean =
+    field.kind == "choice" && field.choiceOptions().map { it.id }.toSet() == templateAnswers.map { it.id }.toSet()
+
+@Composable
+private fun InterviewCardFields(
+    block: ReportBlock.Cards,
+    entry: JsonObject,
+    index: Int,
+    templateAnswers: List<AnswerOption>,
+    data: ReportData,
+    readOnly: Boolean,
+    editor: ReportEditor,
+) {
+    val linkedKeys = block.linkFrom?.fields?.toSet() ?: emptySet()
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        block.fields.forEach { field ->
+            if (field.key in linkedKeys) return@forEach
+            val value = data.cardField(block.key, index, field.key)
+            if (looksLikeAnswerChoice(field, templateAnswers)) {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(field.label, style = MaterialTheme.typography.bodyLarge)
+                        AnswerButtons(
+                            options = field.choiceOptions(),
+                            selected = value,
+                            readOnly = readOnly,
+                            onSelect = { v -> editor.editNow(data.withCardField(block.key, index, field.key, v)) },
+                        )
+                    }
+                }
+            } else {
+                FieldEditor(
+                    field = field,
+                    value = value,
+                    readOnly = readOnly,
+                    onImmediate = { v -> editor.editNow(data.withCardField(block.key, index, field.key, v)) },
+                    onDebounced = { v -> editor.editDebounced(data.withCardField(block.key, index, field.key, v)) },
+                )
             }
         }
     }

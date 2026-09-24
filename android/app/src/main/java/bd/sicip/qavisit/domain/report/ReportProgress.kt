@@ -6,7 +6,9 @@
 // uniformly for BOTH a `fields` block's fields AND a `cards` block's per-card fields (a required
 // but non-choice card field, e.g. attendance's present_total/trainers_present, counts just like
 // a required top-level field does). Per section:
-// - checklist: total += items; answered += non-blank answer; flagged if any answer == "no".
+// - checklist: total += items; answered += non-blank (derived, see ReportLinks.kt's normalize)
+//   answer; flagged if that answer == "no" OR (perCourse item, 2+ courses today) any course's
+//   own answer == "no", even when the derived overall answer is "partial".
 // - fields: each field where counts(field) → total+1, answered if non-blank; flagged if a
 //   choice field's chosen option's tone == "no".
 // - cards (countsAsFlags block, e.g. section L's "other_flags"): contributes 0 to totals; every
@@ -57,6 +59,20 @@ private fun isBlank(value: String?): Boolean = value == null || value.trim().isE
 // required-but-plain fields like attendance's present_total/trainers_present).
 private fun counts(field: Field): Boolean = field.required || field.kind == "choice"
 
+// one card's own (answered, total) using the same counts() rule computeProgress uses -- shared
+// by ReportProgress's cards branch and by the UI's per-course/per-tab "x of y answered" badges
+// (e.g. section I's interview tab strip) so they can't drift apart.
+fun cardCountedProgress(block: ReportBlock.Cards, card: JsonObject): Pair<Int, Int> {
+    var answered = 0
+    var total = 0
+    block.fields.forEach { field ->
+        if (!counts(field)) return@forEach
+        total++
+        if (!isBlank(card[field.key]?.jsonPrimitive?.contentOrNull)) answered++
+    }
+    return answered to total
+}
+
 // the spec's compare rule: parse the named fields of one card as ints, ignoring blanks; two or
 // more present and not all equal is a mismatch. shared by ReportProgress's flagged calculation
 // and by the UI's per-card compare-warning badge (compare.message), so they can't drift apart.
@@ -72,6 +88,7 @@ fun cardCompareMismatch(compare: CardsCompare, card: JsonObject): Boolean {
 private fun sectionProgress(
     section: ReportSection,
     data: ReportData,
+    todaysCourseIds: List<String>,
     answerCounts: MutableMap<String, Int>,
     unanswered: MutableList<String>,
 ): Pair<SectionProgress, List<String>> {
@@ -92,7 +109,16 @@ private fun sectionProgress(
                         answered++
                         answerCounts[answer] = (answerCounts[answer] ?: 0) + 1
                     }
-                    if (answer == "no") flagged = true
+                    // reference.py: a perCourse item (once 2+ courses are in play) flags the
+                    // section on ANY course answering "no", even when the overall DERIVED
+                    // answer is "partial" rather than "no" itself (e.g. one course "yes", one
+                    // "no" -> derived "partial", but still a real non-compliance to flag).
+                    val perCourseValues = if (item.perCourse && todaysCourseIds.size >= 2) {
+                        data.checkCourses(item.id).values
+                    } else {
+                        emptyList()
+                    }
+                    if (answer == "no" || perCourseValues.any { it == "no" }) flagged = true
                 }
             }
 
@@ -152,9 +178,10 @@ fun computeProgress(template: ReportTemplate, data: ReportData): ReportProgress 
     val answerCounts = template.answers.associate { it.id to 0 }.toMutableMap()
     val unanswered = mutableListOf<String>()
     val customFlags = mutableListOf<String>()
+    val todaysCourseIds = courseIds(data)
 
     template.sections.forEach { section ->
-        val (progress, found) = sectionProgress(section, data, answerCounts, unanswered)
+        val (progress, found) = sectionProgress(section, data, todaysCourseIds, answerCounts, unanswered)
         sections[section.key] = progress
         customFlags += found
     }

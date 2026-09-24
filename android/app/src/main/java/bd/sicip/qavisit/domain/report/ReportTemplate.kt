@@ -27,8 +27,11 @@ import kotlinx.serialization.json.jsonPrimitive
 @Serializable
 data class AnswerOption(val id: String, val label: String, val tone: String)
 
+// perCourse: with 2+ non-blank courses in section A, this item renders/answers ONE ROW PER
+// COURSE instead of a single answer row (spec CHANGE SET 3) -- see ReportLinks.kt's
+// syncPerCourse for how the per-course answers derive the item's overall `answer`.
 @Serializable
-data class ChecklistItem(val id: String, val text: String)
+data class ChecklistItem(val id: String, val text: String, val perCourse: Boolean = false)
 
 @Serializable
 data class FlagItem(val id: String, val text: String)
@@ -90,6 +93,9 @@ sealed class ReportBlock {
         val note: String? = null,
         val compare: CardsCompare? = null,
         val linkFrom: CardsLink? = null,
+        // "tabs" (section I interviews): render one card at a time behind a per-course tab
+        // strip instead of a stacked list -- see ReportBlocks.kt's InterviewTabsView.
+        val display: String? = null,
         // block contributes 0 to progress totals; every card whose titleField is non-blank is
         // a free-text flag instead (section L's "other_flags") -- see ReportProgress's customFlags.
         val countsAsFlags: Boolean = false,

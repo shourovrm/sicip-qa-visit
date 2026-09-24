@@ -87,16 +87,18 @@ class NewReportTest {
 
         val data = newReport(template, visit, officerName = "Jane Doe")
 
-        // attendance links from courses; a freshly seeded course card is blank (course/batch
-        // both ""), so nothing has a linked field filled in yet -- syncLinks produces no rows.
+        // attendance/interviews link from courses; a freshly seeded course card is blank
+        // (course/batch both ""), so nothing has a linked field filled in yet -- normalize's
+        // syncLinks step produces no rows for either.
         assertTrue(data.cards("attendance").isEmpty())
+        assertTrue(data.cards("interviews").isEmpty())
         // optional section K's cards block (unresolved) also starts at 0 in the template.
         assertTrue(data.cards("unresolved").isEmpty())
         assertTrue(data.cards("other_flags").isEmpty())
     }
 
     @Test
-    fun `filling a seeded course immediately links an attendance card on the next syncLinks pass`() {
+    fun `filling a seeded course immediately links an attendance card on the next normalize pass`() {
         val template = loadSurpriseTemplate()
         val visit = sampleVisit()
         val data = newReport(template, visit, officerName = "Jane Doe")
@@ -104,13 +106,44 @@ class NewReportTest {
         val courseId = data.cards("courses").first()["_id"]?.jsonPrimitive?.content
         val filled = data.withCardField("courses", 0, "course", "Welding (SMAW)")
             .withCardField("courses", 0, "batch", "07")
-        val synced = syncLinks(template, filled)
+        val synced = normalize(template, filled)
 
         val attendance = synced.cards("attendance")
         assertEquals(1, attendance.size)
         assertEquals("attendance:$courseId", attendance.first()["_id"]?.jsonPrimitive?.content)
         assertEquals("Welding (SMAW)", synced.cardField("attendance", 0, "course"))
         assertEquals("07", synced.cardField("attendance", 0, "batch"))
+        // section I's interviews block follows the exact same linkFrom shape.
+        assertEquals(1, synced.cards("interviews").size)
+        assertEquals("Welding (SMAW)", synced.cardField("interviews", 0, "course"))
+    }
+
+    @Test
+    fun `a perCourse item derives its overall answer from a per-course breakdown once 2+ courses exist`() {
+        val template = loadSurpriseTemplate()
+        val visit = sampleVisit()
+        val seeded = newReport(template, visit, officerName = "Jane Doe")
+
+        // add a 2nd course so the "2+ courses" per-course threshold kicks in.
+        val withCourses = seeded
+            .withCardField("courses", 0, "course", "Welding (SMAW)")
+            .withCardField("courses", 0, "batch", "07")
+            .withCardAdded("courses")
+        val c2Id = withCourses.cards("courses")[1]["_id"]?.jsonPrimitive?.content!!
+        val withSecondCourse = withCourses
+            .withCardField("courses", 1, "course", "Electrical Installation")
+            .withCardField("courses", 1, "batch", "03")
+        val c1Id = withSecondCourse.cards("courses")[0]["_id"]?.jsonPrimitive?.content!!
+
+        // arrival_1 is perCourse -- still blank overall until BOTH courses have an answer.
+        val oneCourseAnswered = normalize(template, withSecondCourse.withCheckCourse("arrival_1", c1Id, "yes"))
+        assertEquals("", oneCourseAnswered.checkAnswer("arrival_1"))
+
+        val bothSame = normalize(template, oneCourseAnswered.withCheckCourse("arrival_1", c2Id, "yes"))
+        assertEquals("yes", bothSame.checkAnswer("arrival_1"))
+
+        val mixed = normalize(template, bothSame.withCheckCourse("arrival_1", c2Id, "no"))
+        assertEquals("partial", mixed.checkAnswer("arrival_1"))
     }
 
     @Test
