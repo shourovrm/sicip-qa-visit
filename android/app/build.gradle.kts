@@ -23,8 +23,8 @@ android {
         applicationId = "bd.sicip.qavisit"
         minSdk = 26
         targetSdk = 35
-        versionCode = 18
-        versionName = "1.12.1"
+        versionCode = 19
+        versionName = "1.13.0"
     }
 
     buildFeatures {
@@ -68,8 +68,8 @@ android {
         }
     }
 
-    // report template JSON lives once in shared/report-templates/ (shared with the web app,
-    // see spec) -- point Room's asset scan straight at it instead of copying a duplicate into
+    // report template JSON lives once in shared/report-templates/ (shared with the web app)
+    // -- point Room's asset scan straight at it instead of copying a duplicate into
     // src/main/assets. Files land at the asset tree root, so the template is readable at
     // runtime as assets/surprise-v1.json (context.assets.open("surprise-v1.json")).
     sourceSets {
