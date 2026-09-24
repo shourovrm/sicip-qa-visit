@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
@@ -39,6 +40,11 @@ import bd.sicip.qavisit.ui.home.HomeScreen
 import bd.sicip.qavisit.ui.home.StartTrip
 import bd.sicip.qavisit.ui.home.TripScreen
 import bd.sicip.qavisit.ui.profile.ProfileScreen
+import bd.sicip.qavisit.ui.reports.ReportHub
+import bd.sicip.qavisit.ui.reports.ReportReview
+import bd.sicip.qavisit.ui.reports.ReportSectionScreen
+import bd.sicip.qavisit.ui.reports.ReportsScreen
+import bd.sicip.qavisit.ui.reports.rememberReportEditorRegistry
 import bd.sicip.qavisit.ui.team.TeamScreen
 import bd.sicip.qavisit.ui.visits.VisitForm
 import bd.sicip.qavisit.ui.visits.VisitsScreen
@@ -51,6 +57,7 @@ private val NAV_ITEMS = listOf(
     NavItem("home", "Home", Icons.Filled.Home),
     NavItem("team", "Team", Icons.Filled.Groups),
     NavItem("visits", "Visits", Icons.Filled.Checklist),
+    NavItem("reports", "Reports", Icons.Filled.Description),
     NavItem("profile", "Profile", Icons.Filled.Person),
 )
 
@@ -62,6 +69,10 @@ fun AppShell(context: Context, officerId: String) {
     val db = remember { AppDb.get(context) }
     val sessionStore = remember { SessionStore(context) }
     val themePrefs = remember { ThemePrefs(context) }
+    // one shared ReportEditor per open report across hub/section/review -- see
+    // ReportEditorRegistry's own comment for why one instance per report (not one per screen)
+    // matters. lives at the shell level so it survives navigating between those three routes.
+    val reportEditorRegistry = rememberReportEditorRegistry(db)
 
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -121,6 +132,7 @@ fun AppShell(context: Context, officerId: String) {
                     },
                     onScheduleVisit = { navController.navigate("visit_form") },
                     onEditVisit = { visitId -> navController.navigate("visit_form?visitId=$visitId") },
+                    onOpenReport = { reportId -> navController.navigate("report_hub/$reportId") },
                 )
             }
             composable("team") { TeamScreen(officerId = officerId, db = db) }
@@ -134,6 +146,13 @@ fun AppShell(context: Context, officerId: String) {
             }
             composable("bill") {
                 BillScreen(officerId = officerId, db = db, onDone = { navController.popBackStack() })
+            }
+            composable("reports") {
+                ReportsScreen(
+                    officerId = officerId,
+                    db = db,
+                    onOpenReport = { reportId -> navController.navigate("report_hub/$reportId") },
+                )
             }
             composable("profile") {
                 ProfileScreen(officerId = officerId, db = db, themePrefs = themePrefs, sessionStore = sessionStore)
@@ -189,6 +208,67 @@ fun AppShell(context: Context, officerId: String) {
                     },
                     onEditVisit = { visitId -> navController.navigate("visit_form?visitId=$visitId") },
                     onDone = { navController.popBackStack() },
+                )
+            }
+
+            composable(
+                "report_hub/{reportId}",
+                arguments = listOf(navArgument("reportId") { type = NavType.StringType }),
+            ) { entry ->
+                val reportId = entry.arguments?.getString("reportId") ?: return@composable
+                ReportHub(
+                    reportId = reportId,
+                    db = db,
+                    registry = reportEditorRegistry,
+                    onOpenSection = { sectionKey -> navController.navigate("report_section/$reportId/$sectionKey") },
+                    onReview = { navController.navigate("report_review/$reportId") },
+                    onDone = { navController.popBackStack() },
+                )
+            }
+
+            composable(
+                "report_section/{reportId}/{sectionKey}",
+                arguments = listOf(
+                    navArgument("reportId") { type = NavType.StringType },
+                    navArgument("sectionKey") { type = NavType.StringType },
+                ),
+            ) { entry ->
+                val reportId = entry.arguments?.getString("reportId") ?: return@composable
+                val sectionKey = entry.arguments?.getString("sectionKey") ?: return@composable
+                ReportSectionScreen(
+                    reportId = reportId,
+                    sectionKey = sectionKey,
+                    db = db,
+                    registry = reportEditorRegistry,
+                    context = context,
+                    // "open" a different section = replace the current one in place (popUpTo
+                    // self) so prev/next chaining through all 13 sections doesn't pile up 13
+                    // back-stack entries -- system Back from any section goes straight to the hub.
+                    onOpenSection = { key ->
+                        navController.navigate("report_section/$reportId/$key") {
+                            popUpTo("report_hub/$reportId")
+                        }
+                    },
+                    onReview = { navController.navigate("report_review/$reportId") { popUpTo("report_hub/$reportId") } },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(
+                "report_review/{reportId}",
+                arguments = listOf(navArgument("reportId") { type = NavType.StringType }),
+            ) { entry ->
+                val reportId = entry.arguments?.getString("reportId") ?: return@composable
+                ReportReview(
+                    reportId = reportId,
+                    db = db,
+                    registry = reportEditorRegistry,
+                    onOpenSection = { sectionKey ->
+                        navController.navigate("report_section/$reportId/$sectionKey") {
+                            popUpTo("report_hub/$reportId")
+                        }
+                    },
+                    onBack = { navController.popBackStack() },
                 )
             }
         }

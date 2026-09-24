@@ -47,3 +47,42 @@ object DarkStatus {
     val office = StatusPair(Color(0xFF4C4F66), Color(0xFFD5D6E6))
     val success = StatusPair(Color(0xFF1C6B38), Color(0xFFB8F0C8))
 }
+
+// -- report answer/tone colors: checklist's 4 segmented buttons, a `choice` field's chosen
+// option, and the PDF's answer labels (pdf/ReportHtml.kt + web/src/lib/reporthtml.js's
+// TONE_COLOR MUST match these light values exactly -- three independent copies of the same
+// four hex codes, by necessity: neither the android nor the web file can import from the other).
+// tone ids come straight from shared/report-templates/surprise-v1.json's answers/options.
+data class ToneColors(val yes: Color, val no: Color, val partial: Color, val na: Color)
+
+object LightTone {
+    val colors = ToneColors(
+        yes = Color(0xFF1C6B38),
+        no = Color(0xFFB3261E),
+        partial = Color(0xFF8A4600),
+        na = Color(0xFF4C4F66),
+    )
+}
+
+// lifted the same way DarkTertiary lifts from LightTertiary -- brighter fill needed for
+// contrast against the dark scaffold. a chosen answer button is a solid filled chip with white
+// text in both themes (not a bg/ink status-pill pair), so these are plain solid colors.
+object DarkTone {
+    val colors = ToneColors(
+        yes = Color(0xFF4CAF6E),
+        no = Color(0xFFE5564A),
+        partial = Color(0xFFC97A2E),
+        na = Color(0xFF7A7DA0),
+    )
+}
+
+// tone id ("yes"/"no"/"partial"/"na", from the template's answers/options) -> the current
+// theme's color for it. an unrecognised id (future template addition) falls back to `na`'s
+// muted color rather than crashing -- same "ignore, don't crash" spirit as the PDF's TONE_COLOR
+// fallback.
+fun ToneColors.forToneId(toneId: String): Color = when (toneId) {
+    "yes" -> yes
+    "no" -> no
+    "partial" -> partial
+    else -> na
+}

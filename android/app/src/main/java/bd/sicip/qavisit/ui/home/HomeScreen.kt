@@ -8,6 +8,7 @@ package bd.sicip.qavisit.ui.home
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -25,6 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -63,6 +66,9 @@ import bd.sicip.qavisit.domain.primaryVisit
 import bd.sicip.qavisit.ui.common.StatusPill
 import bd.sicip.qavisit.ui.theme.LocalStatusColors
 import bd.sicip.qavisit.ui.theme.StatusPair
+import bd.sicip.qavisit.ui.reports.findOrCreateReport
+import bd.sicip.qavisit.ui.reports.reportTypeLabel
+import bd.sicip.qavisit.ui.reports.surpriseTemplate
 import bd.sicip.qavisit.ui.visits.VisitForm
 import bd.sicip.qavisit.update.downloadAndInstall
 import kotlinx.coroutines.launch
@@ -86,12 +92,13 @@ fun HomeScreen(
     onStartTrip: (visitId: String?) -> Unit,
     onScheduleVisit: () -> Unit,
     onEditVisit: (String) -> Unit,
+    onOpenReport: (String) -> Unit,
     client: SupabaseClient = SupabaseClient(),
 ) {
-    val vm = remember(officerId, db) { HomeViewModel(officerId, db, sessionStore, client) }
+    val context = LocalContext.current
+    val vm = remember(officerId, db) { HomeViewModel(officerId, db, sessionStore, client, context = context) }
     val state by vm.state.collectAsState(initial = HomeUiState())
     val updateNotice by vm.updateNotice.collectAsState()
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     var addVisitRequest by remember { mutableStateOf<AddVisitRequest?>(null) }
@@ -193,7 +200,20 @@ fun HomeScreen(
                     )
                 }
                 items(state.activeTripVisits) { visit ->
-                    OngoingVisitCard(visit, onClick = { onEditVisit(visit.id) })
+                    OngoingVisitCard(
+                        visit,
+                        reportInfo = state.activeTripReports[visit.id],
+                        onClick = { onEditVisit(visit.id) },
+                        onOpenReport = { reportId -> onOpenReport(reportId) },
+                        onStartReport = {
+                            scope.launch {
+                                val template = surpriseTemplate(context)
+                                val officerName = db.officerDao().byId(officerId)?.name ?: ""
+                                val report = findOrCreateReport(db, template, visit, officerId, officerName)
+                                onOpenReport(report.id)
+                            }
+                        },
+                    )
                 }
             }
 
@@ -445,27 +465,77 @@ private fun SnippetCard(label: String, value: String, modifier: Modifier = Modif
     }
 }
 
-// visits attached to the running tour -- read-only status, no action buttons (edit is via the
-// card tap -> VisitForm, same as everywhere else).
+// visits attached to the running tour -- read-only status, no action buttons on the card body
+// itself (edit is via the card tap -> VisitForm, same as everywhere else). The report line
+// (B1 mockup) is its OWN clickable row nested inside, so tapping it opens the report instead of
+// the visit edit form -- Compose resolves nested clickables to whichever one the tap landed on.
 @Composable
-private fun OngoingVisitCard(visit: Visit, onClick: () -> Unit) {
+private fun OngoingVisitCard(
+    visit: Visit,
+    reportInfo: VisitReportInfo?,
+    onClick: () -> Unit,
+    onOpenReport: (String) -> Unit,
+    onStartReport: () -> Unit,
+) {
     Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth(), onClick = onClick) {
-        Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                Text(visit.institute, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(
-                    "${visit.purpose} · ${visit.district} · ${visit.startDate}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+        Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                    Text(visit.institute, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        "${visit.purpose} · ${visit.district} · ${visit.startDate}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                StatusPill("ONGOING", StatusPair(bg = MaterialTheme.colorScheme.primaryContainer, ink = MaterialTheme.colorScheme.onPrimaryContainer))
             }
-            StatusPill("ONGOING", StatusPair(bg = MaterialTheme.colorScheme.primaryContainer, ink = MaterialTheme.colorScheme.onPrimaryContainer))
+            ReportLine(reportInfo, onOpenReport, onStartReport)
+        }
+    }
+}
+
+@Composable
+private fun ReportLine(reportInfo: VisitReportInfo?, onOpenReport: (String) -> Unit, onStartReport: () -> Unit) {
+    val flaggedSections = reportInfo?.progress?.sections?.values?.count { it.flagged } ?: 0
+    Row(
+        modifier = Modifier
+            .padding(top = 8.dp)
+            .clickable { if (reportInfo != null) onOpenReport(reportInfo.report.id) else onStartReport() },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(
+            if (reportInfo != null) Icons.Filled.Description else Icons.Filled.Add,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(16.dp),
+        )
+        Text(
+            if (reportInfo != null) {
+                val p = reportInfo.progress
+                "${reportTypeLabel(reportInfo.report.type)} · ${p.sectionsDone} of ${p.sectionsCounted}"
+            } else {
+                "Start report"
+            },
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        if (flaggedSections > 0) {
+            Text(
+                "$flaggedSections",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onError,
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.error, RoundedCornerShape(99))
+                    .padding(horizontal = 6.dp, vertical = 1.dp),
+            )
         }
     }
 }

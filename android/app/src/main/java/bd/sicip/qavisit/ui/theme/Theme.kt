@@ -34,6 +34,11 @@ private val DarkStatusColors = StatusColors(
 // fallback default so previews / missing-provider reads don't crash
 val LocalStatusColors = staticCompositionLocalOf { LightStatusColors }
 
+// report answer/tone colors (see ui/theme/Color.kt's ToneColors for why these are separate
+// from StatusColors above): checklist answer buttons, choice fields, and any small "N flagged"
+// badge all read this instead of hardcoding a tone->color map themselves.
+val LocalToneColors = staticCompositionLocalOf { LightTone.colors }
+
 // M3's lightColorScheme()/darkColorScheme() derive surfaceContainer* tones from `primary`
 // when not given explicitly -- that's the lavender-tinted card bug (DESIGN.md wants flat
 // white/slate cards, not a primary-tinted surface). Pinning every surface* token stops most
@@ -93,7 +98,10 @@ fun SicipTheme(themeMode: ThemeMode = ThemeMode.SYSTEM, content: @Composable () 
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
-    CompositionLocalProvider(LocalStatusColors provides if (dark) DarkStatusColors else LightStatusColors) {
+    CompositionLocalProvider(
+        LocalStatusColors provides if (dark) DarkStatusColors else LightStatusColors,
+        LocalToneColors provides if (dark) DarkTone.colors else LightTone.colors,
+    ) {
         MaterialTheme(
             colorScheme = if (dark) DarkScheme else LightScheme,
             typography = SicipTypography,
