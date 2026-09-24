@@ -1,9 +1,9 @@
-// builds a brand-new report's data JSON (spec: "New report: prefill fields from the visit;
-// seed cards[key] with `start` empty objects {} per cards block"). Each seeded card gets a
-// random _id (ReportData.withCardAdded's default) -- CHANGE SET 2's "Random id on create (uuid)".
+// builds a brand-new report's data JSON: prefills fields from the visit, seeds cards[key] with
+// `start` empty objects {} per cards block. Each seeded card gets a random _id (see
+// ReportData.withCardAdded's default) so every card is uniquely addressable from creation.
 //
-// API for agent A2 (UI): call newReport(template, visit, officerName, officerDesignation) from
-// the "Start report" flow (bottom-sheet S1) once the officer picked a type + visit; wrap the
+// UI entry point: call newReport(template, visit, officerName, officerDesignation) from the
+// "Start report" flow once the officer picked a type + visit; wrap the
 // result straight into a fresh Report row: Report(id = uuid, officerId, visitId = visit.id,
 // type, templateVersion = template.version, data = newReport(...).toJsonString(), status =
 // "draft", createdAt = now, updatedAt = now, dirty = true). officerDesignation has no backing
@@ -46,9 +46,9 @@ fun newReport(
         }
     }
 
-    // spec: "Run it after EVERY edit and when a report is opened" -- a brand-new report counts
-    // as both (its first open), so a template whose seeded source cards already carry linked
-    // field values would show its derived cards immediately instead of after the first edit.
+    // normalize runs after every edit and on open -- a brand-new report counts as an open, so a
+    // template whose seeded source cards already carry linked field values shows its derived
+    // cards immediately instead of after the first edit.
     return normalize(template, data)
 }
 

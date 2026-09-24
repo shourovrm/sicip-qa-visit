@@ -10,9 +10,9 @@
      owns which cards exist -- and the linked fields (course/batch) render as a plain-text header
      instead of inputs.
 
-     A block with `display: "tabs"` (I interviews, CHANGE SET 3) renders as a course tab strip
-     instead of stacked cards: one tab per card, label + "x/y answered", green once done; only
-     the selected course's fields show at a time. -->
+     A block with `display: "tabs"` (I interviews) renders as a course tab strip instead of
+     stacked cards: one tab per card, label + "x/y answered", green once done; only the selected
+     course's fields show at a time. -->
 <script>
   import { createEventDispatcher } from 'svelte'
   import FieldInput from './FieldInput.svelte'
@@ -75,7 +75,7 @@
     return { answered, total: counted.length, done: counted.length > 0 && answered === counted.length }
   }
 
-  // spec: >=2 non-blank compare fields present, not all equal -> mismatch. under 2 present, no
+  // >=2 non-blank compare fields present, not all equal -> mismatch. under 2 present, no
   // verdict yet -- ask for more figures instead of guessing.
   function compareState(card) {
     if (!block.compare) return null

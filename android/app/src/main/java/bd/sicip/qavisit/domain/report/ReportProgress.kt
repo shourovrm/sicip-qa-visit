@@ -26,7 +26,7 @@
 // unanswered checklist item ids in template order (unaffected by `optional`); flagsTicked (the
 // flags block's own ticked ids); customFlags (countsAsFlags cards' free text, template order).
 //
-// API for agent A2 (UI): computeProgress(template, data) is the one entry point -- call it on
+// UI entry point: computeProgress(template, data) is the one entry point -- call it on
 // every render (it's a small pure walk, cheap enough not to cache). ReportProgress.sections is
 // keyed by section.key in template order (iterate template.sections and look up by key, don't
 // iterate the map directly, if you need template order guaranteed).
@@ -56,8 +56,8 @@ private fun isBlank(value: String?): Boolean = value == null || value.trim().isE
 
 // reference.py's counts(field): a field counts toward total/answered if it's required OR a
 // choice field -- applies identically to a top-level `fields` block and to a `cards` block's
-// per-card fields (CHANGE SET 2: previously cards only counted `choice` fields, dropping
-// required-but-plain fields like attendance's present_total/trainers_present).
+// per-card fields, so a required-but-plain card field like attendance's present_total/
+// trainers_present counts just like a required top-level field does.
 private fun counts(field: Field): Boolean = field.required || field.kind == "choice"
 
 // one card's own (answered, total) using the same counts() rule computeProgress uses -- shared
@@ -74,7 +74,7 @@ fun cardCountedProgress(block: ReportBlock.Cards, card: JsonObject): Pair<Int, I
     return answered to total
 }
 
-// the spec's compare rule: parse the named fields of one card as ints, ignoring blanks; two or
+// the compare rule: parse the named fields of one card as ints, ignoring blanks; two or
 // more present and not all equal is a mismatch. shared by ReportProgress's flagged calculation
 // and by the UI's per-card compare-warning badge (compare.message), so they can't drift apart.
 fun cardCompareMismatch(compare: CardsCompare, card: JsonObject): Boolean {

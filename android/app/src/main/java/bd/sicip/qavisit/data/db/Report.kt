@@ -2,7 +2,7 @@
 // report attached to one visit; `data` is the report's answers as a JSON string (see
 // domain/report/ReportData.kt), shaped by shared/report-templates/<type>-v<version>.json.
 //
-// API for agent A2 (UI): byOfficerFlow(officerId) for the Reports tab list (own, non-deleted,
+// UI entry points: byOfficerFlow(officerId) for the Reports tab list (own, non-deleted,
 // newest first); byVisitFlow(visitId) to find/open the existing report for a visit -- one row
 // per (visit, type) among non-deleted rows is a UI-enforced rule, not a DB constraint, so check
 // this flow before creating a new report; byIdFlow(id) for the report hub/section screens;

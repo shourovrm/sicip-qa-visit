@@ -3,10 +3,10 @@
      normalize() (called after every edit, see ReportEditor) derive the overall `answer` --
      this component never computes that itself.
 
-     A `perCourse: true` item with 2+ named courses in section A (CHANGE SET 3) renders one
-     answer row per course (course name + "Batch x", compact 4-button segmented) instead of the
-     single row, plus a "Per course" tag next to the question; the remarks box stays shared. With
-     0-1 named courses (or `courses` not passed) it's the normal single-answer item. -->
+     A `perCourse: true` item with 2+ named courses in section A renders one answer row per
+     course (course name + "Batch x", compact 4-button segmented) instead of the single row, plus
+     a "Per course" tag next to the question; the remarks box stays shared. With 0-1 named
+     courses (or `courses` not passed) it's the normal single-answer item. -->
 <script>
   import { createEventDispatcher } from 'svelte'
   import AnswerSegmented from './AnswerSegmented.svelte'

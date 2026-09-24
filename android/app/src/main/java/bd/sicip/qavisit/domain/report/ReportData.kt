@@ -1,11 +1,11 @@
-// wraps a report's `data` column ({fields, checks, cards, flags} -- shape in the spec) as a
-// raw JsonObject instead of a typed data class. A report's fields are officer-authored and
-// forward-compatible by contract ("unknown keys must be preserved on save") -- a typed model
-// would silently drop any key a newer template version or the other platform wrote that this
-// build doesn't know about. Every `with*` setter below edits exactly the one key it's asked to
-// and copies everything else through untouched, including keys this file has never heard of.
+// wraps a report's `data` column ({fields, checks, cards, flags}) as a raw JsonObject instead
+// of a typed data class. A report's fields are officer-authored and must stay forward-compatible
+// (unknown keys survive a save) -- a typed model would silently drop any key a newer template
+// version or the other platform wrote that this build doesn't know about. Every `with*` setter
+// below edits exactly the one key it's asked to and copies everything else through untouched,
+// including keys this file has never heard of.
 //
-// API for agent A2 (UI): ReportData.parse(report.data) to load, data.toJsonString() to get the
+// UI entry points: ReportData.parse(report.data) to load, data.toJsonString() to get the
 // string back out for Room's Report.data column (call this after every edit -- autosave writes
 // the whole string via reportDao().upsert(report.copy(data = newData.toJsonString(), dirty =
 // true, updatedAt = now))). Readers: field(key), checkAnswer(itemId), checkRemarks(itemId),
@@ -62,8 +62,8 @@ data class ReportData(val root: JsonObject) {
     fun checkRemarks(itemId: String): String =
         (checksObj[itemId] as? JsonObject)?.get("remarks")?.jsonPrimitive?.contentOrNull ?: ""
 
-    // a perCourse checklist item's per-course answers (spec CHANGE SET 3), keyed by course
-    // card _id -- empty for a non-perCourse item or one nobody has answered per-course yet.
+    // a perCourse checklist item's per-course answers, keyed by course card _id -- empty for a
+    // non-perCourse item or one nobody has answered per-course yet.
     // the item's overall `answer` (checkAnswer above) is DERIVED from these by
     // ReportLinks.kt's syncPerCourse, never written here directly.
     fun checkCourses(itemId: String): Map<String, String> {
@@ -78,9 +78,9 @@ data class ReportData(val root: JsonObject) {
     fun cardField(cardsKey: String, index: Int, fieldKey: String): String =
         cards(cardsKey).getOrNull(index)?.get(fieldKey)?.jsonPrimitive?.contentOrNull ?: ""
 
-    // every card (seeded, officer-added, or synced-from-a-link) carries a stable "_id" (spec:
-    // "Every card has a stable _id string") -- linked cards' is derived deterministically
-    // (see ReportLinks.kt's syncLinks), everything else gets a random one on creation below.
+    // every card (seeded, officer-added, or synced-from-a-link) carries a stable "_id" --
+    // linked cards' is derived deterministically (see ReportLinks.kt's syncLinks), everything
+    // else gets a random one on creation below.
     fun cardLinkSource(cardsKey: String, index: Int): String? =
         cards(cardsKey).getOrNull(index)?.get("_link")?.jsonPrimitive?.contentOrNull
 
@@ -143,9 +143,9 @@ data class ReportData(val root: JsonObject) {
     }
 
     // appends one row; template's `start` count is seeded by domain/report/NewReport.kt, this
-    // is what the section screen's "Add <itemLabel>" button calls afterwards. "Random id on
-    // create (uuid)" (spec) -- a caller only passes an explicit `card` for a linked target,
-    // whose own _id/_link ReportLinks.kt's syncLinks computes itself.
+    // is what the section screen's "Add <itemLabel>" button calls afterwards. every new card
+    // gets a random id by default -- a caller only passes an explicit `card` for a linked
+    // target, whose own _id/_link ReportLinks.kt's syncLinks computes itself.
     fun withCardAdded(cardsKey: String, card: JsonObject = buildJsonObject { put("_id", UUID.randomUUID().toString()) }): ReportData =
         withCardsReplaced(cardsKey, cards(cardsKey) + card)
 

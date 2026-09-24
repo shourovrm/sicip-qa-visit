@@ -44,5 +44,5 @@ export const TRANSPORT = {
 export const TICKET_REMARK = 'Ticket/ receipt attached'
 
 
-// hardcoded per product spec -- not a DB column (see BillHtml.kt precedent)
+// every officer currently holds this designation -- hardcoded, not a DB column (see BillHtml.kt precedent)
 export const DESIGNATION = 'Program Officer (QA)'

@@ -1,7 +1,7 @@
-<!-- one Field (spec: {key,label,kind,required?,options?}) -- used both for section `fields` blocks
-     and for each field inside a `cards` entry. All stored values are strings, even numbers (see
-     spec "Report data"); this just picks the right control for `kind` and reports the raw
-     string on every change. -->
+<!-- one Field ({key,label,kind,required?,options?}) -- used both for section `fields` blocks
+     and for each field inside a `cards` entry. All stored values are strings, even numbers, so
+     they round-trip through the jsonb `data` column unambiguously; this just picks the right
+     control for `kind` and reports the raw string on every change. -->
 <script>
   import { createEventDispatcher } from 'svelte'
   import AnswerSegmented from './AnswerSegmented.svelte'
@@ -31,8 +31,8 @@
     <AnswerSegmented options={field.options} {value} {disabled} on:change={onChoice} />
   {:else if field.kind === 'courseRef'}
     <!-- free text + datalist suggestions (not a native <select>) so a value survives even after
-         its source course/batch card is edited or removed -- spec: "keeps an existing value even
-         if not in the list" -->
+         its source course/batch card is edited or removed, instead of silently reverting to
+         blank the way a <select> would if its selected option disappears -->
     <input type="text" list={courseRefListId} placeholder={field.placeholder ?? ''} {value} {disabled} on:input={onInput} />
     <datalist id={courseRefListId}>{#each courseOptions as opt}<option value={opt} />{/each}</datalist>
   {:else if field.kind === 'select'}

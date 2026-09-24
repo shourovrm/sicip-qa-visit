@@ -6,7 +6,8 @@
      Owns nothing persistent itself: `report` is an already-created DB row (Reports.svelte always
      creates the row before opening the editor, so this only ever UPDATEs); edits mutate a local
      `data` copy and autosave debounced to supabase. Print/Word buttons call the onPrint/onDocx
-     props if the caller supplied them (agent W2 wires the real exporters later) -- no-op here. -->
+     props, which Reports.svelte wires to openReportPrint/downloadReportDocx -- no-op if unset,
+     so this component still renders standalone (e.g. in a test) without those wired up. -->
 <script>
   import { createEventDispatcher } from 'svelte'
   import { computeProgress, normalize } from '../../lib/reporttemplate.js'
@@ -19,16 +20,16 @@
   export let visit = null // matching visits row, for header context (may be null)
   export let officerName = ''
   export let readonly = false // owner viewing a submitted report; admins stay editable
-  export let onPrint = null // (template, data, meta) => void, supplied by the orchestrator later
-  export let onDocx = null // (template, data, meta) => void, ditto
+  export let onPrint = null // (template, data, meta) => void, wired by Reports.svelte to openReportPrint
+  export let onDocx = null // (template, data, meta) => void, wired by Reports.svelte to downloadReportDocx
 
   const dispatch = createEventDispatcher()
 
   // shallow-fill missing top-level keys only -- never drop unknown keys already in the row, so
   // a newer template version's extra fields survive a round trip through an older client. Each
-  // check is also cloned one level deep: normalize()'s per-course step (CHANGE SET 3) mutates a
-  // check's `courses`/`answer` in place, and without this clone that would corrupt `report.data`
-  // (and Reports.svelte's cached row) even for an item the user never touched this session.
+  // check is also cloned one level deep: normalize()'s per-course step mutates a check's
+  // `courses`/`answer` in place, and without this clone that would corrupt `report.data` (and
+  // Reports.svelte's cached row) even for an item the user never touched this session.
   function ensureShape(raw) {
     return {
       fields: { ...(raw?.fields ?? {}) },

@@ -1,4 +1,4 @@
-// normalize(): the one step every client runs after each edit and on open (spec CHANGE SET 3).
+// normalize(): the one step every client runs after each edit and on open.
 // = syncLinks (linked cards blocks follow their source block) + syncPerCourse (perCourse
 // checklist items derive their overall answer from a per-course breakdown). Ported 1:1 from
 // shared/report-templates/fixtures/reference.py's normalize/sync_links/sync_per_course -- see
@@ -21,7 +21,7 @@
 //
 // Both steps are idempotent: calling normalize twice in a row is a no-op the second time.
 //
-// API for agent A2 (UI): call normalize(template, data) after every edit and once when a report
+// UI entry point: call normalize(template, data) after every edit and once when a report
 // is opened (ui/reports/ReportEditing.kt's ReportEditor does both) -- never call syncLinks or
 // syncPerCourse directly from UI code, they're normalize's internal steps. Linked cards render
 // read-only for their linked fields and have no Add/Remove button of their own -- see

@@ -1,5 +1,5 @@
 <!-- critical non-compliance flags: plain tick boxes, red highlight once ticked. contributes 0 to
-     section progress totals (spec) but flags the section when anything is ticked. -->
+     section progress totals but flags the section when anything is ticked. -->
 <script>
   import { createEventDispatcher } from 'svelte'
 

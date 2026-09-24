@@ -8,7 +8,7 @@
   export let options = [] // [{id, label, tone}]
   export let value = ''
   export let disabled = false
-  export let compact = false // per-course rows (CHANGE SET 3): narrower, still >=48px tall
+  export let compact = false // per-course rows stack several of these -- narrower, still >=48px tall
 
   const dispatch = createEventDispatcher()
 
@@ -50,7 +50,7 @@
     cursor: pointer;
   }
   /* per-course rows stack several of these controls -- keep them narrow but never shrink the
-     tap target below 48px (spec: "4 compact answer buttons >=48dp") */
+     tap target below 48px, the minimum comfortable touch size on a phone screen */
   .segmented.compact .opt { min-height: 48px; padding: 4px 2px; font-size: 11px; }
   .opt:first-child { border-left: none; }
   .opt:disabled { cursor: not-allowed; }

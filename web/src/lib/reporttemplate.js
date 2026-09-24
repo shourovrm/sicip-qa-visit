@@ -10,7 +10,8 @@ export function templateFor(type) {
   return TEMPLATES[type] ?? null
 }
 
-// blank = null or trimmed empty string (numbers are stored as strings, spec "Report data")
+// blank = null or trimmed empty string (numbers are stored as strings too, so this is the one
+// check every field/card/checklist value needs)
 export function isBlank(value) {
   return value == null || String(value).trim() === ''
 }
@@ -32,9 +33,9 @@ function* allBlocks(template) {
 // source disappeared is dropped. Mutates data.cards in place and returns data. Internal helper --
 // normalize() below is the one every caller (editor, exports) should run; kept as its own
 // function only because reference.py factors it out the same way.
-// exported anyway (not just `normalize`) because reporthtml.js/reportdocx.js (agent W2, out of
-// scope here) already do a defensive `reportTemplateModule.syncLinks` lookup from CHANGE SET 2 --
-// removing the export would silently stop their card-linking without a test failure to catch it.
+// exported anyway (not just `normalize`) because reporthtml.js/reportdocx.js already do a
+// defensive `reportTemplateModule.syncLinks` lookup -- removing the export would silently stop
+// their card-linking without a test failure to catch it.
 function syncLinks(template, data) {
   data.cards = data.cards ?? {}
   for (const { block } of allBlocks(template)) {
