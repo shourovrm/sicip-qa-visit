@@ -77,16 +77,49 @@
        "label": "Visiting officer(s) with designation",
        "kind": "longtext",
        "prefill": "officers"
-      },
+      }
+     ]
+    },
+    {
+     "type": "cards",
+     "key": "persons",
+     "heading": "Persons met",
+     "itemLabel": "Person",
+     "start": 1,
+     "titleField": "name",
+     "fields": [
       {
-       "key": "received_by",
-       "label": "Received by (name, designation)",
+       "key": "name",
+       "label": "Name",
        "kind": "text"
       },
       {
-       "key": "scheduled_batches",
-       "label": "Courses / batches scheduled today (as per routine or TDP)",
-       "kind": "longtext"
+       "key": "designation",
+       "label": "Designation",
+       "kind": "text"
+      }
+     ]
+    },
+    {
+     "type": "cards",
+     "key": "courses",
+     "heading": "Courses / batches scheduled today (routine or TDP)",
+     "itemLabel": "Course",
+     "start": 1,
+     "titleField": "course",
+     "note": "One entry per running batch. Sections C and D pick these up automatically.",
+     "fields": [
+      {
+       "key": "course",
+       "label": "Course name",
+       "kind": "text",
+       "required": true
+      },
+      {
+       "key": "batch",
+       "label": "Batch no.",
+       "kind": "text",
+       "required": true
       }
      ]
     }
@@ -127,13 +160,13 @@
    "key": "attendance",
    "short": "Attendance",
    "title": "Attendance in each course",
-   "note": "Count heads in the room first, then open the attendance register and TMS. One entry per course; add up all running batches of that course.",
+   "note": "Count heads in the room first, then open the attendance register and TMS.",
    "blocks": [
     {
      "type": "cards",
      "key": "attendance",
      "itemLabel": "Course",
-     "start": 2,
+     "start": 0,
      "titleField": "course",
      "compare": {
       "fields": [
@@ -146,12 +179,12 @@
      "fields": [
       {
        "key": "course",
-       "label": "Course name",
+       "label": "Course",
        "kind": "text"
       },
       {
        "key": "batch",
-       "label": "Batch no(s).",
+       "label": "Batch no.",
        "kind": "text"
       },
       {
@@ -167,7 +200,8 @@
       {
        "key": "present_total",
        "label": "Headcount, total",
-       "kind": "number"
+       "kind": "number",
+       "required": true
       },
       {
        "key": "present_female",
@@ -185,28 +219,25 @@
        "kind": "number"
       },
       {
-       "key": "trainer",
-       "label": "Trainer present",
-       "kind": "choice",
-       "options": [
-        {
-         "id": "yes",
-         "label": "Yes",
-         "tone": "yes"
-        },
-        {
-         "id": "no",
-         "label": "No",
-         "tone": "no"
-        }
-       ]
+       "key": "trainers_present",
+       "label": "Trainers present",
+       "kind": "number",
+       "required": true
       },
       {
        "key": "remarks",
        "label": "Remarks",
        "kind": "longtext"
       }
-     ]
+     ],
+     "linkFrom": {
+      "cards": "courses",
+      "fields": [
+       "course",
+       "batch"
+      ]
+     },
+     "note": "One entry per course / batch from section A. Add courses there."
     },
     {
      "type": "checklist",
@@ -251,7 +282,8 @@
       {
        "key": "batch",
        "label": "Course / batch",
-       "kind": "text"
+       "kind": "courseRef",
+       "optionsFrom": "courses"
       },
       {
        "key": "result",
@@ -630,29 +662,15 @@
         "Monitoring visit",
         "Surprise visit"
        ]
-      }
-     ]
-    },
-    {
-     "type": "cards",
-     "key": "followup",
-     "itemLabel": "Issue",
-     "start": 1,
-     "titleField": "issue",
-     "fields": [
-      {
-       "key": "issue",
-       "label": "Issue raised in last visit",
-       "kind": "longtext"
       },
       {
-       "key": "status",
-       "label": "Status",
+       "key": "compliance",
+       "label": "Issues from the last visit complied with?",
        "kind": "choice",
        "options": [
         {
-         "id": "resolved",
-         "label": "Resolved",
+         "id": "all",
+         "label": "All complied",
          "tone": "yes"
         },
         {
@@ -661,11 +679,27 @@
          "tone": "partial"
         },
         {
-         "id": "not_resolved",
-         "label": "Not resolved",
+         "id": "none",
+         "label": "Not complied",
          "tone": "no"
         }
        ]
+      }
+     ]
+    },
+    {
+     "type": "cards",
+     "key": "unresolved",
+     "heading": "Unresolved issues",
+     "itemLabel": "Unresolved issue",
+     "start": 0,
+     "titleField": "issue",
+     "fields": [
+      {
+       "key": "issue",
+       "label": "Issue still not resolved",
+       "kind": "longtext",
+       "required": true
       },
       {
        "key": "remarks",
@@ -674,7 +708,9 @@
       }
      ]
     }
-   ]
+   ],
+   "optional": true,
+   "note": "Optional. Check whether the issues raised in the last visit have been complied with."
   },
   {
    "letter": "L",
@@ -721,6 +757,23 @@
       {
        "id": "flag_9",
        "text": "Graduate reported as job-placed in TMS but not employed"
+      }
+     ]
+    },
+    {
+     "type": "cards",
+     "key": "other_flags",
+     "heading": "Other critical flags",
+     "itemLabel": "Other flag",
+     "start": 0,
+     "titleField": "flag",
+     "countsAsFlags": true,
+     "fields": [
+      {
+       "key": "flag",
+       "label": "Flag observed",
+       "kind": "longtext",
+       "required": true
       }
      ]
     }

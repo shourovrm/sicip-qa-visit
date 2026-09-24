@@ -1,12 +1,13 @@
 {
  "template": "surprise-v1.json",
- "data": {
+ "before_sync": {
   "fields": {
    "ti_name": "Bangladesh-Korea TTC, Mirpur",
    "visit_date": "2026-09-24",
    "arrival_time": "10:05",
    "overall_rating": "",
-   "key_findings": ""
+   "key_findings": "",
+   "compliance": "none"
   },
   "checks": {
    "arrival_1": {
@@ -47,29 +48,314 @@
    }
   },
   "cards": {
-   "attendance": [
+   "persons": [
     {
+     "_id": "p1",
+     "name": "Md. Karim",
+     "designation": "Principal"
+    }
+   ],
+   "courses": [
+    {
+     "_id": "c1",
      "course": "Welding (SMAW)",
-     "batch": "07",
-     "enrolled_total": "25",
-     "present_total": "17",
-     "register": "23",
-     "tms": "23",
-     "trainer": "yes"
+     "batch": "07"
     },
     {
+     "_id": "c2",
+     "course": "Electrical Installation",
+     "batch": "03"
+    },
+    {
+     "_id": "c3",
+     "course": "",
+     "batch": ""
+    }
+   ],
+   "attendance": [
+    {
+     "_id": "attendance:c2",
+     "_link": "c2",
+     "course": "Old name",
+     "batch": "03",
+     "present_total": "22",
+     "register": "22",
+     "tms": "",
+     "trainers_present": "2"
+    },
+    {
+     "_id": "attendance:x9",
+     "_link": "x9",
+     "course": "Removed course",
+     "present_total": "5"
+    }
+   ],
+   "identity": [
+    {
+     "_id": "i1",
+     "name": "Rakib",
+     "batch": "Welding (SMAW) · 07",
+     "result": "verified"
+    }
+   ],
+   "unresolved": [
+    {
+     "_id": "u1",
+     "issue": "Dropout register missing",
+     "remarks": ""
+    }
+   ],
+   "other_flags": [
+    {
+     "_id": "f1",
+     "flag": "Trainees sharing one ID card"
+    },
+    {
+     "_id": "f2",
+     "flag": " "
+    }
+   ]
+  },
+  "flags": [
+   "flag_3"
+  ]
+ },
+ "synced": {
+  "fields": {
+   "ti_name": "Bangladesh-Korea TTC, Mirpur",
+   "visit_date": "2026-09-24",
+   "arrival_time": "10:05",
+   "overall_rating": "",
+   "key_findings": "",
+   "compliance": "none"
+  },
+  "checks": {
+   "arrival_1": {
+    "answer": "yes",
+    "remarks": ""
+   },
+   "arrival_2": {
+    "answer": "yes",
+    "remarks": ""
+   },
+   "arrival_3": {
+    "answer": "partial",
+    "remarks": "Theory instead of practical"
+   },
+   "arrival_4": {
+    "answer": "yes",
+    "remarks": ""
+   },
+   "materials_1": {
+    "answer": "yes",
+    "remarks": ""
+   },
+   "materials_2": {
+    "answer": "no",
+    "remarks": "Not printed yet"
+   },
+   "attendance_register_1": {
+    "answer": "yes",
+    "remarks": ""
+   },
+   "attendance_register_2": {
+    "answer": "yes",
+    "remarks": ""
+   },
+   "attendance_register_3": {
+    "answer": "na",
+    "remarks": ""
+   }
+  },
+  "cards": {
+   "persons": [
+    {
+     "_id": "p1",
+     "name": "Md. Karim",
+     "designation": "Principal"
+    }
+   ],
+   "courses": [
+    {
+     "_id": "c1",
+     "course": "Welding (SMAW)",
+     "batch": "07"
+    },
+    {
+     "_id": "c2",
+     "course": "Electrical Installation",
+     "batch": "03"
+    },
+    {
+     "_id": "c3",
+     "course": "",
+     "batch": ""
+    }
+   ],
+   "attendance": [
+    {
+     "_id": "attendance:c1",
+     "_link": "c1",
+     "course": "Welding (SMAW)",
+     "batch": "07"
+    },
+    {
+     "_id": "attendance:c2",
+     "_link": "c2",
      "course": "Electrical Installation",
      "batch": "03",
      "present_total": "22",
      "register": "22",
      "tms": "",
-     "trainer": ""
+     "trainers_present": "2"
     }
    ],
    "identity": [
     {
+     "_id": "i1",
      "name": "Rakib",
+     "batch": "Welding (SMAW) · 07",
      "result": "verified"
+    }
+   ],
+   "unresolved": [
+    {
+     "_id": "u1",
+     "issue": "Dropout register missing",
+     "remarks": ""
+    }
+   ],
+   "other_flags": [
+    {
+     "_id": "f1",
+     "flag": "Trainees sharing one ID card"
+    },
+    {
+     "_id": "f2",
+     "flag": " "
+    }
+   ]
+  },
+  "flags": [
+   "flag_3"
+  ]
+ },
+ "data": {
+  "fields": {
+   "ti_name": "Bangladesh-Korea TTC, Mirpur",
+   "visit_date": "2026-09-24",
+   "arrival_time": "10:05",
+   "overall_rating": "",
+   "key_findings": "",
+   "compliance": "none"
+  },
+  "checks": {
+   "arrival_1": {
+    "answer": "yes",
+    "remarks": ""
+   },
+   "arrival_2": {
+    "answer": "yes",
+    "remarks": ""
+   },
+   "arrival_3": {
+    "answer": "partial",
+    "remarks": "Theory instead of practical"
+   },
+   "arrival_4": {
+    "answer": "yes",
+    "remarks": ""
+   },
+   "materials_1": {
+    "answer": "yes",
+    "remarks": ""
+   },
+   "materials_2": {
+    "answer": "no",
+    "remarks": "Not printed yet"
+   },
+   "attendance_register_1": {
+    "answer": "yes",
+    "remarks": ""
+   },
+   "attendance_register_2": {
+    "answer": "yes",
+    "remarks": ""
+   },
+   "attendance_register_3": {
+    "answer": "na",
+    "remarks": ""
+   }
+  },
+  "cards": {
+   "persons": [
+    {
+     "_id": "p1",
+     "name": "Md. Karim",
+     "designation": "Principal"
+    }
+   ],
+   "courses": [
+    {
+     "_id": "c1",
+     "course": "Welding (SMAW)",
+     "batch": "07"
+    },
+    {
+     "_id": "c2",
+     "course": "Electrical Installation",
+     "batch": "03"
+    },
+    {
+     "_id": "c3",
+     "course": "",
+     "batch": ""
+    }
+   ],
+   "attendance": [
+    {
+     "_id": "attendance:c1",
+     "_link": "c1",
+     "course": "Welding (SMAW)",
+     "batch": "07",
+     "present_total": "17",
+     "register": "23",
+     "tms": "23"
+    },
+    {
+     "_id": "attendance:c2",
+     "_link": "c2",
+     "course": "Electrical Installation",
+     "batch": "03",
+     "present_total": "22",
+     "register": "22",
+     "tms": "",
+     "trainers_present": "2"
+    }
+   ],
+   "identity": [
+    {
+     "_id": "i1",
+     "name": "Rakib",
+     "batch": "Welding (SMAW) · 07",
+     "result": "verified"
+    }
+   ],
+   "unresolved": [
+    {
+     "_id": "u1",
+     "issue": "Dropout register missing",
+     "remarks": ""
+    }
+   ],
+   "other_flags": [
+    {
+     "_id": "f1",
+     "flag": "Trainees sharing one ID card"
+    },
+    {
+     "_id": "f2",
+     "flag": " "
     }
    ]
   },
@@ -80,9 +366,9 @@
  "expected": {
   "sections": {
    "visit": {
-    "answered": 3,
-    "total": 3,
-    "done": true,
+    "answered": 7,
+    "total": 9,
+    "done": false,
     "flagged": false
    },
    "arrival": {
@@ -92,8 +378,8 @@
     "flagged": false
    },
    "attendance": {
-    "answered": 4,
-    "total": 5,
+    "answered": 6,
+    "total": 7,
     "done": false,
     "flagged": true
    },
@@ -140,10 +426,10 @@
     "flagged": false
    },
    "followup": {
-    "answered": 0,
-    "total": 0,
-    "done": false,
-    "flagged": false
+    "answered": 2,
+    "total": 2,
+    "done": true,
+    "flagged": true
    },
    "flags": {
     "answered": 0,
@@ -158,7 +444,7 @@
     "flagged": false
    }
   },
-  "sectionsDone": 2,
+  "sectionsDone": 1,
   "sectionsCounted": 10,
   "answerCounts": {
    "yes": 6,
@@ -170,6 +456,9 @@
   "firstUnanswered": "identity_1",
   "flagsTicked": [
    "flag_3"
+  ],
+  "customFlags": [
+   "Trainees sharing one ID card"
   ]
  }
 }
