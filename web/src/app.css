@@ -18,6 +18,13 @@
   --status-office-bg: #e6e7ee; --status-office-fg: #4c4f66;
   --status-success-bg: #ddf2e2; --status-success-fg: #1c6b38;
 
+  /* report answer tones (checklist/choice fields/cards) -- yes reuses status-success green,
+     na reuses status-office slate; no/partial are new, same hues both platforms use */
+  --tone-yes-bg: var(--status-success-bg); --tone-yes-fg: var(--status-success-fg);
+  --tone-no-bg: #f8dfdb; --tone-no-fg: #b3261e;
+  --tone-partial-bg: #f5e6d3; --tone-partial-fg: #8a4600;
+  --tone-na-bg: var(--status-office-bg); --tone-na-fg: var(--status-office-fg);
+
   --radius-card: 16px;
   --radius-pill: 99px;
   color-scheme: light;
@@ -41,6 +48,11 @@
   --status-visit-bg: #2e3170; --status-visit-fg: #c9cdff;
   --status-office-bg: #2c2e3d; --status-office-fg: #b8bacc;
   --status-success-bg: #1d3a26; --status-success-fg: #9fdcb0;
+
+  --tone-yes-bg: var(--status-success-bg); --tone-yes-fg: var(--status-success-fg);
+  --tone-no-bg: #4a2320; --tone-no-fg: #ff8a75;
+  --tone-partial-bg: #3d2c12; --tone-partial-fg: #f0b866;
+  --tone-na-bg: var(--status-office-bg); --tone-na-fg: var(--status-office-fg);
   color-scheme: dark;
 }
 

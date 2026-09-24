@@ -9,6 +9,7 @@
     ['/tours', 'Tours'],
     ['/bills', 'Bills'],
     ['/team', 'Team'],
+    ['/reports', 'Reports'],
     ['/profile', 'Profile'],
   ]
 

@@ -120,6 +120,46 @@ export async function createBill(row) {
   return data
 }
 
+// ---- reports ---- (surprise/monitoring visit reports; RLS = own rows + admin, see 010_reports.sql)
+export async function listReports() {
+  const { data, error } = await notDeleted(supabase.from('reports').select('*')).order('updated_at', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+// lifecycle rule: one report per (visit, type) among non-deleted rows -- callers check this
+// before creating, so a duplicate "New report" tap opens the existing one instead.
+export async function listReportsByVisit(visitId) {
+  const { data, error } = await notDeleted(supabase.from('reports').select('*').eq('visit_id', visitId))
+  if (error) throw error
+  return data
+}
+
+export async function createReport(row) {
+  const { data, error } = await supabase.from('reports').insert(row).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateReport(id, patch) {
+  const { data, error } = await supabase.from('reports').update(patch).eq('id', id).select().single()
+  if (error) throw error
+  return data
+}
+
+// autosave: only the data jsonb blob changes -- server owns updated_at via the moddatetime trigger.
+export async function updateReportData(id, reportData) {
+  return updateReport(id, { data: reportData })
+}
+
+export async function submitReport(id) {
+  return updateReport(id, { status: 'submitted', submitted_at: new Date().toISOString() })
+}
+
+export async function softDeleteReport(id) {
+  return updateReport(id, { deleted: true })
+}
+
 // ---- app_meta ----
 export async function getAppMeta() {
   const { data, error } = await supabase.from('app_meta').select('*')

@@ -9,6 +9,7 @@
   import Tours from './routes/Tours.svelte'
   import Bills from './routes/Bills.svelte'
   import Team from './routes/Team.svelte'
+  import Reports from './routes/Reports.svelte'
   import Admin from './routes/Admin.svelte'
   import Profile from './routes/Profile.svelte'
 
@@ -18,7 +19,7 @@
 
   const pages = {
     '/': Home, '/visits': Visits, '/tours': Tours, '/bills': Bills, '/team': Team,
-    '/admin': Admin, '/profile': Profile,
+    '/reports': Reports, '/admin': Admin, '/profile': Profile,
   }
   $: base = '/' + $route.split('/')[1]
   $: Page = pages[base] ?? Home

@@ -1,0 +1,155 @@
+<!-- surprise-visit report editor -- ports the interaction/layout of
+     ~/MEGA/SICIP/20260924-visit-templates-checklists/surprise-visit-checklist.html (app bar +
+     progress, section chip strip, collapsible sections, segmented answers, repeatable cards,
+     flags) onto the web app's own tokens (app.css) instead of the mockup's own CSS vars.
+
+     Owns nothing persistent itself: `report` is an already-created DB row (Reports.svelte always
+     creates the row before opening the editor, so this only ever UPDATEs); edits mutate a local
+     `data` copy and autosave debounced to supabase. Print/Word buttons call the onPrint/onDocx
+     props if the caller supplied them (agent W2 wires the real exporters later) -- no-op here. -->
+<script>
+  import { createEventDispatcher } from 'svelte'
+  import { computeProgress } from '../../lib/reporttemplate.js'
+  import { updateReportData, submitReport, softDeleteReport } from '../../lib/db.js'
+  import ReportSection from './ReportSection.svelte'
+  import SectionChips from './SectionChips.svelte'
+
+  export let report // reports row (id, type, template_version, data, status, visit_id, ...)
+  export let template // template JSON for report.type
+  export let visit = null // matching visits row, for header context (may be null)
+  export let officerName = ''
+  export let readonly = false // owner viewing a submitted report; admins stay editable
+  export let onPrint = null // (template, data, meta) => void, supplied by the orchestrator later
+  export let onDocx = null // (template, data, meta) => void, ditto
+
+  const dispatch = createEventDispatcher()
+
+  // shallow-fill missing top-level keys only -- never drop unknown keys already in the row, so
+  // a newer template version's extra fields survive a round trip through an older client.
+  function ensureShape(raw) {
+    return {
+      fields: { ...(raw?.fields ?? {}) },
+      checks: { ...(raw?.checks ?? {}) },
+      cards: { ...(raw?.cards ?? {}) },
+      flags: [...(raw?.flags ?? [])],
+    }
+  }
+
+  let data = ensureShape(report.data)
+  let saveState = 'saved' // saved | saving | offline
+  let autosaveTimer = null
+
+  $: progress = computeProgress(template, data)
+  $: disabled = readonly
+
+  function onChange() {
+    data = data // reassign so $: progress and every prop passing `data` sees the mutation
+    if (disabled) return
+    saveState = 'saving'
+    clearTimeout(autosaveTimer)
+    autosaveTimer = setTimeout(doSave, 800)
+  }
+
+  async function doSave() {
+    try {
+      report = await updateReportData(report.id, data)
+      saveState = 'saved'
+      dispatch('save', report)
+    } catch (e) {
+      saveState = 'offline'
+    }
+  }
+
+  async function submit() {
+    if (!confirm('Submit this report? It becomes read-only once submitted.')) return
+    clearTimeout(autosaveTimer)
+    await doSave() // flush any pending edit before flipping status
+    report = await submitReport(report.id)
+    dispatch('submit', report)
+  }
+
+  async function del() {
+    if (!confirm('Delete this draft report? This cannot be undone.')) return
+    await softDeleteReport(report.id)
+    dispatch('delete', report)
+  }
+
+  $: meta = {
+    type: report.type,
+    institute: data.fields?.ti_name || visit?.institute || '',
+    visitDate: data.fields?.visit_date || visit?.start_date || '',
+    officerName,
+    status: report.status,
+    submittedAt: report.submitted_at,
+  }
+</script>
+
+<div class="editor">
+  <header class="head">
+    <div class="head-row">
+      <div class="head-title">
+        <h1>{template.title}</h1>
+        <p class="subtitle">{meta.institute || template.subtitle}</p>
+      </div>
+      <button type="button" class="btn" on:click={() => dispatch('close')}>Close</button>
+    </div>
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" style="width:{progress.sectionsCounted ? (100 * progress.sectionsDone) / progress.sectionsCounted : 0}%"></div></div>
+      <span class="progress-count">{progress.sectionsDone}/{progress.sectionsCounted} sections done</span>
+      {#if progress.flagsTicked.length > 0}<span class="flag-pill">{progress.flagsTicked.length} flag{progress.flagsTicked.length === 1 ? '' : 's'}</span>{/if}
+      {#if report.status === 'submitted'}<span class="submitted-pill">Submitted {new Date(report.submitted_at).toLocaleString()}</span>{/if}
+    </div>
+    <SectionChips sections={template.sections} progressSections={progress.sections} />
+  </header>
+
+  <main class="sections">
+    {#each template.sections as section, index (section.key)}
+      <ReportSection {section} {data} answers={template.answers} progress={progress.sections[section.key]}
+        {disabled} defaultOpen={index === 0} {onChange} />
+    {/each}
+  </main>
+
+  <div class="action-bar">
+    <div class="save-state">
+      {#if disabled}Read-only
+      {:else if saveState === 'saving'}Saving…
+      {:else if saveState === 'offline'}Offline — not saved
+      {:else}Saved{/if}
+    </div>
+    {#if !disabled && report.status === 'draft'}
+      <button type="button" class="btn-link danger" on:click={del}>Delete</button>
+      <button type="button" class="btn btn-primary" on:click={submit}>Submit</button>
+    {/if}
+    <button type="button" class="btn" on:click={() => onPrint?.(template, data, meta)}>Print / PDF</button>
+    <button type="button" class="btn" on:click={() => onDocx?.(template, data, meta)}>Word</button>
+  </div>
+</div>
+
+<style>
+  .editor { padding-bottom: 72px; } /* clears the fixed action bar */
+  .head { position: sticky; top: 0; z-index: 5; background: var(--canvas); padding: 8px 0; margin: -8px 0 12px; }
+  .head-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .head-title h1 { margin: 0; font-size: 18px; color: var(--primary); }
+  .subtitle { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+  .progress-row { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; flex-wrap: wrap; }
+  .progress-track { flex: 1; min-width: 120px; height: 6px; border-radius: 3px; background: var(--outline); overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); transition: width 200ms; }
+  .progress-count { font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+  .flag-pill, .submitted-pill { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: var(--radius-pill); white-space: nowrap; }
+  .flag-pill { background: var(--tone-no-bg); color: var(--tone-no-fg); }
+  .submitted-pill { background: var(--status-success-bg); color: var(--status-success-fg); }
+
+  .action-bar {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: var(--surface);
+    border-top: 1px solid var(--outline);
+    z-index: 10;
+  }
+  .save-state { flex: 1; font-size: 12px; color: var(--muted); }
+  .danger { color: var(--danger); }
+</style>
