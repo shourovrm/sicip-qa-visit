@@ -10,9 +10,11 @@ package bd.sicip.qavisit.data.sync
 
 import bd.sicip.qavisit.data.db.Activity
 import bd.sicip.qavisit.data.db.Bill
+import bd.sicip.qavisit.data.db.Report
 import bd.sicip.qavisit.data.db.TravelLeg
 import bd.sicip.qavisit.data.db.Trip
 import bd.sicip.qavisit.data.db.Visit
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -251,6 +253,70 @@ class MappersTest {
             },
         )
         assertEquals(bill, pulled.toBill())
+    }
+
+    @Test
+    fun `report round trips, data string becomes a real json element on push`() {
+        val reportDataJson = buildJsonObject {
+            put("fields", buildJsonObject { put("ti_name", "Bangladesh-Korea TTC, Mirpur") })
+            put("checks", buildJsonObject {})
+            put("cards", buildJsonObject {})
+            put("flags", Json.parseToJsonElement("[]"))
+        }
+        val report = Report(
+            id = "r1",
+            officerId = "o1",
+            visitId = "v1",
+            type = "surprise",
+            templateVersion = 1,
+            data = reportDataJson.toString(),
+            status = "draft",
+            submittedAt = null,
+            createdAt = "2024-01-01T00:00:00Z",
+            updatedAt = "2024-01-02T00:00:00Z",
+            deleted = false,
+            dirty = false,
+        )
+        val json = report.toJson()
+        assertFalse(json.containsKey("updated_at"))
+        assertFalse(json.containsKey("created_at"))
+        assertEquals(reportDataJson, json.getValue("data")) // real jsonb payload, not a quoted string
+
+        // simulate a pull: postgrest hands back `data` as that same nested json object.
+        val pulled = JsonObject(
+            json.toMutableMap().also {
+                it["updated_at"] = JsonPrimitive(report.updatedAt)
+                it["created_at"] = JsonPrimitive(report.createdAt)
+            },
+        )
+        assertEquals(report, pulled.toReport())
+    }
+
+    @Test
+    fun `report round trips with a submitted_at timestamp`() {
+        val reportDataJson = buildJsonObject { put("fields", buildJsonObject {}) }
+        val report = Report(
+            id = "r2",
+            officerId = "o1",
+            visitId = "v1",
+            type = "surprise",
+            templateVersion = 1,
+            data = reportDataJson.toString(),
+            status = "submitted",
+            submittedAt = "2024-01-03T00:00:00Z",
+            createdAt = "2024-01-01T00:00:00Z",
+            updatedAt = "2024-01-03T00:00:00Z",
+            deleted = false,
+            dirty = false,
+        )
+        val json = report.toJson()
+        val pulled = JsonObject(
+            json.toMutableMap().also {
+                it["updated_at"] = JsonPrimitive(report.updatedAt)
+                it["created_at"] = JsonPrimitive(report.createdAt)
+            },
+        )
+        assertEquals(report, pulled.toReport())
     }
 
     @Test

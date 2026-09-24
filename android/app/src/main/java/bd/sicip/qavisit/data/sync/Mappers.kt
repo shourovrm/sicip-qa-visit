@@ -12,6 +12,7 @@ package bd.sicip.qavisit.data.sync
 import bd.sicip.qavisit.data.db.Activity
 import bd.sicip.qavisit.data.db.Bill
 import bd.sicip.qavisit.data.db.Officer
+import bd.sicip.qavisit.data.db.Report
 import bd.sicip.qavisit.data.db.TravelLeg
 import bd.sicip.qavisit.data.db.Trip
 import bd.sicip.qavisit.data.db.Visit
@@ -193,6 +194,39 @@ fun JsonObject.toBill(): Bill = Bill(
     billDate = str("bill_date"),
     data = getValue("data").toString(),
     net = num("net"),
+    createdAt = str("created_at"),
+    updatedAt = str("updated_at"),
+    deleted = bool("deleted"),
+    dirty = false,
+)
+
+// ============ reports ============
+// mirrors public.reports (supabase/migrations/010_reports.sql). data is stored locally as a
+// JSON string (domain/report/ReportData.kt) but must land in the real jsonb column, not a
+// quoted string -- parse it back to a JsonElement before pushing, same trick as bills' data.
+// created_at/updated_at dropped on push per the file-header convention (server owns both via
+// default/trigger); fromJson still reads them back on every pull.
+fun Report.toJson(): JsonObject = buildJsonObject {
+    put("id", id)
+    put("officer_id", officerId)
+    put("visit_id", visitId)
+    put("type", type)
+    put("template_version", templateVersion)
+    put("data", Json.parseToJsonElement(data))
+    put("status", status)
+    put("submitted_at", submittedAt)
+    put("deleted", deleted)
+}
+
+fun JsonObject.toReport(): Report = Report(
+    id = str("id"),
+    officerId = str("officer_id"),
+    visitId = str("visit_id"),
+    type = str("type"),
+    templateVersion = intNum("template_version"),
+    data = getValue("data").toString(),
+    status = str("status"),
+    submittedAt = strOrNull("submitted_at"),
     createdAt = str("created_at"),
     updatedAt = str("updated_at"),
     deleted = bool("deleted"),

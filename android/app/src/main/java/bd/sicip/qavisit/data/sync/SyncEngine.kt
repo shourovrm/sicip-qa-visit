@@ -76,6 +76,7 @@ class SyncEngine(
             pushed["travel_legs"] = pushTravelLegs(token)
             pushed["activities"] = pushActivities(token)
             pushed["bills"] = pushBills(token)
+            pushed["reports"] = pushReports(token)
 
             pulled["officers"] = pullOfficers(token)
             pulled["trips"] = pullTrips(token, session.userId)
@@ -83,6 +84,7 @@ class SyncEngine(
             pulled["travel_legs"] = pullTravelLegs(token)
             pulled["activities"] = pullActivities(token)
             pulled["bills"] = pullBills(token)
+            pulled["reports"] = pullReports(token)
 
             // past incident: rows hard-DELETEd on the server never got retracted locally,
             // since pull only upserts. reconcile every table against the server's live id
@@ -94,6 +96,7 @@ class SyncEngine(
             reconcile("travel_legs", token, db.travelLegDao().nonDirtyIds()) { db.travelLegDao().deleteByIds(it) }
             reconcile("activities", token, db.activityDao().nonDirtyIds()) { db.activityDao().deleteByIds(it) }
             reconcile("bills", token, db.billDao().nonDirtyIds()) { db.billDao().deleteByIds(it) }
+            reconcile("reports", token, db.reportDao().nonDirtyIds()) { db.reportDao().deleteByIds(it) }
 
             syncState.recordSuccess(Instant.now().toString())
             SyncResult(pushed, pulled)
@@ -147,6 +150,15 @@ class SyncEngine(
         val dirty = dao.dirtyRows()
         if (dirty.isEmpty()) return 0
         client.upsert("bills", JsonArray(dirty.map { it.toJson() }), token)
+        dao.clearDirty(dirty.map { it.id to it.updatedAt })
+        return dirty.size
+    }
+
+    private suspend fun pushReports(token: String): Int {
+        val dao = db.reportDao()
+        val dirty = dao.dirtyRows()
+        if (dirty.isEmpty()) return 0
+        client.upsert("reports", JsonArray(dirty.map { it.toJson() }), token)
         dao.clearDirty(dirty.map { it.id to it.updatedAt })
         return dirty.size
     }
@@ -329,6 +341,26 @@ class SyncEngine(
             }
         }
         syncState.setWatermark("bills", advanceWatermark(watermark, remoteRows.map { it.updatedAt }))
+        return applied
+    }
+
+    // RLS scopes reports to officer_id = auth.uid() (or admin), same as bills -- a plain
+    // watermark pull already only ever sees our own rows.
+    private suspend fun pullReports(token: String): Int {
+        val dao = db.reportDao()
+        val watermark = syncState.watermark("reports")
+        val rows = pullPages("reports", watermark, token)
+        if (rows.isEmpty()) return 0
+        val remoteRows = rows.map { it.jsonObject.toReport() }
+        var applied = 0
+        for (remote in remoteRows) {
+            val local = dao.byId(remote.id)
+            if (shouldApplyRemote(localDirty = local?.dirty ?: false)) {
+                dao.upsert(remote)
+                applied++
+            }
+        }
+        syncState.setWatermark("reports", advanceWatermark(watermark, remoteRows.map { it.updatedAt }))
         return applied
     }
 

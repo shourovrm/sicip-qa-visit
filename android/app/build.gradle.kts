@@ -68,6 +68,16 @@ android {
         }
     }
 
+    // report template JSON lives once in shared/report-templates/ (shared with the web app,
+    // see spec) -- point Room's asset scan straight at it instead of copying a duplicate into
+    // src/main/assets. Files land at the asset tree root, so the template is readable at
+    // runtime as assets/surprise-v1.json (context.assets.open("surprise-v1.json")).
+    sourceSets {
+        getByName("main") {
+            assets.srcDirs("src/main/assets", "../../shared/report-templates")
+        }
+    }
+
     packaging {
         jniLibs {
             // both have a pure-JVM fallback path we always hit: graphics-path's native PathIterator
