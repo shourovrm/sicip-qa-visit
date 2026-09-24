@@ -31,6 +31,8 @@ import androidx.compose.runtime.setValue
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Report
 import bd.sicip.qavisit.domain.report.ReportData
+import bd.sicip.qavisit.domain.report.ReportTemplate
+import bd.sicip.qavisit.domain.report.syncLinks
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -43,18 +45,31 @@ import java.time.Instant
 
 private const val TEXT_DEBOUNCE_MS = 400L
 
-class ReportEditor(initialReport: Report, private val db: AppDb) {
+class ReportEditor(initialReport: Report, private val db: AppDb, private val template: ReportTemplate) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var saveJob: Job? = null
 
     var report by mutableStateOf(initialReport)
         private set
-    var data by mutableStateOf(ReportData.parse(initialReport.data))
+    var data by mutableStateOf(syncLinks(template, ReportData.parse(initialReport.data)))
         private set
 
     // submitted reports are read-only on both platforms (spec, "Lifecycle") -- the UI must not
     // offer editable controls once true, but this is also the last line of defense.
     val readOnly: Boolean get() = report.status == "submitted"
+
+    init {
+        // spec: "Run [syncLinks] after EVERY edit and when a report is opened" -- opening this
+        // report just now may already have changed something (a course added/renamed in section
+        // A since this report's last save, a stale linked card whose source is gone). Persist
+        // that immediately so Room -- and the other platform, next sync -- see it without
+        // waiting for the officer's next edit. No-op (no write) when syncLinks changed nothing,
+        // which keeps re-opening an already-synced report free of churn.
+        val parsed = ReportData.parse(initialReport.data)
+        if (!readOnly && data.toJsonString() != parsed.toJsonString()) {
+            saveJob = scope.launch { persist() }
+        }
+    }
 
     // discrete edit: a checklist tap, a choice field, adding/removing a card row, ticking a
     // flag. each of these is a single, already-final decision -- no reason to wait.
@@ -66,7 +81,9 @@ class ReportEditor(initialReport: Report, private val db: AppDb) {
 
     private fun commit(newData: ReportData, debounceMs: Long) {
         if (readOnly) return
-        data = newData
+        // spec: "Run it after EVERY edit" -- e.g. filling in a course in section A must
+        // immediately (re)link section C's attendance card, not wait for the next edit there.
+        data = syncLinks(template, newData)
         saveJob?.cancel()
         saveJob = scope.launch {
             if (debounceMs > 0) delay(debounceMs)
@@ -104,7 +121,7 @@ class ReportEditor(initialReport: Report, private val db: AppDb) {
     }
 }
 
-class ReportEditorRegistry(private val db: AppDb) {
+class ReportEditorRegistry(private val db: AppDb, private val template: ReportTemplate) {
     private val editors = mutableMapOf<String, ReportEditor>()
 
     // reuse the open editor (one in-memory copy per report), but take the room row instead
@@ -112,9 +129,10 @@ class ReportEditorRegistry(private val db: AppDb) {
     fun forReport(report: Report): ReportEditor {
         val existing = editors[report.id]
         if (existing != null && (!existing.isIdle || existing.report.updatedAt == report.updatedAt)) return existing
-        return ReportEditor(report, db).also { editors[report.id] = it }
+        return ReportEditor(report, db, template).also { editors[report.id] = it }
     }
 }
 
 @Composable
-fun rememberReportEditorRegistry(db: AppDb): ReportEditorRegistry = remember(db) { ReportEditorRegistry(db) }
+fun rememberReportEditorRegistry(db: AppDb, template: ReportTemplate): ReportEditorRegistry =
+    remember(db, template) { ReportEditorRegistry(db, template) }

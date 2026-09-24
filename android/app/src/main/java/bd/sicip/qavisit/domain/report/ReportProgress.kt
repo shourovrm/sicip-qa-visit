@@ -1,28 +1,33 @@
-// progress rules from the spec's "Progress rules" section -- implemented identically on
-// android and web; shared/report-templates/fixtures/progress-1.json proves the two agree.
+// progress rules -- ported 1:1 from shared/report-templates/fixtures/reference.py (the source
+// of truth; regenerate progress-1.json by running it), implemented identically on android and
+// web; the fixture's `expected` proves the two agree.
 //
-// blank = null or trimmed "". Per section: checklist items always count toward total/answered
-// (answered = non-blank answer, flagged if any item's answer == "no"); a `fields` block counts
-// only fields marked required==true or kind=="choice" (a choice field flags the section if its
-// chosen option's tone == "no"); a `cards` block counts each kind=="choice" field once per card
-// PRESENT in the data (a template with zero cards filled in contributes 0, not
-// fields.size * 0 -- see the graduates/followup sections in the fixture); a `flags` block never
-// contributes to total/answered, only to flagged (if any of its items is ticked). A section is
-// done when total > 0 && answered == total (a section with total == 0, e.g. an all-optional
-// fields block, is never "done" -- it's simply not counted).
+// blank = null or trimmed "". `counts(field)` = field.required || field.kind == "choice", used
+// uniformly for BOTH a `fields` block's fields AND a `cards` block's per-card fields (a required
+// but non-choice card field, e.g. attendance's present_total/trainers_present, counts just like
+// a required top-level field does). Per section:
+// - checklist: total += items; answered += non-blank answer; flagged if any answer == "no".
+// - fields: each field where counts(field) → total+1, answered if non-blank; flagged if a
+//   choice field's chosen option's tone == "no".
+// - cards (countsAsFlags block, e.g. section L's "other_flags"): contributes 0 to totals; every
+//   card whose titleField is non-blank is a free-text flag (flags the section, and its text is
+//   collected into ReportProgress.customFlags) -- see reference.py's `counts()` early-continue.
+// - cards (ordinary block): for every card PRESENT in the data, each field where counts(field)
+//   → total+1, answered if non-blank, flagged if a choice field's tone is "no"; if block.compare:
+//   parse non-blank compare fields as ints, ≥2 present and not all equal → flagged (also see
+//   cardCompareMismatch, shared with the UI's per-card compare-warning badge).
+// - flags: contributes 0 to totals; flagged if any of its items ticked.
+// - done = total > 0 && answered == total.
+// Report level: sectionsCounted/sectionsDone only count sections where !section.optional (an
+// optional section, e.g. K, is still computed and shown in `sections`, just excluded from the
+// hub's "x of N" rollup); answerCounts per template answer id over checklist items only;
+// unanswered checklist item ids in template order (unaffected by `optional`); flagsTicked (the
+// flags block's own ticked ids); customFlags (countsAsFlags cards' free text, template order).
 //
 // API for agent A2 (UI): computeProgress(template, data) is the one entry point -- call it on
 // every render (it's a small pure walk, cheap enough not to cache). ReportProgress.sections is
 // keyed by section.key in template order (iterate template.sections and look up by key, don't
-// iterate the map directly, if you need template order guaranteed). sectionsCounted/sectionsDone
-// drive the report hub's "x of N sections" line. answerCounts is keyed by template answer id
-// (yes/no/partial/na for surprise-v1) and only counts checklist items, not card choice fields --
-// it's meant for a review-screen breakdown, not a raw total. unansweredChecklistItemIds is in
-// template section/block order; firstUnanswered (its head, or null if none) is what a "resume
-// where you left off" jump would target. flagsTicked is the ticked subset of every flags
-// block's items, same template order. cardCompareMismatch is exposed separately so a card's UI
-// badge and this file's section-level `flagged` never compute the compare rule two different
-// ways.
+// iterate the map directly, if you need template order guaranteed).
 package bd.sicip.qavisit.domain.report
 
 import kotlinx.serialization.json.JsonObject
@@ -38,12 +43,19 @@ data class ReportProgress(
     val answerCounts: Map<String, Int>,
     val unansweredChecklistItemIds: List<String>,
     val flagsTicked: List<String>,
+    val customFlags: List<String>,
 ) {
     val unansweredCount: Int get() = unansweredChecklistItemIds.size
     val firstUnanswered: String? get() = unansweredChecklistItemIds.firstOrNull()
 }
 
 private fun isBlank(value: String?): Boolean = value == null || value.trim().isEmpty()
+
+// reference.py's counts(field): a field counts toward total/answered if it's required OR a
+// choice field -- applies identically to a top-level `fields` block and to a `cards` block's
+// per-card fields (CHANGE SET 2: previously cards only counted `choice` fields, dropping
+// required-but-plain fields like attendance's present_total/trainers_present).
+private fun counts(field: Field): Boolean = field.required || field.kind == "choice"
 
 // the spec's compare rule: parse the named fields of one card as ints, ignoring blanks; two or
 // more present and not all equal is a mismatch. shared by ReportProgress's flagged calculation
@@ -55,79 +67,109 @@ fun cardCompareMismatch(compare: CardsCompare, card: JsonObject): Boolean {
     return presentInts.size >= 2 && presentInts.distinct().size > 1
 }
 
-fun computeProgress(template: ReportTemplate, data: ReportData): ReportProgress {
-    val sections = LinkedHashMap<String, SectionProgress>()
-    val answerCounts = mutableMapOf<String, Int>()
-    val unanswered = mutableListOf<String>()
-    val flagsTicked = mutableListOf<String>()
-    val tickedFlagIds = data.flags()
+// one section's {answered,total,done,flagged} plus any free-text customFlags it contributed
+// (reference.py's section_progress returns the same pair).
+private fun sectionProgress(
+    section: ReportSection,
+    data: ReportData,
+    answerCounts: MutableMap<String, Int>,
+    unanswered: MutableList<String>,
+): Pair<SectionProgress, List<String>> {
+    var total = 0
+    var answered = 0
+    var flagged = false
+    val customFlags = mutableListOf<String>()
 
-    template.sections.forEach { section ->
-        var total = 0
-        var answered = 0
-        var flagged = false
-
-        section.blocks.forEach { block ->
-            when (block) {
-                is ReportBlock.Checklist -> {
-                    block.items.forEach { item ->
-                        total++
-                        val answer = data.checkAnswer(item.id)
-                        if (isBlank(answer)) {
-                            unanswered.add(item.id)
-                        } else {
-                            answered++
-                            answerCounts[answer] = (answerCounts[answer] ?: 0) + 1
-                        }
-                        if (answer == "no") flagged = true
+    section.blocks.forEach { block ->
+        when (block) {
+            is ReportBlock.Checklist -> {
+                block.items.forEach { item ->
+                    total++
+                    val answer = data.checkAnswer(item.id)
+                    if (isBlank(answer)) {
+                        unanswered.add(item.id)
+                    } else {
+                        answered++
+                        answerCounts[answer] = (answerCounts[answer] ?: 0) + 1
                     }
-                }
-
-                is ReportBlock.Fields -> {
-                    block.fields.forEach { field ->
-                        if (field.required || field.kind == "choice") {
-                            total++
-                            val value = data.field(field.key)
-                            if (!isBlank(value)) answered++
-                            if (field.kind == "choice" && !isBlank(value) && field.toneFor(value) == "no") {
-                                flagged = true
-                            }
-                        }
-                    }
-                }
-
-                is ReportBlock.Cards -> {
-                    val choiceFields = block.fields.filter { it.kind == "choice" }
-                    data.cards(block.key).forEach { card ->
-                        choiceFields.forEach { field ->
-                            total++
-                            val value = card[field.key]?.jsonPrimitive?.contentOrNull
-                            if (!isBlank(value)) {
-                                answered++
-                                if (field.toneFor(value!!) == "no") flagged = true
-                            }
-                        }
-                        val compare = block.compare
-                        if (compare != null && cardCompareMismatch(compare, card)) flagged = true
-                    }
-                }
-
-                is ReportBlock.Flags -> {
-                    if (block.items.any { it.id in tickedFlagIds }) flagged = true
-                    block.items.forEach { item -> if (item.id in tickedFlagIds) flagsTicked.add(item.id) }
+                    if (answer == "no") flagged = true
                 }
             }
-        }
 
-        sections[section.key] = SectionProgress(answered = answered, total = total, done = total > 0 && answered == total, flagged = flagged)
+            is ReportBlock.Fields -> {
+                block.fields.forEach { field ->
+                    if (!counts(field)) return@forEach
+                    total++
+                    val value = data.field(field.key)
+                    if (!isBlank(value)) answered++
+                    if (field.kind == "choice" && !isBlank(value) && field.toneFor(value) == "no") {
+                        flagged = true
+                    }
+                }
+            }
+
+            is ReportBlock.Cards -> {
+                val entries = data.cards(block.key)
+                if (block.countsAsFlags) {
+                    entries.forEach { card ->
+                        val text = card[block.titleField]?.jsonPrimitive?.contentOrNull
+                        if (!isBlank(text)) {
+                            customFlags.add(text!!.trim())
+                            flagged = true
+                        }
+                    }
+                    return@forEach
+                }
+                entries.forEach { card ->
+                    block.fields.forEach { field ->
+                        if (!counts(field)) return@forEach
+                        total++
+                        val value = card[field.key]?.jsonPrimitive?.contentOrNull
+                        if (!isBlank(value)) {
+                            answered++
+                            if (field.kind == "choice" && field.toneFor(value!!) == "no") flagged = true
+                        }
+                    }
+                    val compare = block.compare
+                    if (compare != null && cardCompareMismatch(compare, card)) flagged = true
+                }
+            }
+
+            is ReportBlock.Flags -> {
+                val tickedFlagIds = data.flags()
+                if (block.items.any { it.id in tickedFlagIds }) flagged = true
+            }
+        }
     }
+
+    return SectionProgress(answered = answered, total = total, done = total > 0 && answered == total, flagged = flagged) to customFlags
+}
+
+fun computeProgress(template: ReportTemplate, data: ReportData): ReportProgress {
+    val sections = LinkedHashMap<String, SectionProgress>()
+    // reference.py zero-fills every template answer id up front (not just the ones actually
+    // used), so an answer id with zero occurrences still shows up as 0, not absent.
+    val answerCounts = template.answers.associate { it.id to 0 }.toMutableMap()
+    val unanswered = mutableListOf<String>()
+    val customFlags = mutableListOf<String>()
+
+    template.sections.forEach { section ->
+        val (progress, found) = sectionProgress(section, data, answerCounts, unanswered)
+        sections[section.key] = progress
+        customFlags += found
+    }
+
+    val counted = template.sections.filter { !it.optional && (sections[it.key]?.total ?: 0) > 0 }
 
     return ReportProgress(
         sections = sections,
-        sectionsCounted = sections.values.count { it.total > 0 },
-        sectionsDone = sections.values.count { it.total > 0 && it.done },
+        sectionsCounted = counted.size,
+        sectionsDone = counted.count { sections.getValue(it.key).done },
         answerCounts = answerCounts,
         unansweredChecklistItemIds = unanswered,
-        flagsTicked = flagsTicked,
+        // reference.py: flagsTicked is data.flags verbatim (order and all), not re-derived
+        // from the template's flag items.
+        flagsTicked = data.flagsList(),
+        customFlags = customFlags,
     )
 }

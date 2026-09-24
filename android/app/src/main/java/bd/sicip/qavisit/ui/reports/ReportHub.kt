@@ -219,7 +219,10 @@ private fun SectionRow(section: ReportSection, progress: SectionProgress?, subti
         ) {
             LetterBadge(section.letter, progress)
             Column(modifier = Modifier.weight(1f)) {
-                Text(section.title, style = MaterialTheme.typography.bodyLarge)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(section.title, style = MaterialTheme.typography.bodyLarge)
+                    if (section.optional) OptionalTag()
+                }
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Icon(

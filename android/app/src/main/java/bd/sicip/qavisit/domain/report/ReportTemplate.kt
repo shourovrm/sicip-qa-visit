@@ -36,10 +36,20 @@ data class FlagItem(val id: String, val text: String)
 @Serializable
 data class CardsCompare(val fields: List<String>, val message: String)
 
-// kind ∈ text | longtext | number | date | time | phone | select | choice. `options` is raw
-// JSON because its shape depends on kind (select = list of strings, choice = list of
-// {id,label,tone}) -- kotlinx-serialization can't express that as one typed property, so the
-// two accessor methods below decode it lazily per the caller's known kind.
+// a `cards` block with `linkFrom` derives its rows from another cards block instead of the
+// officer adding/removing them directly (e.g. section C's attendance cards follow section A's
+// courses) -- see domain/report/ReportLinks.kt's syncLinks, ported from reference.py's
+// sync_links. `cards` is the source block's key; `fields` are the source keys copied onto each
+// linked target card verbatim.
+@Serializable
+data class CardsLink(val cards: String, val fields: List<String>)
+
+// kind ∈ text | longtext | number | date | time | phone | select | choice | courseRef.
+// `options` is raw JSON because its shape depends on kind (select = list of strings, choice =
+// list of {id,label,tone}) -- kotlinx-serialization can't express that as one typed property,
+// so the two accessor methods below decode it lazily per the caller's known kind. `optionsFrom`
+// is courseRef's own source: the key of a `cards` block whose entries become this field's
+// dropdown options (see ReportBlocks.kt's FieldEditor "courseRef" case).
 @Serializable
 data class Field(
     val key: String,
@@ -49,6 +59,7 @@ data class Field(
     val prefill: String? = null, // institute | association | visit_date | officers
     val placeholder: String? = null,
     val options: JsonElement? = null,
+    val optionsFrom: String? = null,
 ) {
     fun selectOptions(): List<String> =
         (options as? JsonArray)?.map { it.jsonPrimitive.content } ?: emptyList()
@@ -75,7 +86,13 @@ sealed class ReportBlock {
         val itemLabel: String,
         val start: Int,
         val titleField: String,
+        val heading: String? = null,
+        val note: String? = null,
         val compare: CardsCompare? = null,
+        val linkFrom: CardsLink? = null,
+        // block contributes 0 to progress totals; every card whose titleField is non-blank is
+        // a free-text flag instead (section L's "other_flags") -- see ReportProgress's customFlags.
+        val countsAsFlags: Boolean = false,
         val fields: List<Field>,
     ) : ReportBlock()
 
@@ -104,6 +121,9 @@ data class ReportSection(
     val short: String,
     val title: String,
     val note: String? = null,
+    // excluded from ReportProgress's sectionsCounted/sectionsDone rollup (spec: "optional
+    // section"); still computed and shown in `sections`, just tagged "Optional" in the UI.
+    val optional: Boolean = false,
     val blocks: List<@Serializable(with = ReportBlockSerializer::class) ReportBlock>,
 )
 

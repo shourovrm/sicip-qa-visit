@@ -58,6 +58,8 @@ import bd.sicip.qavisit.domain.report.AnswerOption
 import bd.sicip.qavisit.domain.report.Field
 import bd.sicip.qavisit.domain.report.ReportBlock
 import bd.sicip.qavisit.domain.report.ReportData
+import bd.sicip.qavisit.domain.report.ReportSection
+import bd.sicip.qavisit.domain.report.ReportTemplate
 import bd.sicip.qavisit.domain.report.cardCompareMismatch
 import bd.sicip.qavisit.ui.common.PickerDropdown
 import bd.sicip.qavisit.ui.common.TimeField
@@ -65,10 +67,13 @@ import bd.sicip.qavisit.ui.common.showDatePicker
 import bd.sicip.qavisit.ui.theme.LocalToneColors
 import bd.sicip.qavisit.ui.theme.forToneId
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 // N answer buttons across a row (4 for a checklist item's yes/no/partial/na, 2-3 for a choice
-// field like rating/trainer-present) -- neutral outline until chosen, filled with the option's
-// tone color once chosen, tapping the already-chosen one again clears it back to blank.
+// field like overall_rating/attendance's identity "result") -- neutral outline until chosen,
+// filled with the option's tone color once chosen, tapping the already-chosen one again clears
+// it back to blank.
 @Composable
 fun AnswerButtons(options: List<AnswerOption>, selected: String, readOnly: Boolean, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
     val tones = LocalToneColors.current
@@ -93,8 +98,28 @@ fun AnswerButtons(options: List<AnswerOption>, selected: String, readOnly: Boole
     }
 }
 
+// courseRef dropdown options: "<course> · <batch>" (or just <course> if batch is blank) for
+// every entry in the source cards block (field.optionsFrom), in that block's own order --
+// spec's new field kind (D identity's "Course / batch"). Keeping an existing value that no
+// longer matches any option isn't this function's job: PickerDropdown already shows whatever
+// text it's given regardless of whether it's in `options`, which is exactly "keeps an existing
+// value even if not in the list" (spec).
+fun courseRefOptions(data: ReportData, field: Field): List<String> {
+    val sourceKey = field.optionsFrom ?: return emptyList()
+    return data.cards(sourceKey).mapNotNull { card ->
+        val course = card["course"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        val batch = card["batch"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        when {
+            course.isBlank() -> null
+            batch.isBlank() -> course
+            else -> "$course · $batch"
+        }
+    }
+}
+
 // one template Field rendered by its `kind` -- used both for a top-level `fields` block and for
-// each field inside a `cards` entry (identical rendering rules either way).
+// each field inside a `cards` entry (identical rendering rules either way). `courseOptions` only
+// matters for kind=="courseRef" (see courseRefOptions above); every other kind ignores it.
 @Composable
 fun FieldEditor(
     field: Field,
@@ -103,6 +128,7 @@ fun FieldEditor(
     onImmediate: (String) -> Unit,
     onDebounced: (String) -> Unit,
     modifier: Modifier = Modifier,
+    courseOptions: List<String> = emptyList(),
 ) {
     val context = LocalContext.current
     when (field.kind) {
@@ -117,6 +143,16 @@ fun FieldEditor(
             options = field.selectOptions(),
             selected = value,
             onSelect = onImmediate,
+            modifier = modifier.fillMaxWidth(),
+        )
+
+        "courseRef" -> PickerDropdown(
+            label = field.label,
+            options = courseOptions,
+            selected = value,
+            onSelect = onImmediate,
+            onTextChange = onImmediate,
+            searchable = true,
             modifier = modifier.fillMaxWidth(),
         )
 
@@ -194,6 +230,7 @@ fun FieldsBlockView(block: ReportBlock.Fields, data: ReportData, readOnly: Boole
                 readOnly = readOnly,
                 onImmediate = { v -> editor.editNow(data.withField(field.key, v)) },
                 onDebounced = { v -> editor.editDebounced(data.withField(field.key, v)) },
+                courseOptions = if (field.kind == "courseRef") courseRefOptions(data, field) else emptyList(),
             )
         }
     }
@@ -248,24 +285,77 @@ fun ChecklistBlockView(
     }
 }
 
+// the section whose OWN cards block a `linkFrom` block follows (e.g. "courses" lives in
+// section A) -- used for the empty-state "Add courses in section A" jump, generic over any
+// future linkFrom pairing instead of hardcoding "section A".
+private fun sourceSectionAndBlock(template: ReportTemplate, sourceCardsKey: String): Pair<ReportSection, ReportBlock.Cards>? {
+    template.sections.forEach { section ->
+        section.blocks.filterIsInstance<ReportBlock.Cards>().forEach { block ->
+            if (block.key == sourceCardsKey) return section to block
+        }
+    }
+    return null
+}
+
 @Composable
-fun CardsBlockView(block: ReportBlock.Cards, data: ReportData, readOnly: Boolean, editor: ReportEditor, modifier: Modifier = Modifier) {
+fun CardsBlockView(
+    block: ReportBlock.Cards,
+    data: ReportData,
+    readOnly: Boolean,
+    editor: ReportEditor,
+    template: ReportTemplate,
+    onOpenSection: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val entries = data.cards(block.key)
+    val link = block.linkFrom
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         entries.forEachIndexed { index, entry ->
             CardEntryView(block, entry, index, data, readOnly, editor)
         }
-        if (!readOnly) {
-            OutlinedButton(
-                onClick = { editor.editNow(data.withCardAdded(block.key)) },
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
-                Text("Add ${block.itemLabel}")
+        when {
+            // linked cards are entirely derived (syncLinks) -- officer never adds/removes one
+            // directly, spec: "linked cards have no Add/Remove".
+            link != null && entries.isEmpty() -> {
+                val source = sourceSectionAndBlock(template, link.cards)
+                Text(
+                    if (source != null) "Add ${source.second.itemLabel.lowercase()}s in section ${source.first.letter}" else "Nothing to show yet",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (source != null && !readOnly) {
+                    TextButton(onClick = { onOpenSection(source.first.key) }) {
+                        Text("Go to section ${source.first.letter}")
+                    }
+                }
+            }
+            link == null && !readOnly -> {
+                OutlinedButton(
+                    onClick = { editor.editNow(data.withCardAdded(block.key)) },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Add ${block.itemLabel}")
+                }
             }
         }
     }
+}
+
+// linked fields (e.g. course/batch) render read-only plain text in the header instead of an
+// editable FieldEditor row, e.g. "Welding (SMAW) · Batch 07" -- spec's example, matched here for
+// the course+batch shape specifically; any other linkFrom field set falls back to a plain join.
+private fun linkedCardHeader(block: ReportBlock.Cards, entry: JsonObject): String {
+    val link = block.linkFrom ?: return "${block.itemLabel}"
+    val course = entry["course"]?.jsonPrimitive?.contentOrNull
+    val batch = entry["batch"]?.jsonPrimitive?.contentOrNull
+    if (course != null && batch != null) {
+        return if (batch.isBlank()) course else "$course · Batch $batch"
+    }
+    return link.fields.mapNotNull { key -> entry[key]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() } }
+        .joinToString(" · ")
+        .ifBlank { block.itemLabel }
 }
 
 @Composable
@@ -277,21 +367,28 @@ private fun CardEntryView(
     readOnly: Boolean,
     editor: ReportEditor,
 ) {
+    val link = block.linkFrom
+    val isLinked = link != null
     val mismatch = block.compare?.let { cardCompareMismatch(it, entry) } ?: false
     // a filled card needs a confirm before removal; an empty seeded one goes straight away
     var confirmRemove by remember { mutableStateOf(false) }
     val hasContent = entry.values.any { it.toString().trim('"').isNotBlank() }
+    // linked fields show read-only in the header (linkedCardHeader) instead of as an editable
+    // row further down -- everything else on the card still edits normally.
+    val editableFields = if (link != null) block.fields.filterNot { it.key in link.fields } else block.fields
     // mismatch = one warning line under the header, not a red card: a tinted card body
     // hurts contrast outdoors (DESIGN.md sunlight rule)
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "${block.itemLabel} ${index + 1}",
+                    if (isLinked) linkedCardHeader(block, entry) else "${block.itemLabel} ${index + 1}",
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.weight(1f),
                 )
-                if (!readOnly) {
+                // linked cards have no Remove either (spec) -- their lifecycle follows the
+                // source card in section A, not a tap here.
+                if (!readOnly && !isLinked) {
                     IconButton(onClick = { if (hasContent) confirmRemove = true else editor.editNow(data.withCardRemoved(block.key, index)) }) {
                         Icon(Icons.Filled.Close, contentDescription = "Remove ${block.itemLabel}")
                     }
@@ -307,7 +404,7 @@ private fun CardEntryView(
                     )
                 }
             }
-            block.fields.forEach { field ->
+            editableFields.forEach { field ->
                 val value = data.cardField(block.key, index, field.key)
                 FieldEditor(
                     field = field,
@@ -315,6 +412,7 @@ private fun CardEntryView(
                     readOnly = readOnly,
                     onImmediate = { v -> editor.editNow(data.withCardField(block.key, index, field.key, v)) },
                     onDebounced = { v -> editor.editDebounced(data.withCardField(block.key, index, field.key, v)) },
+                    courseOptions = if (field.kind == "courseRef") courseRefOptions(data, field) else emptyList(),
                 )
             }
         }
@@ -356,13 +454,35 @@ fun FlagsBlockView(block: ReportBlock.Flags, data: ReportData, readOnly: Boolean
 }
 
 @Composable
-fun ReportBlockView(block: ReportBlock, answers: List<AnswerOption>, data: ReportData, readOnly: Boolean, editor: ReportEditor) {
+fun ReportBlockView(
+    block: ReportBlock,
+    answers: List<AnswerOption>,
+    data: ReportData,
+    readOnly: Boolean,
+    editor: ReportEditor,
+    template: ReportTemplate,
+    onOpenSection: (String) -> Unit,
+) {
     when (block) {
         is ReportBlock.Fields -> FieldsBlockView(block, data, readOnly, editor)
         is ReportBlock.Checklist -> ChecklistBlockView(block, answers, data, readOnly, editor)
-        is ReportBlock.Cards -> CardsBlockView(block, data, readOnly, editor)
+        is ReportBlock.Cards -> CardsBlockView(block, data, readOnly, editor, template, onOpenSection)
         is ReportBlock.Flags -> FlagsBlockView(block, data, readOnly, editor)
     }
+}
+
+// small "Optional" tag (spec: optional sections show a tag on the hub row / section header /
+// chip) -- reused by ReportHub.kt's SectionRow and ReportSectionScreen.kt's top bar title.
+@Composable
+fun OptionalTag(modifier: Modifier = Modifier) {
+    Text(
+        "OPTIONAL",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(99))
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+    )
 }
 
 // orange = actions only (DESIGN.md); the primary button of every report action bar

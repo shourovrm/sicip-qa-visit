@@ -95,7 +95,17 @@ private fun checklistBlockHtml(block: ReportBlock.Checklist, data: ReportData, a
 
 private fun JsonObject.stringOrNull(key: String): String? = this[key]?.jsonPrimitive?.contentOrNull
 
+// countsAsFlags cards (section L's "other_flags"): free-text flags, printed as a plain list
+// exactly like flagsBlockHtml's ticked items -- "Show them alongside ticked flags in review/
+// hub/PDF/docx" (spec).
+private fun customFlagsCardsHtml(block: ReportBlock.Cards, data: ReportData): String {
+    val texts = data.cards(block.key).mapNotNull { it.stringOrNull(block.titleField)?.trim()?.takeIf { t -> t.isNotEmpty() } }
+    if (texts.isEmpty()) return "<p class=\"none-ticked\">None ticked.</p>"
+    return "<ul class=\"flags-list\">${texts.joinToString("") { "<li>${esc(it)}</li>" }}</ul>"
+}
+
 private fun cardsBlockHtml(block: ReportBlock.Cards, data: ReportData): String {
+    if (block.countsAsFlags) return customFlagsCardsHtml(block, data)
     val entries = data.cards(block.key)
     if (entries.isEmpty()) return "<p class=\"empty\">No entries.</p>"
     return entries.mapIndexed { i, entry ->
@@ -130,7 +140,8 @@ private fun blockHtml(block: ReportBlock, data: ReportData, answerMap: Map<Strin
 }
 
 private fun sectionHtml(section: ReportSection, data: ReportData, answerMap: Map<String, AnswerOption>): String {
-    val note = section.note?.let { "<span class=\"note\">${esc(it)}</span>" } ?: ""
+    val noteText = listOfNotNull(if (section.optional) "Optional" else null, section.note).joinToString(" — ")
+    val note = if (noteText.isNotEmpty()) "<span class=\"note\">${esc(noteText)}</span>" else ""
     val blocks = section.blocks.joinToString("") { blockHtml(it, data, answerMap) }
     return "<section class=\"keep\"><h2><span class=\"letter\">${esc(section.letter)}</span>${esc(section.title)}$note</h2>$blocks</section>"
 }

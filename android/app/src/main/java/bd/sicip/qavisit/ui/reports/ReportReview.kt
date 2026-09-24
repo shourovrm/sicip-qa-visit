@@ -205,6 +205,16 @@ fun ReportReview(
                 }
             }
 
+            if (progress.customFlags.isNotEmpty()) {
+                item { Text("Other flags", style = MaterialTheme.typography.labelLarge) }
+                items(progress.customFlags) { text ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Filled.Flag, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                        Text(text, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+
             if (progress.unansweredChecklistItemIds.isNotEmpty()) {
                 item {
                     Text(

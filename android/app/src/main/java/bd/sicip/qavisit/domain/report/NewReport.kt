@@ -1,5 +1,6 @@
 // builds a brand-new report's data JSON (spec: "New report: prefill fields from the visit;
-// seed cards[key] with `start` empty objects {} per cards block").
+// seed cards[key] with `start` empty objects {} per cards block"). Each seeded card gets a
+// random _id (ReportData.withCardAdded's default) -- CHANGE SET 2's "Random id on create (uuid)".
 //
 // API for agent A2 (UI): call newReport(template, visit, officerName, officerDesignation) from
 // the "Start report" flow (bottom-sheet S1) once the officer picked a type + visit; wrap the
@@ -31,7 +32,12 @@ fun newReport(
                 }
 
                 is ReportBlock.Cards -> {
-                    repeat(block.start) { data = data.withCardAdded(block.key) }
+                    // linked blocks (e.g. attendance) get their rows from syncLinks below, never
+                    // from `start` seeding -- their own `start` is 0 in the template anyway, but
+                    // this guard is the one place that rule actually lives in code.
+                    if (block.linkFrom == null) {
+                        repeat(block.start) { data = data.withCardAdded(block.key) }
+                    }
                 }
 
                 // checklist/flags start with nothing ticked -- no seeding needed.
@@ -40,7 +46,10 @@ fun newReport(
         }
     }
 
-    return data
+    // spec: "Run it after EVERY edit and when a report is opened" -- a brand-new report counts
+    // as both (its first open), so a template whose seeded source cards already carry linked
+    // field values would show its derived cards immediately instead of after the first edit.
+    return syncLinks(template, data)
 }
 
 private fun prefillValue(

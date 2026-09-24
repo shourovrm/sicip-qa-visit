@@ -37,6 +37,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.AppDb
@@ -92,7 +93,13 @@ fun ReportSectionScreen(
                 windowInsets = WindowInsets(0, 0, 0, 0),
                 title = {
                     Column {
-                        Text("${section.letter}. ${section.title}")
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text("${section.letter}. ${section.title}")
+                            if (section.optional) OptionalTag()
+                        }
                         if (sectionProgress != null && sectionProgress.total > 0) {
                             Text(
                                 "${sectionProgress.answered} of ${sectionProgress.total} answered",
@@ -143,7 +150,15 @@ fun ReportSectionScreen(
                 }
             }
             items(section.blocks) { block ->
-                ReportBlockView(block, template.answers, editor.data, editor.readOnly, editor)
+                ReportBlockView(
+                    block = block,
+                    answers = template.answers,
+                    data = editor.data,
+                    readOnly = editor.readOnly,
+                    editor = editor,
+                    template = template,
+                    onOpenSection = { key -> leave { onOpenSection(key) } },
+                )
             }
         }
     }
