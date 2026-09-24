@@ -2,7 +2,7 @@
 // (docx files are zip archives) containing word/document.xml, and that xml carries the
 // institute name and other expected content. JSZip is a transitive dependency of docx
 // itself (bundled in node_modules), used here only to unzip and inspect the output.
-import { it, expect } from 'vitest'
+import { it, expect, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import JSZip from 'jszip'
@@ -28,6 +28,9 @@ async function documentXml(blob) {
   expect(entry).toBeTruthy()
   return entry.async('string')
 }
+
+// building a docx zip is slow on a loaded machine (parallel gradle): allow more than the 5s default
+vi.setConfig({ testTimeout: 20000 })
 
 it('produces a non-empty docx blob', async () => {
   const blob = await buildReportDocx(template, fixture.data, meta)

@@ -38,6 +38,7 @@
   let data = ensureShape(report.data)
   let saveState = 'saved' // saved | saving | offline
   let autosaveTimer = null
+  let unsaved = false // an edit exists that no save request has picked up yet
 
   $: progress = computeProgress(template, data)
   $: disabled = readonly
@@ -45,27 +46,66 @@
   function onChange() {
     data = data // reassign so $: progress and every prop passing `data` sees the mutation
     if (disabled) return
+    unsaved = true
     saveState = 'saving'
     clearTimeout(autosaveTimer)
     autosaveTimer = setTimeout(doSave, 800)
   }
 
-  async function doSave() {
-    try {
-      report = await updateReportData(report.id, data)
-      saveState = 'saved'
-      dispatch('save', report)
-    } catch (e) {
-      saveState = 'offline'
-    }
+  // saves run one at a time: two overlapping requests could reach the server out of order
+  // and leave the older answers stored.
+  let saveChain = Promise.resolve()
+  function doSave() {
+    saveChain = saveChain.then(async () => {
+      if (!unsaved) return
+      unsaved = false
+      try {
+        report = await updateReportData(report.id, data)
+        // a newer edit may have arrived while this request was in flight
+        if (!unsaved) saveState = 'saved'
+        dispatch('save', report)
+      } catch (e) {
+        unsaved = true // keep it pending so the next flush retries
+        saveState = 'offline'
+      }
+    })
+    return saveChain
+  }
+
+  // flush a pending debounced edit now (close, submit, tab close).
+  function flush() {
+    if (!unsaved) return saveChain
+    clearTimeout(autosaveTimer)
+    return doSave()
+  }
+
+  async function close() {
+    await flush()
+    if (unsaved && !confirm('The latest answers are not saved (offline). Close anyway and lose them?')) return
+    dispatch('close')
+  }
+
+  // warn before the tab closes with answers not yet on the server
+  function beforeUnload(e) {
+    if (!unsaved || disabled) return
+    flush()
+    e.preventDefault()
+    e.returnValue = ''
   }
 
   async function submit() {
     if (!confirm('Submit this report? It becomes read-only once submitted.')) return
-    clearTimeout(autosaveTimer)
-    await doSave() // flush any pending edit before flipping status
-    report = await submitReport(report.id)
-    dispatch('submit', report)
+    await flush()
+    if (saveState === 'offline') {
+      alert('Could not save the latest answers. Check the connection and try Submit again.')
+      return
+    }
+    try {
+      report = await submitReport(report.id)
+      dispatch('submit', report)
+    } catch (e) {
+      alert('Submit failed: ' + (e.message ?? e))
+    }
   }
 
   async function del() {
@@ -84,6 +124,8 @@
   }
 </script>
 
+<svelte:window on:beforeunload={beforeUnload} />
+
 <div class="editor">
   <header class="head">
     <div class="head-row">
@@ -91,7 +133,7 @@
         <h1>{template.title}</h1>
         <p class="subtitle">{meta.institute || template.subtitle}</p>
       </div>
-      <button type="button" class="btn" on:click={() => dispatch('close')}>Close</button>
+      <button type="button" class="btn" on:click={close}>Close</button>
     </div>
     <div class="progress-row">
       <div class="progress-track"><div class="progress-fill" style="width:{progress.sectionsCounted ? (100 * progress.sectionsDone) / progress.sectionsCounted : 0}%"></div></div>

@@ -3,7 +3,7 @@
      list when a report is open. One report per (visit,type) among non-deleted rows -- picking a
      visit/type that already has one opens it instead of creating a duplicate. -->
 <script>
-  import { listReports, listVisits, createReport } from '../lib/db.js'
+  import { listReports, listReportsByVisit, listVisits, createReport } from '../lib/db.js'
   import { officer, isAdmin } from '../lib/auth.js'
   import { officers } from '../lib/officers.js'
   import { templateFor, newReportData, computeProgress } from '../lib/reporttemplate.js'
@@ -62,7 +62,8 @@
 
   async function startNewReport() {
     if (!newVisitId) return
-    const existing = reports.find((r) => r.visit_id === newVisitId && r.type === newType)
+    // ask the server, not the filtered list: an admin viewing another officer has a partial list
+    const existing = (await listReportsByVisit(newVisitId)).find((r) => r.type === newType)
     if (existing) {
       showNew = false
       current = existing
