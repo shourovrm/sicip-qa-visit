@@ -20,7 +20,7 @@ export const ASSOCIATIONS = [
 ]
 
 export const PURPOSES = [
-  'Capacity Assessment', 'Monitoring Visit', 'Summative Assessment Monitoring',
+  'Capacity Assessment', 'Monitoring Visit', 'Surprise Visit', 'Summative Assessment Monitoring',
   'ToT Monitoring', 'Trainer Engagement', 'Others',
 ]
 

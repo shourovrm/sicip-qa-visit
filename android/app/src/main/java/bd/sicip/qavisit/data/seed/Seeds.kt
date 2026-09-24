@@ -23,7 +23,7 @@ val ASSOCIATIONS: List<String> = listOf(
 )
 
 val PURPOSES: List<String> = listOf(
-    "Capacity Assessment", "Monitoring Visit", "Summative Assessment Monitoring",
+    "Capacity Assessment", "Monitoring Visit", "Surprise Visit", "Summative Assessment Monitoring",
     "ToT Monitoring", "Trainer Engagement", "Others",
 )
 

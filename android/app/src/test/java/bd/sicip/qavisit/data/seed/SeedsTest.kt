@@ -21,8 +21,9 @@ class SeedsTest {
         assertTrue(ASSOCIATIONS.contains("BGMEA"))
     }
 
-    @Test fun purposes_are_six() {
-        assertEquals(6, PURPOSES.size)
+    @Test fun purposes_are_seven() {
+        assertEquals(7, PURPOSES.size)
+        assertTrue(PURPOSES.contains("Surprise Visit"))
         assertTrue(PURPOSES.contains("Capacity Assessment"))
         assertTrue(PURPOSES.contains("Others"))
     }
