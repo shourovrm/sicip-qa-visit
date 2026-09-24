@@ -19,10 +19,12 @@ const fixture = loadJson('../../../shared/report-templates/fixtures/progress-1.j
 const meta = { officerName: 'Mahfuzul Islam', status: 'draft' }
 
 it('escapes user text in fields, checklist remarks, and cards', () => {
+  // attendance is a linked cards block (syncLinks copies course/batch in from the "courses"
+  // cards in section A) -- give it a source card so the synced attendance entry survives.
   const data = {
     fields: { ti_name: 'A & B <script>alert(1)</script>' },
     checks: { arrival_1: { answer: 'yes', remarks: 'Fine & good <b>bold</b>' } },
-    cards: { attendance: [{ course: 'Weld<ing> & Fab' }] },
+    cards: { courses: [{ _id: 'c1', course: 'Weld<ing> & Fab', batch: '1' }] },
     flags: [],
   }
   const html = reportHtml(template, data, meta)
@@ -87,26 +89,36 @@ it('no ticked flags prints the None ticked placeholder', () => {
 })
 
 it('cards block renders one table per entry with the title field, and flags compare mismatches', () => {
+  // attendance is linked to "courses" (section A) via syncLinks: course/batch come from the
+  // source card in source order, other answers (present_total/register/tms) are the officer's
+  // own and survive the sync because the attendance entry's _link matches the source _id.
   const data = {
     fields: {},
     checks: {},
     cards: {
+      courses: [
+        { _id: 'c1', course: 'Welding (SMAW)', batch: '07' },
+        { _id: 'c2', course: 'Electrical Installation', batch: '03' },
+      ],
       attendance: [
-        { course: 'Welding (SMAW)', present_total: '17', register: '23', tms: '23' }, // mismatch: 17 vs 23
-        { course: 'Electrical Installation', present_total: '22', register: '22', tms: '22' }, // matches
+        { _id: 'attendance:c1', _link: 'c1', present_total: '17', register: '23', tms: '23' }, // mismatch: 17 vs 23
+        { _id: 'attendance:c2', _link: 'c2', present_total: '22', register: '22', tms: '22' }, // matches
       ],
     },
     flags: [],
   }
   const html = reportHtml(template, data, meta)
-  expect(html).toContain('Course 1: Welding (SMAW)')
-  expect(html).toContain('Course 2: Electrical Installation')
-  const table1Start = html.lastIndexOf('<table', html.indexOf('Course 1'))
-  const table2Start = html.lastIndexOf('<table', html.indexOf('Course 2'))
-  const mismatchCard = html.slice(table1Start, table2Start)
+  // section A's "courses" cards block also uses itemLabel "Course" -- scope to section C
+  // (attendance) so this doesn't match the wrong "Course 1: ..." caption.
+  const cSection = html.slice(html.indexOf('>C<'), html.indexOf('>D<'))
+  expect(cSection).toContain('Course 1: Welding (SMAW)')
+  expect(cSection).toContain('Course 2: Electrical Installation')
+  const table1Start = cSection.lastIndexOf('<table', cSection.indexOf('Course 1'))
+  const table2Start = cSection.lastIndexOf('<table', cSection.indexOf('Course 2'))
+  const mismatchCard = cSection.slice(table1Start, table2Start)
   expect(mismatchCard).toContain('class="card mismatch"')
   expect(mismatchCard).toContain('Headcount, register and TMS do not match')
-  const matchCard = html.slice(table2Start)
+  const matchCard = cSection.slice(table2Start)
   expect(matchCard.slice(0, matchCard.indexOf('</table>'))).not.toContain('mismatch')
 })
 
@@ -145,5 +157,26 @@ describe('fixture parity smoke test', () => {
     expect(html).toContain('Bangladesh-Korea TTC, Mirpur')
     expect(html).toContain('Theory instead of practical')
     expect(html).toContain('Rakib')
+  })
+
+  // CHANGE SET 2 content: persons met, courses/batches, attendance trainers present, K
+  // compliance + unresolved issues (optional), and other_flags free text merged with ticked.
+  it('renders persons met, courses, attendance trainers present, K compliance/unresolved, and custom flags', () => {
+    const html = reportHtml(template, fixture.data, { officerName: 'Test Officer', status: 'draft' })
+    expect(html).toContain('Md. Karim') // persons cards
+    expect(html).toContain('Principal')
+    expect(html).toContain('Welding (SMAW)') // courses cards (also linked into attendance)
+    expect(html).toContain('<th>Trainers present</th><td>2</td>') // trainers_present on the c2 attendance card
+    const kSection = html.slice(html.indexOf('>K<'), html.indexOf('>L<'))
+    expect(kSection).toContain('optional-tag') // section.optional -> "Optional" tag
+    expect(kSection).toContain('color:#b3261e') // compliance: "none" -> Not complied, tone "no"
+    expect(kSection).toContain('Not complied')
+    expect(kSection).toContain('Dropout register missing') // unresolved cards
+    const flagsSection = html.slice(html.indexOf('>L<'), html.indexOf('>M<'))
+    expect(flagsSection).toContain('possible ghost trainees') // ticked fixed flag (flag_3)
+    expect(flagsSection).toContain('Trainees sharing one ID card') // custom flag (other_flags, non-blank)
+    // whitespace-only custom flag card (f2) must not appear as a flag
+    const customFlagCount = (flagsSection.match(/<li>/g) || []).length
+    expect(customFlagCount).toBe(2) // flag_3 + "Trainees sharing one ID card" only
   })
 })

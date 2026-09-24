@@ -5,9 +5,28 @@
 // checklist items print "Not answered"; empty remarks and unticked flags are left out.
 // driven purely by the template's sections/blocks -- never hardcode a question here.
 // caller opens the html in a new window + window.print(), same pattern as billhtml.js.
+//
+// CHANGE SET 2 (2026-09-25): template gained linked "attendance" cards (synced from the
+// "courses" cards in section A via syncLinks), an "optional" section flag (K), and
+// countsAsFlags cards (L "other_flags", free-text flags an officer can add). All of it renders
+// through the same generic fields/checklist/cards/flags loop below -- no new question is
+// hardcoded here. See docs/superpowers/specs/2026-09-24-reports.md "CHANGE SET 2".
+import * as reportTemplateModule from './reporttemplate.js'
 
 // answer/choice colours -- must match android ui/theme/Color.kt light values.
 const TONE_COLOR = { yes: '#1c6b38', no: '#b3261e', partial: '#8a4600', na: '#4c4f66' }
+
+// W1's reporttemplate.js is gaining a syncLinks export in parallel (see spec). Namespace
+// import so this file loads fine whether or not it's landed yet; if it's missing, render the
+// data exactly as given -- the editor is responsible for keeping it synced in that case.
+// Clone before calling: reportHtml is documented as a pure fn and must not mutate the
+// caller's data even if syncLinks mutates its argument in place.
+function withSyncedLinks(template, data) {
+  const syncLinks = reportTemplateModule.syncLinks
+  if (typeof syncLinks !== 'function') return data
+  const cloned = JSON.parse(JSON.stringify(data))
+  return syncLinks(template, cloned) || cloned
+}
 
 function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -95,25 +114,50 @@ function cardsBlockHtml(block, data) {
     .join('')
 }
 
-function flagsBlockHtml(block, data) {
+// the fixed flags list AND any countsAsFlags cards blocks (free-text flags, e.g. L
+// "other_flags") in the same section render together as one list -- a countsAsFlags card
+// with non-blank titleField is inherently "ticked" (its presence is the flag), so it's listed
+// alongside the ticked fixed items rather than as its own cards table.
+function combinedFlagsHtml(section, data) {
+  const flagsBlock = section.blocks.find((b) => b.type === 'flags')
   const ticked = new Set(data.flags || [])
-  const items = block.items.filter((i) => ticked.has(i.id))
+  const items = []
+  if (flagsBlock) for (const item of flagsBlock.items) if (ticked.has(item.id)) items.push(esc(item.text))
+  for (const block of section.blocks) {
+    if (block.type !== 'cards' || !block.countsAsFlags) continue
+    const entries = (data.cards && data.cards[block.key]) || []
+    for (const entry of entries) {
+      const text = entry[block.titleField]
+      if (!blank(text)) items.push(esc(String(text).trim()))
+    }
+  }
   if (items.length === 0) return '<p class="none-ticked">None ticked.</p>'
-  return `<ul class="flags-list">${items.map((i) => `<li>${esc(i.text)}</li>`).join('')}</ul>`
+  return `<ul class="flags-list">${items.map((t) => `<li>${t}</li>`).join('')}</ul>`
 }
 
 function blockHtml(block, data, answerMap) {
   if (block.type === 'fields') return fieldsBlockHtml(block, data)
   if (block.type === 'checklist') return checklistBlockHtml(block, data, answerMap)
   if (block.type === 'cards') return cardsBlockHtml(block, data)
-  if (block.type === 'flags') return flagsBlockHtml(block, data)
-  return '' // unknown block type -- ignore rather than crash on future template additions
+  return '' // unknown block type (flags/countsAsFlags cards handled in sectionHtml) -- ignore
 }
 
 function sectionHtml(section, data, answerMap) {
   const note = section.note ? `<span class="note">${esc(section.note)}</span>` : ''
-  const blocks = (section.blocks || []).map((b) => blockHtml(b, data, answerMap)).join('')
-  return `<section class="keep"><h2><span class="letter">${esc(section.letter)}</span>${esc(section.title)}${note}</h2>${blocks}</section>`
+  const optionalTag = section.optional ? ' <span class="optional-tag">Optional</span>' : ''
+  const isFlagsRelevant = (b) => b.type === 'flags' || (b.type === 'cards' && b.countsAsFlags)
+  let flagsRendered = false
+  const blocks = (section.blocks || [])
+    .map((b) => {
+      if (isFlagsRelevant(b)) {
+        if (flagsRendered) return ''
+        flagsRendered = true
+        return combinedFlagsHtml(section, data)
+      }
+      return blockHtml(b, data, answerMap)
+    })
+    .join('')
+  return `<section class="keep"><h2><span class="letter">${esc(section.letter)}</span>${esc(section.title)}${optionalTag}${note}</h2>${blocks}</section>`
 }
 
 function statusLabel(status) {
@@ -158,6 +202,7 @@ const CSS = `
   h2 { display: flex; align-items: baseline; gap: 5pt; margin: 8pt 0 3pt; font-size: 9.2pt; font-weight: 700; break-after: avoid; }
   h2 .letter { display: inline-block; min-width: 13pt; padding: 0.5pt 0; text-align: center; background: #111; color: #fff; font-size: 8pt; }
   h2 .note { margin-left: auto; font-weight: 400; font-size: 7.4pt; font-style: italic; color: #333; }
+  h2 .optional-tag { font-weight: 700; font-size: 6.6pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8a4600; border: 0.6pt solid #8a4600; border-radius: 3pt; padding: 0.5pt 3pt; }
   h3 { margin: 4pt 0 2pt; font-size: 8.2pt; font-weight: 700; }
 
   .details { display: grid; grid-template-columns: 1fr 1fr; column-gap: 12pt; row-gap: 3pt; }
@@ -200,6 +245,7 @@ const CSS = `
 
 // pure fn: template + report data + {officerName, submittedAt?, status} -> full print HTML.
 export function reportHtml(template, data, meta) {
+  data = withSyncedLinks(template, data)
   const answerMap = answerMapOf(template)
   const sections = (template.sections || []).map((s) => sectionHtml(s, data, answerMap)).join('')
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(template.title)}</title><style>${CSS}</style></head><body>` +
