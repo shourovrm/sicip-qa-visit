@@ -9,8 +9,11 @@
   export let field
   export let value = ''
   export let disabled = false
+  export let courseOptions = [] // only used by kind:'courseRef' -- "course · batch" strings
 
   const dispatch = createEventDispatcher()
+  // datalist id must be unique per rendered field (many identity cards can each have one)
+  const courseRefListId = `courseref-${Math.random().toString(36).slice(2, 9)}`
 
   function onInput(event) {
     dispatch('change', event.target.value)
@@ -26,6 +29,12 @@
   <span class="field-label">{field.label}{field.required ? ' *' : ''}</span>
   {#if field.kind === 'choice'}
     <AnswerSegmented options={field.options} {value} {disabled} on:change={onChoice} />
+  {:else if field.kind === 'courseRef'}
+    <!-- free text + datalist suggestions (not a native <select>) so a value survives even after
+         its source course/batch card is edited or removed -- spec: "keeps an existing value even
+         if not in the list" -->
+    <input type="text" list={courseRefListId} placeholder={field.placeholder ?? ''} {value} {disabled} on:input={onInput} />
+    <datalist id={courseRefListId}>{#each courseOptions as opt}<option value={opt} />{/each}</datalist>
   {:else if field.kind === 'select'}
     <select {value} {disabled} on:change={onInput}>
       <option value=""></option>

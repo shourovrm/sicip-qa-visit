@@ -19,6 +19,7 @@
     {@const p = progressSections[section.key]}
     <button type="button" class="chip" class:done={p.done} class:flagged={p.flagged} on:click={() => jump(section.key)}>
       <span class="letter">{section.letter}</span>{section.short}
+      {#if section.optional}<span class="optional">Optional</span>{/if}
       {#if p.total > 0}<span class="count">{p.answered}/{p.total}</span>{/if}
     </button>
   {/each}
@@ -48,4 +49,5 @@
   .chip.flagged { border-color: transparent; background: var(--tone-no-bg); color: var(--tone-no-fg); }
   .chip.flagged .letter { color: var(--tone-no-fg); }
   .count { font-variant-numeric: tabular-nums; }
+  .optional { font-size: 10px; text-transform: uppercase; opacity: 0.75; }
 </style>

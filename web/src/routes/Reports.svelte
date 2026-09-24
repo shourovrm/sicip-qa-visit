@@ -125,11 +125,12 @@
         {#if filtered.length === 0}<tr><td colspan="6" class="muted">No reports.</td></tr>{/if}
         {#each filtered as r (r.id)}
           {@const p = progressFor(r)}
+          {@const flagTotal = p.flagsTicked.length + p.customFlags.length}
           <tr>
             <td>{TYPE_LABELS[r.type] ?? r.type}</td>
             <td>{instituteFor(r)}</td>
             <td>{p.sectionsDone}/{p.sectionsCounted} sections</td>
-            <td>{#if p.flagsTicked.length}<span class="flag-count">{p.flagsTicked.length}</span>{:else}—{/if}</td>
+            <td>{#if flagTotal}<span class="flag-count">{flagTotal}</span>{:else}—{/if}</td>
             <td>{new Date(tab === 'draft' ? r.created_at : r.submitted_at).toLocaleDateString()}</td>
             <td><button class="btn-link" on:click={() => open(r)}>Open</button></td>
           </tr>

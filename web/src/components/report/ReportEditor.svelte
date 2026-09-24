@@ -9,7 +9,7 @@
      props if the caller supplied them (agent W2 wires the real exporters later) -- no-op here. -->
 <script>
   import { createEventDispatcher } from 'svelte'
-  import { computeProgress } from '../../lib/reporttemplate.js'
+  import { computeProgress, syncLinks } from '../../lib/reporttemplate.js'
   import { updateReportData, submitReport, softDeleteReport } from '../../lib/db.js'
   import ReportSection from './ReportSection.svelte'
   import SectionChips from './SectionChips.svelte'
@@ -35,15 +35,19 @@
     }
   }
 
-  let data = ensureShape(report.data)
+  // sync once on open too -- a report saved by an older client, or edited directly in the DB,
+  // may have stale/missing linked attendance cards; syncLinks is idempotent so this is cheap.
+  let data = syncLinks(template, ensureShape(report.data))
   let saveState = 'saved' // saved | saving | offline
   let autosaveTimer = null
   let unsaved = false // an edit exists that no save request has picked up yet
 
   $: progress = computeProgress(template, data)
   $: disabled = readonly
+  $: flagTotal = progress.flagsTicked.length + progress.customFlags.length
 
   function onChange() {
+    syncLinks(template, data) // re-derive linked cards (e.g. C attendance) from their source
     data = data // reassign so $: progress and every prop passing `data` sees the mutation
     if (disabled) return
     unsaved = true
@@ -138,15 +142,18 @@
     <div class="progress-row">
       <div class="progress-track"><div class="progress-fill" style="width:{progress.sectionsCounted ? (100 * progress.sectionsDone) / progress.sectionsCounted : 0}%"></div></div>
       <span class="progress-count">{progress.sectionsDone}/{progress.sectionsCounted} sections done</span>
-      {#if progress.flagsTicked.length > 0}<span class="flag-pill">{progress.flagsTicked.length} flag{progress.flagsTicked.length === 1 ? '' : 's'}</span>{/if}
+      {#if flagTotal > 0}<span class="flag-pill">{flagTotal} flag{flagTotal === 1 ? '' : 's'}</span>{/if}
       {#if report.status === 'submitted'}<span class="submitted-pill">Submitted {new Date(report.submitted_at).toLocaleString()}</span>{/if}
     </div>
+    {#if progress.customFlags.length > 0}
+      <ul class="custom-flags">{#each progress.customFlags as text}<li>{text}</li>{/each}</ul>
+    {/if}
     <SectionChips sections={template.sections} progressSections={progress.sections} />
   </header>
 
   <main class="sections">
     {#each template.sections as section, index (section.key)}
-      <ReportSection {section} {data} answers={template.answers} progress={progress.sections[section.key]}
+      <ReportSection {section} {template} {data} answers={template.answers} progress={progress.sections[section.key]}
         {disabled} defaultOpen={index === 0} {onChange} />
     {/each}
   </main>
@@ -180,6 +187,7 @@
   .flag-pill, .submitted-pill { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: var(--radius-pill); white-space: nowrap; }
   .flag-pill { background: var(--tone-no-bg); color: var(--tone-no-fg); }
   .submitted-pill { background: var(--status-success-bg); color: var(--status-success-fg); }
+  .custom-flags { margin: 0 0 8px; padding-left: 18px; font-size: 13px; color: var(--tone-no-fg); }
 
   .action-bar {
     position: fixed;
