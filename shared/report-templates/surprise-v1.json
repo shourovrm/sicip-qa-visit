@@ -1,0 +1,788 @@
+{
+ "id": "surprise",
+ "version": 1,
+ "title": "Surprise Visit Report: Quality Assurance",
+ "program": "Skills for Industry Competitiveness and Innovation Program (SICIP)",
+ "subtitle": "Unannounced visit to partner TI/TC",
+ "answers": [
+  {
+   "id": "yes",
+   "label": "Yes",
+   "tone": "yes"
+  },
+  {
+   "id": "no",
+   "label": "No",
+   "tone": "no"
+  },
+  {
+   "id": "partial",
+   "label": "Partial",
+   "tone": "partial"
+  },
+  {
+   "id": "na",
+   "label": "N/A",
+   "tone": "na"
+  }
+ ],
+ "sections": [
+  {
+   "letter": "A",
+   "key": "visit",
+   "short": "Visit",
+   "title": "Visit details",
+   "blocks": [
+    {
+     "type": "fields",
+     "fields": [
+      {
+       "key": "ti_name",
+       "label": "Name of TI/TC visited",
+       "kind": "text",
+       "prefill": "institute",
+       "required": true
+      },
+      {
+       "key": "provider",
+       "label": "Association / provider",
+       "kind": "text",
+       "prefill": "association"
+      },
+      {
+       "key": "address",
+       "label": "Address and contact",
+       "kind": "longtext"
+      },
+      {
+       "key": "visit_date",
+       "label": "Date of visit",
+       "kind": "date",
+       "prefill": "visit_date",
+       "required": true
+      },
+      {
+       "key": "arrival_time",
+       "label": "Arrival time",
+       "kind": "time",
+       "required": true
+      },
+      {
+       "key": "departure_time",
+       "label": "Departure time",
+       "kind": "time"
+      },
+      {
+       "key": "officers",
+       "label": "Visiting officer(s) with designation",
+       "kind": "longtext",
+       "prefill": "officers"
+      },
+      {
+       "key": "received_by",
+       "label": "Received by (name, designation)",
+       "kind": "text"
+      },
+      {
+       "key": "scheduled_batches",
+       "label": "Courses / batches scheduled today (as per routine or TDP)",
+       "kind": "longtext"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "letter": "B",
+   "key": "arrival",
+   "short": "Arrival",
+   "title": "Status on arrival",
+   "blocks": [
+    {
+     "type": "checklist",
+     "key": "arrival",
+     "items": [
+      {
+       "id": "arrival_1",
+       "text": "Centre open and training in session at the scheduled time"
+      },
+      {
+       "id": "arrival_2",
+       "text": "Trainer present in each scheduled batch"
+      },
+      {
+       "id": "arrival_3",
+       "text": "Session being taught matches today's topic in the session plan / TDP"
+      },
+      {
+       "id": "arrival_4",
+       "text": "Training calendar displayed and followed"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "letter": "C",
+   "key": "attendance",
+   "short": "Attendance",
+   "title": "Attendance in each course",
+   "note": "Count heads in the room first, then open the attendance register and TMS. One entry per course; add up all running batches of that course.",
+   "blocks": [
+    {
+     "type": "cards",
+     "key": "attendance",
+     "itemLabel": "Course",
+     "start": 2,
+     "titleField": "course",
+     "compare": {
+      "fields": [
+       "present_total",
+       "register",
+       "tms"
+      ],
+      "message": "Headcount, register and TMS do not match"
+     },
+     "fields": [
+      {
+       "key": "course",
+       "label": "Course name",
+       "kind": "text"
+      },
+      {
+       "key": "batch",
+       "label": "Batch no(s).",
+       "kind": "text"
+      },
+      {
+       "key": "enrolled_total",
+       "label": "Enrolled, total",
+       "kind": "number"
+      },
+      {
+       "key": "enrolled_female",
+       "label": "Enrolled, female",
+       "kind": "number"
+      },
+      {
+       "key": "present_total",
+       "label": "Headcount, total",
+       "kind": "number"
+      },
+      {
+       "key": "present_female",
+       "label": "Headcount, female",
+       "kind": "number"
+      },
+      {
+       "key": "register",
+       "label": "Present in register",
+       "kind": "number"
+      },
+      {
+       "key": "tms",
+       "label": "Present in TMS",
+       "kind": "number"
+      },
+      {
+       "key": "trainer",
+       "label": "Trainer present",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "yes",
+         "label": "Yes",
+         "tone": "yes"
+        },
+        {
+         "id": "no",
+         "label": "No",
+         "tone": "no"
+        }
+       ]
+      },
+      {
+       "key": "remarks",
+       "label": "Remarks",
+       "kind": "longtext"
+      }
+     ]
+    },
+    {
+     "type": "checklist",
+     "key": "attendance_register",
+     "items": [
+      {
+       "id": "attendance_register_1",
+       "text": "Attendance register up to date (no blank days)"
+      },
+      {
+       "id": "attendance_register_2",
+       "text": "No attendance marked in advance for later sessions"
+      },
+      {
+       "id": "attendance_register_3",
+       "text": "Long-absent trainees entered in the dropout register"
+      }
+     ],
+     "heading": "Attendance register"
+    }
+   ]
+  },
+  {
+   "letter": "D",
+   "key": "identity",
+   "short": "Identity",
+   "title": "Trainee identity spot-check",
+   "note": "Pick 5 names at random from the TMS enrolment list and verify each person.",
+   "blocks": [
+    {
+     "type": "cards",
+     "key": "identity",
+     "itemLabel": "Trainee",
+     "start": 5,
+     "titleField": "name",
+     "fields": [
+      {
+       "key": "name",
+       "label": "Name (from TMS)",
+       "kind": "text"
+      },
+      {
+       "key": "batch",
+       "label": "Course / batch",
+       "kind": "text"
+      },
+      {
+       "key": "result",
+       "label": "Result",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "verified",
+         "label": "Present & verified",
+         "tone": "yes"
+        },
+        {
+         "id": "absent",
+         "label": "Absent",
+         "tone": "partial"
+        },
+        {
+         "id": "mismatch",
+         "label": "Doesn't match",
+         "tone": "no"
+        }
+       ]
+      },
+      {
+       "key": "remarks",
+       "label": "Remarks",
+       "kind": "longtext",
+       "placeholder": "ID checked, entry qualification, reason for absence…"
+      }
+     ]
+    },
+    {
+     "type": "checklist",
+     "key": "identity",
+     "items": [
+      {
+       "id": "identity_1",
+       "text": "No existing employees of the centre or partner industry enrolled as trainees"
+      },
+      {
+       "id": "identity_2",
+       "text": "No trainees / students of other (non-SICIP) courses at the centre enrolled in SICIP courses"
+      }
+     ],
+     "heading": "Enrolment"
+    }
+   ]
+  },
+  {
+   "letter": "E",
+   "key": "materials",
+   "short": "Materials",
+   "title": "Materials & safety gear provided",
+   "blocks": [
+    {
+     "type": "checklist",
+     "key": "materials",
+     "items": [
+      {
+       "id": "materials_1",
+       "text": "Competency Standard (CS) available"
+      },
+      {
+       "id": "materials_2",
+       "text": "CBLM provided to each trainee"
+      },
+      {
+       "id": "materials_3",
+       "text": "Apron / T-shirt provided to each trainee"
+      },
+      {
+       "id": "materials_4",
+       "text": "Required PPE provided to trainees"
+      },
+      {
+       "id": "materials_5",
+       "text": "PPE worn during practical session"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "letter": "F",
+   "key": "delivery",
+   "short": "Delivery",
+   "title": "Training delivery observation",
+   "note": "Observe one class or workshop for about 15 minutes.",
+   "blocks": [
+    {
+     "type": "checklist",
+     "key": "delivery",
+     "items": [
+      {
+       "id": "delivery_1",
+       "text": "Job sheets / information sheets in use"
+      },
+      {
+       "id": "delivery_2",
+       "text": "Trainees doing hands-on practice (80:20 practice to theory)"
+      },
+      {
+       "id": "delivery_3",
+       "text": "Required tools and equipment available and in use"
+      },
+      {
+       "id": "delivery_4",
+       "text": "Consumables available and being used"
+      },
+      {
+       "id": "delivery_5",
+       "text": "Fire extinguisher available and inspection date valid"
+      },
+      {
+       "id": "delivery_6",
+       "text": "First aid kit available and stocked"
+      },
+      {
+       "id": "delivery_7",
+       "text": "Safety and PPE signs displayed in workshop"
+      },
+      {
+       "id": "delivery_8",
+       "text": "Women and trainees with disabilities taking part equally"
+      },
+      {
+       "id": "delivery_9",
+       "text": "Industry logbook filled up to date (industry-based centres only)"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "letter": "G",
+   "key": "assessment",
+   "short": "Assessment",
+   "title": "Formative assessment",
+   "note": "Ask for the latest formative assessment paper and result sheet of one running batch.",
+   "blocks": [
+    {
+     "type": "checklist",
+     "key": "assessment",
+     "items": [
+      {
+       "id": "assessment_1",
+       "text": "Formative assessments held as per assessment plan"
+      },
+      {
+       "id": "assessment_2",
+       "text": "Formative assessment includes relevant technical questions for the unit of competency"
+      },
+      {
+       "id": "assessment_3",
+       "text": "Practical assessment uses a demonstration / observation checklist"
+      },
+      {
+       "id": "assessment_4",
+       "text": "OHS included in the assessment"
+      },
+      {
+       "id": "assessment_5",
+       "text": "Formative assessment results recorded"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "letter": "H",
+   "key": "registers",
+   "short": "Registers",
+   "title": "Daily registers",
+   "blocks": [
+    {
+     "type": "checklist",
+     "key": "registers",
+     "items": [
+      {
+       "id": "registers_1",
+       "text": "Daily consumption register updated today"
+      },
+      {
+       "id": "registers_2",
+       "text": "Stock register up to date"
+      },
+      {
+       "id": "registers_3",
+       "text": "Monitoring logbook / visit register available, used, and its findings complied with"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "letter": "I",
+   "key": "interview",
+   "short": "Trainees",
+   "title": "Trainee interviews (no staff present)",
+   "note": "Talk with a group of trainees away from centre staff and record their general response.",
+   "blocks": [
+    {
+     "type": "fields",
+     "fields": [
+      {
+       "key": "interview_trainee_count",
+       "label": "Trainees interviewed",
+       "kind": "number"
+      },
+      {
+       "key": "interview_courses",
+       "label": "Course(s)",
+       "kind": "text"
+      }
+     ]
+    },
+    {
+     "type": "checklist",
+     "key": "interview",
+     "items": [
+      {
+       "id": "interview_1",
+       "text": "Classes run on all scheduled days and hours"
+      },
+      {
+       "id": "interview_2",
+       "text": "No fee charged to trainees"
+      },
+      {
+       "id": "interview_3",
+       "text": "Trainees receive stipend / allowance on time"
+      },
+      {
+       "id": "interview_4",
+       "text": "Trainees received CBLM and apron / T-shirt"
+      },
+      {
+       "id": "interview_5",
+       "text": "Trainees get enough hands-on practice with tools"
+      },
+      {
+       "id": "interview_6",
+       "text": "Formative assessments have been held"
+      },
+      {
+       "id": "interview_7",
+       "text": "Job placement / career counselling provided"
+      }
+     ]
+    },
+    {
+     "type": "fields",
+     "fields": [
+      {
+       "key": "interview_feedback",
+       "label": "Complaints or other feedback",
+       "kind": "longtext"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "letter": "J",
+   "key": "graduates",
+   "short": "Job calls",
+   "title": "Job placement verification calls",
+   "note": "Pick 5 graduates at random from the TMS job-placed list and call them yourself, not through the centre.",
+   "blocks": [
+    {
+     "type": "cards",
+     "key": "graduate",
+     "itemLabel": "Graduate",
+     "start": 5,
+     "titleField": "name",
+     "fields": [
+      {
+       "key": "name",
+       "label": "Name",
+       "kind": "text"
+      },
+      {
+       "key": "batch",
+       "label": "Course / batch",
+       "kind": "text"
+      },
+      {
+       "key": "phone",
+       "label": "Phone",
+       "kind": "phone"
+      },
+      {
+       "key": "employer_tms",
+       "label": "Employer as per TMS",
+       "kind": "text"
+      },
+      {
+       "key": "call",
+       "label": "Call",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "reached",
+         "label": "Reached",
+         "tone": "yes"
+        },
+        {
+         "id": "not_reached",
+         "label": "Not reached",
+         "tone": "no"
+        }
+       ]
+      },
+      {
+       "key": "confirmed",
+       "label": "Employment",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "same",
+         "label": "Same employer",
+         "tone": "yes"
+        },
+        {
+         "id": "other",
+         "label": "Other job / self-employed",
+         "tone": "partial"
+        },
+        {
+         "id": "none",
+         "label": "Not employed",
+         "tone": "no"
+        }
+       ]
+      },
+      {
+       "key": "position",
+       "label": "Position",
+       "kind": "text"
+      },
+      {
+       "key": "salary",
+       "label": "Monthly salary (BDT)",
+       "kind": "number"
+      },
+      {
+       "key": "remarks",
+       "label": "Remarks",
+       "kind": "longtext",
+       "placeholder": "Job related to the trade? How long employed?"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "letter": "K",
+   "key": "followup",
+   "short": "Follow-up",
+   "title": "Previous visit follow-up",
+   "blocks": [
+    {
+     "type": "fields",
+     "fields": [
+      {
+       "key": "last_visit_date",
+       "label": "Date of last visit",
+       "kind": "date"
+      },
+      {
+       "key": "last_visit_type",
+       "label": "Type of last visit",
+       "kind": "select",
+       "options": [
+        "Full QA visit",
+        "Monitoring visit",
+        "Surprise visit"
+       ]
+      }
+     ]
+    },
+    {
+     "type": "cards",
+     "key": "followup",
+     "itemLabel": "Issue",
+     "start": 1,
+     "titleField": "issue",
+     "fields": [
+      {
+       "key": "issue",
+       "label": "Issue raised in last visit",
+       "kind": "longtext"
+      },
+      {
+       "key": "status",
+       "label": "Status",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "resolved",
+         "label": "Resolved",
+         "tone": "yes"
+        },
+        {
+         "id": "partly",
+         "label": "Partly",
+         "tone": "partial"
+        },
+        {
+         "id": "not_resolved",
+         "label": "Not resolved",
+         "tone": "no"
+        }
+       ]
+      },
+      {
+       "key": "remarks",
+       "label": "Remarks",
+       "kind": "longtext"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "letter": "L",
+   "key": "flags",
+   "short": "Flags",
+   "title": "Critical non-compliance flags",
+   "note": "Tick every flag observed. Explain each ticked flag under key findings in section M.",
+   "blocks": [
+    {
+     "type": "flags",
+     "items": [
+      {
+       "id": "flag_1",
+       "text": "Centre closed or no class during scheduled hours"
+      },
+      {
+       "id": "flag_2",
+       "text": "Trainer absent or replaced by an unapproved person"
+      },
+      {
+       "id": "flag_3",
+       "text": "Trainees on register / TMS but not present (possible ghost trainees)"
+      },
+      {
+       "id": "flag_4",
+       "text": "Proxy or advance attendance marking"
+      },
+      {
+       "id": "flag_5",
+       "text": "Existing employees, or trainees of non-SICIP courses, enrolled in SICIP courses"
+      },
+      {
+       "id": "flag_6",
+       "text": "Fees charged to trainees"
+      },
+      {
+       "id": "flag_7",
+       "text": "Required tools and equipment missing or unused"
+      },
+      {
+       "id": "flag_8",
+       "text": "Facility used at the same time for another program's training"
+      },
+      {
+       "id": "flag_9",
+       "text": "Graduate reported as job-placed in TMS but not employed"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "letter": "M",
+   "key": "rating",
+   "short": "Rating",
+   "title": "Overall rating and action",
+   "blocks": [
+    {
+     "type": "fields",
+     "fields": [
+      {
+       "key": "overall_rating",
+       "label": "Overall rating",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "satisfactory",
+         "label": "Satisfactory",
+         "tone": "yes"
+        },
+        {
+         "id": "needs_improvement",
+         "label": "Needs improvement",
+         "tone": "partial"
+        },
+        {
+         "id": "unsatisfactory",
+         "label": "Unsatisfactory",
+         "tone": "no"
+        }
+       ],
+       "required": true
+      },
+      {
+       "key": "key_findings",
+       "label": "Key findings",
+       "kind": "longtext",
+       "required": true
+      },
+      {
+       "key": "instructions_given",
+       "label": "Instructions given to the TI on the spot",
+       "kind": "longtext"
+      },
+      {
+       "key": "follow_up",
+       "label": "Recommended follow-up",
+       "kind": "select",
+       "options": [
+        "No further action",
+        "Full QA visit",
+        "Written explanation from TI",
+        "Escalate to PIU"
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

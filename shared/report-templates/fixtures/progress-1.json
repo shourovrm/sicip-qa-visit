@@ -1,0 +1,175 @@
+{
+ "template": "surprise-v1.json",
+ "data": {
+  "fields": {
+   "ti_name": "Bangladesh-Korea TTC, Mirpur",
+   "visit_date": "2026-09-24",
+   "arrival_time": "10:05",
+   "overall_rating": "",
+   "key_findings": ""
+  },
+  "checks": {
+   "arrival_1": {
+    "answer": "yes",
+    "remarks": ""
+   },
+   "arrival_2": {
+    "answer": "yes",
+    "remarks": ""
+   },
+   "arrival_3": {
+    "answer": "partial",
+    "remarks": "Theory instead of practical"
+   },
+   "arrival_4": {
+    "answer": "yes",
+    "remarks": ""
+   },
+   "materials_1": {
+    "answer": "yes",
+    "remarks": ""
+   },
+   "materials_2": {
+    "answer": "no",
+    "remarks": "Not printed yet"
+   },
+   "attendance_register_1": {
+    "answer": "yes",
+    "remarks": ""
+   },
+   "attendance_register_2": {
+    "answer": "yes",
+    "remarks": ""
+   },
+   "attendance_register_3": {
+    "answer": "na",
+    "remarks": ""
+   }
+  },
+  "cards": {
+   "attendance": [
+    {
+     "course": "Welding (SMAW)",
+     "batch": "07",
+     "enrolled_total": "25",
+     "present_total": "17",
+     "register": "23",
+     "tms": "23",
+     "trainer": "yes"
+    },
+    {
+     "course": "Electrical Installation",
+     "batch": "03",
+     "present_total": "22",
+     "register": "22",
+     "tms": "",
+     "trainer": ""
+    }
+   ],
+   "identity": [
+    {
+     "name": "Rakib",
+     "result": "verified"
+    }
+   ]
+  },
+  "flags": [
+   "flag_3"
+  ]
+ },
+ "expected": {
+  "sections": {
+   "visit": {
+    "answered": 3,
+    "total": 3,
+    "done": true,
+    "flagged": false
+   },
+   "arrival": {
+    "answered": 4,
+    "total": 4,
+    "done": true,
+    "flagged": false
+   },
+   "attendance": {
+    "answered": 4,
+    "total": 5,
+    "done": false,
+    "flagged": true
+   },
+   "identity": {
+    "answered": 1,
+    "total": 3,
+    "done": false,
+    "flagged": false
+   },
+   "materials": {
+    "answered": 2,
+    "total": 5,
+    "done": false,
+    "flagged": true
+   },
+   "delivery": {
+    "answered": 0,
+    "total": 9,
+    "done": false,
+    "flagged": false
+   },
+   "assessment": {
+    "answered": 0,
+    "total": 5,
+    "done": false,
+    "flagged": false
+   },
+   "registers": {
+    "answered": 0,
+    "total": 3,
+    "done": false,
+    "flagged": false
+   },
+   "interview": {
+    "answered": 0,
+    "total": 7,
+    "done": false,
+    "flagged": false
+   },
+   "graduates": {
+    "answered": 0,
+    "total": 0,
+    "done": false,
+    "flagged": false
+   },
+   "followup": {
+    "answered": 0,
+    "total": 0,
+    "done": false,
+    "flagged": false
+   },
+   "flags": {
+    "answered": 0,
+    "total": 0,
+    "done": false,
+    "flagged": true
+   },
+   "rating": {
+    "answered": 0,
+    "total": 2,
+    "done": false,
+    "flagged": false
+   }
+  },
+  "sectionsDone": 2,
+  "sectionsCounted": 10,
+  "answerCounts": {
+   "yes": 6,
+   "no": 1,
+   "partial": 1,
+   "na": 1
+  },
+  "unansweredCount": 29,
+  "firstUnanswered": "identity_1",
+  "flagsTicked": [
+   "flag_3"
+  ]
+ }
+}
