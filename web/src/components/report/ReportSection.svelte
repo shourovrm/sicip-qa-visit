@@ -22,6 +22,11 @@
 
   let open = defaultOpen
 
+  // today's named courses (section A), in card order -- same set reporttemplate.js's
+  // courseIds()/perCourse rules use. Passed to every checklist item; ChecklistItem itself
+  // decides whether a given item actually renders per-course (needs item.perCourse + 2+ here).
+  $: namedCourses = (data.cards?.courses ?? []).filter((c) => !isBlank(c.course))
+
   // dropdown suggestions for a courseRef field: "course · batch" (or just course), courses with
   // no course name yet excluded. Only the identity block's `batch` field uses this today.
   function courseRefOptionsFor(block) {
@@ -55,7 +60,7 @@
         <div class="block">
           {#if block.heading}<h4 class="subheading">{block.heading}</h4>{/if}
           {#each block.items as item, i (item.id)}
-            <ChecklistItem {item} index={i + 1} {answers} check={data.checks[item.id]} {disabled}
+            <ChecklistItem {item} index={i + 1} {answers} check={data.checks[item.id]} {disabled} courses={namedCourses}
               on:change={(e) => { data.checks[item.id] = e.detail; onChange() }} />
           {/each}
         </div>

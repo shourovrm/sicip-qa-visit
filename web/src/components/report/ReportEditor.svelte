@@ -9,7 +9,7 @@
      props if the caller supplied them (agent W2 wires the real exporters later) -- no-op here. -->
 <script>
   import { createEventDispatcher } from 'svelte'
-  import { computeProgress, syncLinks } from '../../lib/reporttemplate.js'
+  import { computeProgress, normalize } from '../../lib/reporttemplate.js'
   import { updateReportData, submitReport, softDeleteReport } from '../../lib/db.js'
   import ReportSection from './ReportSection.svelte'
   import SectionChips from './SectionChips.svelte'
@@ -25,19 +25,23 @@
   const dispatch = createEventDispatcher()
 
   // shallow-fill missing top-level keys only -- never drop unknown keys already in the row, so
-  // a newer template version's extra fields survive a round trip through an older client.
+  // a newer template version's extra fields survive a round trip through an older client. Each
+  // check is also cloned one level deep: normalize()'s per-course step (CHANGE SET 3) mutates a
+  // check's `courses`/`answer` in place, and without this clone that would corrupt `report.data`
+  // (and Reports.svelte's cached row) even for an item the user never touched this session.
   function ensureShape(raw) {
     return {
       fields: { ...(raw?.fields ?? {}) },
-      checks: { ...(raw?.checks ?? {}) },
+      checks: Object.fromEntries(Object.entries(raw?.checks ?? {}).map(([id, check]) => [id, { ...check }])),
       cards: { ...(raw?.cards ?? {}) },
       flags: [...(raw?.flags ?? [])],
     }
   }
 
-  // sync once on open too -- a report saved by an older client, or edited directly in the DB,
-  // may have stale/missing linked attendance cards; syncLinks is idempotent so this is cheap.
-  let data = syncLinks(template, ensureShape(report.data))
+  // normalize once on open too -- a report saved by an older client, or edited directly in the
+  // DB, may have stale linked cards or per-course answers; normalize is idempotent so this is
+  // cheap either way.
+  let data = normalize(template, ensureShape(report.data))
   let saveState = 'saved' // saved | saving | offline
   let autosaveTimer = null
   let unsaved = false // an edit exists that no save request has picked up yet
@@ -47,7 +51,7 @@
   $: flagTotal = progress.flagsTicked.length + progress.customFlags.length
 
   function onChange() {
-    syncLinks(template, data) // re-derive linked cards (e.g. C attendance) from their source
+    normalize(template, data) // re-derive linked cards + per-course answers from their sources
     data = data // reassign so $: progress and every prop passing `data` sees the mutation
     if (disabled) return
     unsaved = true

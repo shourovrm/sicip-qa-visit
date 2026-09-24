@@ -29,9 +29,13 @@ function* allBlocks(template) {
 // exactly one target card per source card that has any of `fields` filled, in source order.
 // target._id = "<blockKey>:<source._id>" so every platform derives the same id; a target already
 // synced to that source keeps its other answers (re-fetched via target._link), a target whose
-// source disappeared is dropped. Mutates data.cards in place and returns data -- call this after
-// every edit and once when a report opens (idempotent, see ReportEditor).
-export function syncLinks(template, data) {
+// source disappeared is dropped. Mutates data.cards in place and returns data. Internal helper --
+// normalize() below is the one every caller (editor, exports) should run; kept as its own
+// function only because reference.py factors it out the same way.
+// exported anyway (not just `normalize`) because reporthtml.js/reportdocx.js (agent W2, out of
+// scope here) already do a defensive `reportTemplateModule.syncLinks` lookup from CHANGE SET 2 --
+// removing the export would silently stop their card-linking without a test failure to catch it.
+function syncLinks(template, data) {
   data.cards = data.cards ?? {}
   for (const { block } of allBlocks(template)) {
     const link = block.linkFrom
@@ -50,6 +54,57 @@ export function syncLinks(template, data) {
     }
     data.cards[block.key] = synced
   }
+  return data
+}
+export { syncLinks }
+
+// ids of today's courses (section A `courses` cards) with a non-blank course name, in card
+// order -- what per-course checklist items and progress both split by.
+function courseIds(data) {
+  return (data.cards?.courses ?? []).filter((c) => !isBlank(c.course)).map((c) => c._id)
+}
+
+// all-blank -> "" (nothing entered yet); "na" ignored in a mix; all real values equal -> that
+// value; anything else -> "partial". Only ever called once every course has *some* value.
+function deriveAnswer(values) {
+  if (values.some((v) => isBlank(v))) return ''
+  const real = values.filter((v) => v !== 'na')
+  if (real.length === 0) return 'na'
+  return real.every((v) => v === real[0]) ? real[0] : 'partial'
+}
+
+// per-course checklist items (template `perCourse: true`): with 2+ named courses in section A,
+// every such item is answered once per course instead of once overall. Keeps checks[item].courses
+// trimmed to today's course ids, derives checks[item].answer from them ("" until every course has
+// an answer), and creates a blank entry for a perCourse item that had none yet -- this can
+// overwrite a stale single-course answer from before a 2nd course existed, matching reference.py.
+// With 0-1 named courses this is a no-op (the item stays a plain single answer, courses ignored).
+function syncPerCourse(template, data) {
+  const ids = courseIds(data)
+  if (ids.length < 2) return data
+  data.checks = data.checks ?? {}
+  for (const { block } of allBlocks(template)) {
+    if (block.type !== 'checklist') continue
+    for (const item of block.items) {
+      if (!item.perCourse) continue
+      const check = data.checks[item.id] ?? (data.checks[item.id] = { answer: '', remarks: '' })
+      const previous = check.courses ?? {}
+      const courses = {}
+      for (const id of ids) if (id in previous) courses[id] = previous[id]
+      check.courses = courses
+      check.answer = deriveAnswer(ids.map((id) => courses[id] ?? ''))
+      if (check.remarks === undefined) check.remarks = ''
+    }
+  }
+  return data
+}
+
+// the one normalisation step every client runs after each edit and once when a report opens
+// (idempotent) -- reference.py `normalize`. Use this everywhere, not syncLinks/syncPerCourse
+// directly.
+export function normalize(template, data) {
+  syncLinks(template, data)
+  syncPerCourse(template, data)
   return data
 }
 
@@ -71,14 +126,19 @@ function sectionProgress(section, data) {
   let total = 0
   let flagged = false
   const customFlags = []
+  const courseCount = courseIds(data).length // computed once; perCourse items only split at 2+
 
   for (const block of section.blocks) {
     if (block.type === 'checklist') {
       for (const item of block.items) {
         total += 1
-        const answer = data.checks?.[item.id]?.answer
-        if (!isBlank(answer)) answered += 1
-        if (answer === 'no') flagged = true
+        const check = data.checks?.[item.id] ?? {}
+        if (!isBlank(check.answer)) answered += 1
+        if (check.answer === 'no') flagged = true
+        // a mixed per-course answer (e.g. one course "no", another "yes") derives to "partial"
+        // overall -- still flag the section, since a real "no" was recorded somewhere.
+        const perCourseNo = item.perCourse && courseCount >= 2 && Object.values(check.courses ?? {}).includes('no')
+        if (perCourseNo) flagged = true
       }
     } else if (block.type === 'fields') {
       for (const field of block.fields) {
@@ -161,7 +221,7 @@ export function computeProgress(template, data) {
 
 // new report: prefill fields from the visit + officer, seed every cards block with `start` blank
 // rows (each carrying a fresh _id -- linked blocks always start at 0 and are populated by
-// syncLinks instead), then run syncLinks once so a freshly created report is already consistent.
+// normalize instead), then normalize once so a freshly created report is already consistent.
 export function newReportData(template, visit, officerName) {
   const fields = {}
   const cards = {}
@@ -177,5 +237,5 @@ export function newReportData(template, visit, officerName) {
       cards[block.key] = Array.from({ length: block.start ?? 0 }, () => ({ _id: crypto.randomUUID() }))
     }
   }
-  return syncLinks(template, { fields, checks: {}, cards, flags: [] })
+  return normalize(template, { fields, checks: {}, cards, flags: [] })
 }

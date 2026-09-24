@@ -8,6 +8,7 @@
   export let options = [] // [{id, label, tone}]
   export let value = ''
   export let disabled = false
+  export let compact = false // per-course rows (CHANGE SET 3): narrower, still >=48px tall
 
   const dispatch = createEventDispatcher()
 
@@ -17,7 +18,7 @@
   }
 </script>
 
-<div class="segmented" class:disabled role="radiogroup">
+<div class="segmented" class:disabled class:compact role="radiogroup">
   {#each options as opt (opt.id)}
     <button
       type="button"
@@ -48,6 +49,9 @@
     line-height: 1.2;
     cursor: pointer;
   }
+  /* per-course rows stack several of these controls -- keep them narrow but never shrink the
+     tap target below 48px (spec: "4 compact answer buttons >=48dp") */
+  .segmented.compact .opt { min-height: 48px; padding: 4px 2px; font-size: 11px; }
   .opt:first-child { border-left: none; }
   .opt:disabled { cursor: not-allowed; }
   .opt.chosen.tone-yes { background: var(--tone-yes-bg); color: var(--tone-yes-fg); }

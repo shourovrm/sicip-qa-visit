@@ -1,23 +1,45 @@
 import { describe, it, expect } from 'vitest'
-import { templateFor, computeProgress, syncLinks, newReportData } from './reporttemplate.js'
+import { templateFor, computeProgress, normalize, newReportData } from './reporttemplate.js'
 import fixture from '../../../shared/report-templates/fixtures/progress-1.json'
 
-// deep clone -- syncLinks mutates in place, and every test needs its own untouched copy of the
+// deep clone -- normalize mutates in place, and every test needs its own untouched copy of the
 // fixture's before/expected objects.
 const clone = (x) => JSON.parse(JSON.stringify(x))
 
-describe('syncLinks', () => {
+describe('normalize', () => {
   it('matches the shared fixture exactly (android parity): before_sync -> synced', () => {
     const template = templateFor('surprise')
-    const result = syncLinks(template, clone(fixture.before_sync))
+    const result = normalize(template, clone(fixture.before_sync))
     expect(result).toEqual(fixture.synced)
   })
 
-  it('is idempotent -- syncing an already-synced report changes nothing', () => {
+  it('is idempotent -- normalizing an already-normalized report changes nothing', () => {
     const template = templateFor('surprise')
-    const once = syncLinks(template, clone(fixture.synced))
-    const twice = syncLinks(template, clone(once))
+    const once = normalize(template, clone(fixture.synced))
+    const twice = normalize(template, clone(once))
     expect(twice).toEqual(once)
+  })
+
+  it('leaves a perCourse item as a plain single answer with 0-1 named courses', () => {
+    const template = templateFor('surprise')
+    const data = normalize(template, {
+      fields: {}, checks: { arrival_1: { answer: 'yes', remarks: '' } },
+      cards: { courses: [{ _id: 'c1', course: 'Welding', batch: '07' }] }, flags: [],
+    })
+    // only one named course -- syncPerCourse is a no-op, the single answer survives untouched
+    expect(data.checks.arrival_1).toEqual({ answer: 'yes', remarks: '' })
+  })
+
+  it('derives a mixed per-course answer as partial and flags no matter what the derived answer is', () => {
+    const template = templateFor('surprise')
+    const data = normalize(template, {
+      fields: {}, checks: { arrival_1: { answer: '', remarks: '', courses: { c1: 'no', c2: 'yes' } } },
+      cards: { courses: [{ _id: 'c1', course: 'Welding', batch: '07' }, { _id: 'c2', course: 'Electrical', batch: '03' }] },
+      flags: [],
+    })
+    expect(data.checks.arrival_1.answer).toBe('partial')
+    const progress = computeProgress(template, data)
+    expect(progress.sections.arrival.flagged).toBe(true) // "no" is in the mix even though the derived answer isn't
   })
 })
 
@@ -48,6 +70,17 @@ describe('computeProgress', () => {
     expect(progress.sectionsCounted).toBe(nonOptionalWithTotal.length)
     expect(nonOptionalWithTotal.some((s) => s.key === 'followup')).toBe(false)
   })
+
+  it('never hardcodes the checklist item count -- section I is cards-only, not a checklist', () => {
+    const template = templateFor('surprise')
+    const interviewSection = template.sections.find((s) => s.key === 'interview')
+    expect(interviewSection.blocks.every((b) => b.type !== 'checklist')).toBe(true)
+    const checklistItemCount = template.sections
+      .flatMap((s) => s.blocks)
+      .filter((b) => b.type === 'checklist')
+      .reduce((sum, b) => sum + b.items.length, 0)
+    expect(checklistItemCount).toBe(31)
+  })
 })
 
 describe('newReportData', () => {
@@ -66,13 +99,14 @@ describe('newReportData', () => {
       expect(typeof card._id).toBe('string')
       expect(card._id.length).toBeGreaterThan(0)
     }
-    expect(data.checks).toEqual({})
+    expect(data.checks).toEqual({}) // 0-1 named courses yet -- normalize's per-course step is a no-op
     expect(data.flags).toEqual([])
   })
 
-  it('a fresh report has no linked attendance cards yet (courses start blank)', () => {
+  it('a fresh report has no linked attendance/interviews cards yet (courses start blank)', () => {
     const template = templateFor('surprise')
     const data = newReportData(template, { institute: 'X', start_date: '2026-01-01' }, 'Officer')
     expect(data.cards.attendance).toEqual([])
+    expect(data.cards.interviews).toEqual([])
   })
 })
