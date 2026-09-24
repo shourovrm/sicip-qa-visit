@@ -140,9 +140,13 @@ data class ReportTemplate(
     val title: String,
     val program: String,
     val subtitle: String,
+    // visit purposes this report can be written for ("Monitoring Visit"); empty = any visit
+    val purposes: List<String> = emptyList(),
     val answers: List<AnswerOption>,
     val sections: List<ReportSection>,
 )
+
+fun ReportTemplate.allowsPurpose(purpose: String): Boolean = purposes.isEmpty() || purpose in purposes
 
 private val templateJson = Json { ignoreUnknownKeys = true }
 

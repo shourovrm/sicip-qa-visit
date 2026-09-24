@@ -6,6 +6,7 @@
 // at the same date+district. FAB schedules a brand-new visit.
 package bd.sicip.qavisit.ui.home
 
+import bd.sicip.qavisit.domain.report.allowsPurpose
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -96,6 +97,8 @@ fun HomeScreen(
     client: SupabaseClient = SupabaseClient(),
 ) {
     val context = LocalContext.current
+    // parsed once: decides which ongoing visits may carry a report (by visit purpose)
+    val reportTemplate = remember(context) { surpriseTemplate(context) }
     val vm = remember(officerId, db) { HomeViewModel(officerId, db, sessionStore, client, context = context) }
     val state by vm.state.collectAsState(initial = HomeUiState())
     val updateNotice by vm.updateNotice.collectAsState()
@@ -203,6 +206,7 @@ fun HomeScreen(
                     OngoingVisitCard(
                         visit,
                         reportInfo = state.activeTripReports[visit.id],
+                        reportable = reportTemplate.allowsPurpose(visit.purpose),
                         onClick = { onEditVisit(visit.id) },
                         onOpenReport = { reportId -> onOpenReport(reportId) },
                         onStartReport = {
@@ -473,6 +477,7 @@ private fun SnippetCard(label: String, value: String, modifier: Modifier = Modif
 private fun OngoingVisitCard(
     visit: Visit,
     reportInfo: VisitReportInfo?,
+    reportable: Boolean,
     onClick: () -> Unit,
     onOpenReport: (String) -> Unit,
     onStartReport: () -> Unit,
@@ -496,7 +501,8 @@ private fun OngoingVisitCard(
                 }
                 StatusPill("ONGOING", StatusPair(bg = MaterialTheme.colorScheme.primaryContainer, ink = MaterialTheme.colorScheme.onPrimaryContainer))
             }
-            ReportLine(reportInfo, onOpenReport, onStartReport)
+            // capacity assessment etc. get no report line: reports are for monitoring visits
+            if (reportInfo != null || reportable) ReportLine(reportInfo, onOpenReport, onStartReport)
         }
     }
 }

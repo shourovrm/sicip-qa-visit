@@ -40,7 +40,12 @@
   }
 
   $: filtered = reports.filter((r) => r.status === tab)
-  $: myVisits = visits.filter((v) => v.officer_id === $officer?.id).sort((a, b) => (a.start_date < b.start_date ? 1 : -1))
+  // only visits whose purpose the chosen report type is for (template.purposes, e.g. Monitoring Visit)
+  $: newTypePurposes = templateFor(newType)?.purposes ?? []
+  $: myVisits = visits
+    .filter((v) => v.officer_id === $officer?.id)
+    .filter((v) => newTypePurposes.length === 0 || newTypePurposes.includes(v.purpose))
+    .sort((a, b) => (a.start_date < b.start_date ? 1 : -1))
 
   function instituteFor(r) {
     return visits.find((v) => v.id === r.visit_id)?.institute ?? r.data?.fields?.ti_name ?? '—'
@@ -156,6 +161,9 @@
           <label for="rvisit">Visit</label>
           <Dropdown id="rvisit" bind:value={newVisitId} placeholder="Select a visit"
             options={myVisits.map((v) => [v.id, `${v.institute} — ${v.start_date}`])} />
+          {#if myVisits.length === 0}
+            <p class="hint">No matching visits. This report is for visits with purpose: {newTypePurposes.join(' or ')}.</p>
+          {/if}
         </div>
         <div class="row">
           <button type="submit" class="btn btn-primary" disabled={!newVisitId}>Start</button>
@@ -167,6 +175,7 @@
 {/if}
 
 <style>
+  .hint { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
   h1 { color: var(--primary); }
   .tabs { justify-content: space-between; margin: 12px 0; }
   .seg { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-pill); padding: 3px; }

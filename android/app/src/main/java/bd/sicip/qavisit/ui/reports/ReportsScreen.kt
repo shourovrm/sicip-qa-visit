@@ -6,6 +6,7 @@
 // today's + upcoming 7 days, own) + Start.
 package bd.sicip.qavisit.ui.reports
 
+import bd.sicip.qavisit.domain.report.allowsPurpose
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.verticalScroll
@@ -105,7 +106,8 @@ fun ReportsScreen(officerId: String, db: AppDb, onOpenReport: (String) -> Unit) 
     val today = LocalDate.now().toString() // local date: the utc one is yesterday before 06:00 in dhaka
     val reportedVisitIds = state.reports.map { it.visitId }.toSet()
     val noReportVisits = state.myVisits.filter { v ->
-        v.id !in reportedVisitIds && ((activeTrip != null && v.tripId == activeTrip.id) || v.startDate == today)
+        v.id !in reportedVisitIds && template.allowsPurpose(v.purpose) &&
+            ((activeTrip != null && v.tripId == activeTrip.id) || v.startDate == today)
     }
 
     Scaffold(
@@ -177,7 +179,7 @@ fun ReportsScreen(officerId: String, db: AppDb, onOpenReport: (String) -> Unit) 
         NewReportSheet(
             officerId = officerId,
             officerName = state.officerName,
-            visits = candidateVisits(state.myVisits, activeTrip, today),
+            visits = candidateVisits(state.myVisits.filter { template.allowsPurpose(it.purpose) }, activeTrip, today),
             template = template,
             db = db,
             onDismiss = { showNewReportSheet = false },
@@ -300,7 +302,7 @@ private fun NewReportSheet(
             Text("FOR VISIT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (visits.isEmpty()) {
                 Text(
-                    "No visits in the last 30 days or the next 7. Schedule the visit first.",
+                    "No matching visits in the last 30 days or the next 7. This report is for visits with purpose: ${template.purposes.joinToString(" or ")}.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
