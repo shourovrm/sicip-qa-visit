@@ -1,13 +1,16 @@
-// reportHtml -- structural checks only (escaping, colours, Not answered, omissions). the
-// visual layout/print path is browser window.print(), not JVM/node-testable here (see
-// billhtml.test.js for the same convention).
+// reportHtml -- structural checks only (escaping, colours, widths, omissions). the visual
+// layout/print path is browser window.print(), not JVM/node-testable here (see
+// billhtml.test.js for the same convention). Visual verification (page count, look) was done
+// separately by rendering the fixture through soffice --headless --convert-to pdf + magick, not
+// as part of this automated suite.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { reportHtml } from './reporthtml.js'
+import { CHECKLIST_COLUMNS, FLAGS_COLUMNS } from './reportlayout.js'
 
 // loaded via node fs (not JSON import) -- vite's server.fs.allow for ../shared is W1's
-// vite.config change and may not have landed yet when this test runs.
+// vite.config change; this avoids depending on it having landed.
 function loadJson(relPath) {
   const path = fileURLToPath(new URL(relPath, import.meta.url))
   return JSON.parse(readFileSync(path, 'utf-8'))
@@ -17,10 +20,11 @@ const template = loadJson('../../../shared/report-templates/surprise-v1.json')
 const fixture = loadJson('../../../shared/report-templates/fixtures/progress-1.json')
 
 const meta = { officerName: 'Mahfuzul Islam', status: 'draft' }
+const EMPTY_DATA = { fields: {}, checks: {}, cards: {}, flags: [] }
 
 it('escapes user text in fields, checklist remarks, and cards', () => {
-  // attendance is a linked cards block (syncLinks copies course/batch in from the "courses"
-  // cards in section A) -- give it a source card so the synced attendance entry survives.
+  // attendance is a linked cards block (normalize/syncLinks copies course/batch in from the
+  // "courses" cards in section A) -- give it a source card so the synced attendance entry survives.
   const data = {
     fields: { ti_name: 'A & B <script>alert(1)</script>' },
     checks: { arrival_1: { answer: 'yes', remarks: 'Fine & good <b>bold</b>' } },
@@ -34,62 +38,85 @@ it('escapes user text in fields, checklist remarks, and cards', () => {
   expect(html).toContain('Weld&lt;ing&gt; &amp; Fab')
 })
 
-it('blank checklist items print Not answered; answered ones print a coloured tone label', () => {
-  const data = { fields: {}, checks: { arrival_1: { answer: 'yes', remarks: '' } }, cards: {}, flags: [] }
-  const html = reportHtml(template, data, meta)
-  // arrival_1 answered yes -> coloured label, not "Not answered"
-  const arrivalSection = html.slice(html.indexOf('>B<'), html.indexOf('>C<'))
-  expect(arrivalSection).toContain('color:#1c6b38')
-  expect(arrivalSection).toContain('>Yes<')
-  // arrival_2..4 unanswered -> "Not answered"
-  expect((arrivalSection.match(/Not answered/g) || []).length).toBe(3)
+// CHANGE SET 3: "Not answered" is gone everywhere -- blank fields/cards/checklist answers are
+// simply empty (a line, a box, or four unticked boxes), never a placeholder string.
+it('never prints "Not answered", even for a maximally blank report', () => {
+  const html = reportHtml(template, EMPTY_DATA, meta)
+  expect(html).not.toContain('Not answered')
 })
 
-it('uses the four spec tone colours for yes/no/partial/na answers', () => {
+it('checklist table uses the shared column widths (Item wide, ticks narrow)', () => {
+  const html = reportHtml(template, EMPTY_DATA, meta)
+  for (const col of CHECKLIST_COLUMNS) expect(html).toContain(`width:${col.weight}%`)
+  // Item (44%) must be much wider than any single tick column (6%) -- the reported bug.
+  const itemCol = CHECKLIST_COLUMNS.find((c) => c.key === 'item')
+  const tickCol = CHECKLIST_COLUMNS.find((c) => c.key === 'yes')
+  expect(itemCol.weight).toBeGreaterThan(tickCol.weight * 5)
+})
+
+it('an unanswered checklist item has four unticked boxes and an empty remarks cell', () => {
+  const html = reportHtml(template, EMPTY_DATA, meta)
+  const row = html.slice(html.indexOf('Centre open and training'), html.indexOf('</tr>', html.indexOf('Centre open and training')))
+  expect((row.match(/☐/g) || []).length).toBe(4) // four empty ticks
+  expect(row).not.toContain('☒') // none checked
+  expect(row).toContain('<td class="remarks"></td>') // truly empty, not "Not answered"
+})
+
+it('a "yes" answer ticks the Yes column in its tone colour and leaves the rest unticked', () => {
+  const data = { ...EMPTY_DATA, checks: { arrival_1: { answer: 'yes', remarks: '' } } }
+  const html = reportHtml(template, data, meta)
+  const row = html.slice(html.indexOf('Centre open and training'), html.indexOf('</tr>', html.indexOf('Centre open and training')))
+  expect((row.match(/☒/g) || []).length).toBe(1)
+  expect((row.match(/☐/g) || []).length).toBe(3)
+  expect(row).toContain('style="color:#1c6b38"')
+})
+
+it('per-course items show a "Per course" tag and a per-course summary line once 2+ courses exist', () => {
   const data = {
     fields: {},
-    checks: {
-      arrival_1: { answer: 'yes', remarks: '' },
-      arrival_2: { answer: 'no', remarks: '' },
-      arrival_3: { answer: 'partial', remarks: '' },
-      arrival_4: { answer: 'na', remarks: '' },
-    },
-    cards: {},
+    checks: { arrival_1: { answer: 'partial', remarks: '', courses: { c1: 'yes', c2: 'no' } } },
+    cards: { courses: [{ _id: 'c1', course: 'Welding (SMAW)', batch: '07' }, { _id: 'c2', course: 'Electrical Installation', batch: '03' }] },
     flags: [],
   }
   const html = reportHtml(template, data, meta)
-  expect(html).toContain('color:#1c6b38')
-  expect(html).toContain('color:#b3261e')
-  expect(html).toContain('color:#8a4600')
-  expect(html).toContain('color:#4c4f66')
+  const row = html.slice(html.indexOf('Centre open and training'), html.indexOf('</tr>', html.indexOf('Centre open and training')))
+  expect(row).toContain('per-course-tag">Per course')
+  expect(row).toContain('Welding (SMAW) 07: Yes')
+  expect(row).toContain('Electrical Installation 03: No')
 })
 
-it('empty remarks render no remarks text (not a placeholder)', () => {
-  const data = { fields: {}, checks: { arrival_1: { answer: 'yes', remarks: '' } }, cards: {}, flags: [] }
+it('with fewer than 2 courses, a perCourse item behaves as a normal single-answer row (no tag)', () => {
+  const data = {
+    fields: {},
+    checks: { arrival_1: { answer: 'yes', remarks: '', courses: { c1: 'yes' } } },
+    cards: { courses: [{ _id: 'c1', course: 'Welding (SMAW)', batch: '07' }] },
+    flags: [],
+  }
   const html = reportHtml(template, data, meta)
-  const row = html.slice(html.indexOf('Centre open and training'))
-  const rowEnd = row.indexOf('</tr>')
-  expect(row.slice(0, rowEnd)).toContain('<td class="remarks"></td>')
+  const row = html.slice(html.indexOf('Centre open and training'), html.indexOf('</tr>', html.indexOf('Centre open and training')))
+  expect(row).not.toContain('per-course-tag')
+  expect(row).not.toContain('per-course-line')
 })
 
-it('unticked flags are omitted; ticked flags print, untouched ones do not appear as list items', () => {
-  const data = { fields: {}, checks: {}, cards: {}, flags: ['flag_3'] }
+it('flags table always lists every fixed item (ticked or not), plus custom flags as ticked rows', () => {
+  const data = {
+    fields: {},
+    checks: {},
+    cards: { other_flags: [{ _id: 'f1', flag: 'Trainees sharing one ID card' }, { _id: 'f2', flag: ' ' }] },
+    flags: ['flag_3'],
+  }
   const html = reportHtml(template, data, meta)
   const flagsSection = html.slice(html.indexOf('>L<'), html.indexOf('>M<'))
-  expect(flagsSection).toContain('possible ghost trainees')
-  expect(flagsSection).not.toContain('Trainer absent or replaced')
-  expect(flagsSection).not.toContain('none-ticked')
+  const flagsBlock = template.sections.find((s) => s.key === 'flags').blocks.find((b) => b.type === 'flags')
+  expect((flagsSection.match(/<tr>/g) || []).length).toBe(flagsBlock.items.length + 1) // 9 fixed + 1 custom
+  expect(flagsSection).toContain('possible ghost trainees') // ticked fixed flag
+  expect(flagsSection).toContain('Trainer absent or replaced by an unapproved person') // unticked fixed flag, still listed
+  expect(flagsSection).toContain('Trainees sharing one ID card') // custom flag, non-blank -> merged in as ticked
+  for (const col of FLAGS_COLUMNS) if (col.weight) expect(flagsSection).toContain(`width:${col.weight}%`)
 })
 
-it('no ticked flags prints the None ticked placeholder', () => {
-  const data = { fields: {}, checks: {}, cards: {}, flags: [] }
-  const html = reportHtml(template, data, meta)
-  const flagsSection = html.slice(html.indexOf('>L<'), html.indexOf('>M<'))
-  expect(flagsSection).toContain('None ticked.')
-})
-
-it('cards block renders one table per entry with the title field, and flags compare mismatches', () => {
-  // attendance is linked to "courses" (section A) via syncLinks: course/batch come from the
+it('cards block renders one table per block, one row per card, and flags compare mismatches', () => {
+  // attendance is linked to "courses" (section A) via normalize: course/batch come from the
   // source card in source order, other answers (present_total/register/tms) are the officer's
   // own and survive the sync because the attendance entry's _link matches the source _id.
   const data = {
@@ -108,43 +135,66 @@ it('cards block renders one table per entry with the title field, and flags comp
     flags: [],
   }
   const html = reportHtml(template, data, meta)
-  // section A's "courses" cards block also uses itemLabel "Course" -- scope to section C
-  // (attendance) so this doesn't match the wrong "Course 1: ..." caption.
   const cSection = html.slice(html.indexOf('>C<'), html.indexOf('>D<'))
-  expect(cSection).toContain('Course 1: Welding (SMAW)')
-  expect(cSection).toContain('Course 2: Electrical Installation')
-  const table1Start = cSection.lastIndexOf('<table', cSection.indexOf('Course 1'))
-  const table2Start = cSection.lastIndexOf('<table', cSection.indexOf('Course 2'))
-  const mismatchCard = cSection.slice(table1Start, table2Start)
-  expect(mismatchCard).toContain('class="card mismatch"')
-  expect(mismatchCard).toContain('Headcount, register and TMS do not match')
-  const matchCard = cSection.slice(table2Start)
-  expect(matchCard.slice(0, matchCard.indexOf('</table>'))).not.toContain('mismatch')
+  expect((cSection.match(/<table class="cards-table">/g) || []).length).toBe(1) // one table for the whole block
+  const cardsTable = cSection.slice(cSection.indexOf('<table class="cards-table">'), cSection.indexOf('</table>') + '</table>'.length)
+  const tbody = cardsTable.slice(cardsTable.indexOf('<tbody>'))
+  expect((tbody.match(/<tr>/g) || []).length).toBe(2) // one row per card (2 cards), not one table per card
+  expect(cardsTable).toContain('Welding (SMAW)')
+  expect(cardsTable).toContain('Electrical Installation')
+  expect(cSection).toContain('Headcount, register and TMS do not match')
 })
 
-it('cards block with no entries prints an empty placeholder, not an empty table', () => {
-  const data = { fields: {}, checks: {}, cards: {}, flags: [] }
-  const html = reportHtml(template, data, meta)
-  const graduatesSection = html.slice(html.indexOf('>J<'), html.indexOf('>K<'))
-  expect(graduatesSection).toContain('No entries.')
+describe('section I: linked interview cards (display: tabs)', () => {
+  it('empty state links back to section A', () => {
+    const html = reportHtml(template, EMPTY_DATA, meta)
+    const iSection = html.slice(html.indexOf('>I<'), html.indexOf('>J<'))
+    expect(iSection).toContain('Add courses in section A.')
+  })
+
+  it('renders one table per course with q1-q7 as tick columns, plus topic/result/feedback', () => {
+    const data = {
+      fields: {},
+      checks: {},
+      cards: {
+        courses: [{ _id: 'c1', course: 'Welding (SMAW)', batch: '07' }],
+        interviews: [{ _id: 'interviews:c1', _link: 'c1', course: 'Welding (SMAW)', batch: '07', trainees_interviewed: '6', q1: 'yes', q2: 'no', tech_topic: 'Electrode angle', tech_result: 'most' }],
+      },
+      flags: [],
+    }
+    const html = reportHtml(template, data, meta)
+    const iSection = html.slice(html.indexOf('>I<'), html.indexOf('>J<'))
+    expect(iSection).toContain('Welding (SMAW) &middot; Batch 07')
+    expect(iSection).toContain('Classes run on all scheduled days and hours') // q1 label
+    expect(iSection).toContain('style="color:#1c6b38"') // q1 = yes, ticked in tone colour
+    expect(iSection).toContain('Electrode angle') // tech_topic
+    expect(iSection).toContain('Trainees interviewed') // plain field label
+  })
 })
 
-it('section M renders the rating as a coloured choice and free text fields verbatim', () => {
-  const data = {
-    fields: { overall_rating: 'satisfactory', key_findings: 'Line one\nLine two' },
-    checks: {},
-    cards: {},
-    flags: [],
-  }
+it('longtext fields render as a labelled bordered box, not an inline label:value line', () => {
+  const data = { ...EMPTY_DATA, fields: { key_findings: 'Line one\nLine two' } }
   const html = reportHtml(template, data, meta)
-  const ratingSection = html.slice(html.indexOf('>M<'))
-  expect(ratingSection).toContain('color:#1c6b38')
-  expect(ratingSection).toContain('>Satisfactory<')
-  expect(ratingSection).toContain('Line one<br>Line two')
+  expect(html).toContain('<div class="field-box">')
+  expect(html).toContain('Line one<br>Line two')
+})
+
+// ONE REPORT LAYOUT FOR ALL OUTPUTS: choice/select fields in a top-level "fields" block (K's
+// compliance, M's rating/follow-up, ...) render as an inline ☒/☐ option row, same as docx's
+// inlineChoiceParagraph -- not just a single coloured label (that's reserved for card cells,
+// which don't have room for every option).
+it('choice/select fields render every option inline with a tick box, matching docx', () => {
+  const data = { ...EMPTY_DATA, fields: { compliance: 'none' } }
+  const html = reportHtml(template, data, meta)
+  const kSection = html.slice(html.indexOf('>K<'), html.indexOf('>L<'))
+  expect(kSection).toContain('choice-line')
+  expect(kSection).toContain('All complied')
+  expect(kSection).toContain('Partly')
+  expect(kSection).toContain('choice-opt checked" style="color:#b3261e">☒ Not complied')
 })
 
 it('header carries template title/program and officer meta', () => {
-  const html = reportHtml(template, { fields: {}, checks: {}, cards: {}, flags: [] }, { officerName: 'Rakib Hasan', status: 'submitted', submittedAt: '2026-09-24T10:00:00Z' })
+  const html = reportHtml(template, EMPTY_DATA, { officerName: 'Rakib Hasan', status: 'submitted', submittedAt: '2026-09-24T10:00:00Z' })
   expect(html).toContain(template.title)
   expect(html).toContain(template.program)
   expect(html).toContain('Rakib Hasan')
@@ -152,31 +202,24 @@ it('header carries template title/program and officer meta', () => {
 })
 
 describe('fixture parity smoke test', () => {
-  it('renders the shared progress fixture without throwing and includes its known answers', () => {
+  it('renders the shared progress fixture without throwing and includes its known content', () => {
     const html = reportHtml(template, fixture.data, { officerName: 'Test Officer', status: 'draft' })
     expect(html).toContain('Bangladesh-Korea TTC, Mirpur')
     expect(html).toContain('Theory instead of practical')
     expect(html).toContain('Rakib')
+    expect(html).toContain('Md. Karim') // persons cards
+    expect(html).toContain('Dropout register missing') // K unresolved cards
+    expect(html).not.toContain('Not answered')
   })
 
-  // CHANGE SET 2 content: persons met, courses/batches, attendance trainers present, K
-  // compliance + unresolved issues (optional), and other_flags free text merged with ticked.
-  it('renders persons met, courses, attendance trainers present, K compliance/unresolved, and custom flags', () => {
+  it('renders the per-course materials_1 split (Welding yes, Electrical no) as a summary line', () => {
     const html = reportHtml(template, fixture.data, { officerName: 'Test Officer', status: 'draft' })
-    expect(html).toContain('Md. Karim') // persons cards
-    expect(html).toContain('Principal')
-    expect(html).toContain('Welding (SMAW)') // courses cards (also linked into attendance)
-    expect(html).toContain('<th>Trainers present</th><td>2</td>') // trainers_present on the c2 attendance card
-    const kSection = html.slice(html.indexOf('>K<'), html.indexOf('>L<'))
-    expect(kSection).toContain('optional-tag') // section.optional -> "Optional" tag
-    expect(kSection).toContain('color:#b3261e') // compliance: "none" -> Not complied, tone "no"
-    expect(kSection).toContain('Not complied')
-    expect(kSection).toContain('Dropout register missing') // unresolved cards
-    const flagsSection = html.slice(html.indexOf('>L<'), html.indexOf('>M<'))
-    expect(flagsSection).toContain('possible ghost trainees') // ticked fixed flag (flag_3)
-    expect(flagsSection).toContain('Trainees sharing one ID card') // custom flag (other_flags, non-blank)
-    // whitespace-only custom flag card (f2) must not appear as a flag
-    const customFlagCount = (flagsSection.match(/<li>/g) || []).length
-    expect(customFlagCount).toBe(2) // flag_3 + "Trainees sharing one ID card" only
+    expect(html).toContain('Welding (SMAW) 07: Yes')
+    expect(html).toContain('Electrical Installation 03: No')
+  })
+
+  it('renders the interview per-course content (Electrode angle technical topic)', () => {
+    const html = reportHtml(template, fixture.data, { officerName: 'Test Officer', status: 'draft' })
+    expect(html).toContain('Electrode angle')
   })
 })
