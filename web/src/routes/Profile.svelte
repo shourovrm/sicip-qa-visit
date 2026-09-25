@@ -1,7 +1,9 @@
-<!-- my stats, theme toggle, change password, logout, view-only sheet link -->
+<!-- my stats, theme toggle, writing helper model, change password, logout, view-only sheet link -->
 <script>
+  import { onMount } from 'svelte'
   import { officer, signOut, updatePassword } from '../lib/auth.js'
   import { theme, toggleTheme } from '../lib/theme.js'
+  import { getModel, setModel, loadModels } from '../lib/rewritemodel.js'
   import { listVisits } from '../lib/db.js'
   import { totalPoints, rank } from '../lib/scoring.js'
 
@@ -28,6 +30,32 @@
     const ranked = rank(visits.map((v) => ({ officerId: v.officer_id, category: v.category, deleted: v.deleted, done: v.status === 'done' })))
     myRankPos = ranked.findIndex(([id]) => id === mine) + 1
     loading = false
+  }
+
+  // "Writing helper" model picker for Improve wording (per-device, localStorage-backed --
+  // see rewritemodel.js). savedModel is the officer's own choice, or null = server default;
+  // modelInfo is the /api/models response, or null while loading / when it fails to load.
+  let savedModel = getModel()
+  let modelInfo = null
+  let modelsLoading = true
+
+  onMount(async () => {
+    modelInfo = await loadModels()
+    modelsLoading = false
+  })
+
+  // both identifiers are read directly here (not through a helper fn) so Svelte's dependency
+  // tracking actually sees them -- see DECISIONS.md's $:/{@const} gotcha.
+  // a saved key the server no longer lists falls back to the default there, so show that.
+  let selectedModel = null
+  $: {
+    const savedIsListed = modelInfo?.models.some((m) => m.key === savedModel)
+    selectedModel = savedIsListed ? savedModel : (modelInfo?.default ?? savedModel)
+  }
+
+  function chooseModel(key) {
+    savedModel = key
+    setModel(key)
   }
 
   let newPw = '', confirmPw = '', pwErr = '', pwDone = false
@@ -57,6 +85,35 @@
 <div class="card">
   <h2>Theme</h2>
   <button class="btn" on:click={toggleTheme}>Switch to {$theme === 'dark' ? 'light' : 'dark'}</button>
+</div>
+
+<div class="card">
+  <h2>Writing helper</h2>
+  {#if modelsLoading}
+    <p class="muted">Loading models…</p>
+  {:else if !modelInfo}
+    <p class="muted">Model list unavailable offline</p>
+  {:else}
+    <div class="model-list" role="radiogroup" aria-label="Writing helper model">
+      {#each modelInfo.models as m (m.key)}
+        <button
+          type="button"
+          class="model-opt"
+          class:chosen={selectedModel === m.key}
+          role="radio"
+          aria-checked={selectedModel === m.key}
+          on:click={() => chooseModel(m.key)}
+        >
+          <span class="model-radio" aria-hidden="true"></span>
+          <span class="model-text">
+            <span class="model-label">{m.label}</span>
+            {#if m.note}<span class="model-note">{m.note}</span>{/if}
+          </span>
+        </button>
+      {/each}
+    </div>
+  {/if}
+  <p class="muted model-help">Used by Improve wording in reports. All options are free; they share one daily limit.</p>
 </div>
 
 <div class="card">
@@ -106,4 +163,33 @@
   .card { margin-bottom: 16px; }
   .links { display: flex; align-items: center; gap: 6px; }
   .gh-link { display: inline-flex; align-items: center; gap: 5px; }
+
+  .model-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+  .model-opt {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    padding: 8px 10px;
+    border: 1px solid var(--outline);
+    border-radius: 10px;
+    background: var(--surface);
+    cursor: pointer;
+  }
+  .model-opt.chosen { border-color: var(--primary); background: var(--primary-container); }
+  .model-opt.chosen .model-label, .model-opt.chosen .model-note { color: var(--on-primary-container); }
+  .model-radio {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin-top: 2px;
+    border-radius: 50%;
+    border: 2px solid var(--outline);
+  }
+  .model-opt.chosen .model-radio { border-color: var(--on-primary-container); background: var(--on-primary-container); }
+  .model-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .model-label { font-weight: 600; font-size: 14px; }
+  .model-note { font-size: 12px; color: var(--muted); }
+  .model-help { margin-top: 4px; font-size: 12px; }
 </style>

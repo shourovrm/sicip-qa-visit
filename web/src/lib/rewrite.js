@@ -2,6 +2,7 @@
 // Pure fetch, no UI here -- ImproveWording.svelte owns loading state / display, and never
 // auto-replaces anything with the result.
 import { supabase } from './supabase.js'
+import { getModel } from './rewritemodel.js'
 
 // short, user-facing text for every error code the Worker can return, plus a local "network"
 // code for a fetch failure (offline) -- never show a raw error code to the officer.
@@ -28,6 +29,10 @@ export async function rewriteText(text, label) {
   } = await supabase.auth.getSession()
   if (!session) throw new Error(messageFor('auth'))
 
+  // no saved key -> omit "model" entirely so the Worker falls back to its own default
+  const model = getModel()
+  const requestBody = model ? { text, label, model } : { text, label }
+
   let response
   try {
     response = await fetch('/api/rewrite', {
@@ -36,7 +41,7 @@ export async function rewriteText(text, label) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ text, label }),
+      body: JSON.stringify(requestBody),
     })
   } catch (e) {
     throw new Error(messageFor('network')) // fetch only rejects on a network-level failure

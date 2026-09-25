@@ -6,7 +6,14 @@ vi.mock('./supabase.js', () => ({
   supabase: { auth: { getSession: vi.fn() } },
 }))
 
+// rewritemodel.js itself has its own tests (rewritemodel.test.js, localStorage + fetch mocked
+// there) -- here we only care that rewrite.js reads the saved key and puts it on the request.
+vi.mock('./rewritemodel.js', () => ({
+  getModel: vi.fn(),
+}))
+
 import { supabase } from './supabase.js'
+import { getModel } from './rewritemodel.js'
 import { rewriteText } from './rewrite.js'
 
 const SESSION = { data: { session: { access_token: 'tok-123' } } }
@@ -18,6 +25,7 @@ function jsonResponse(status, body) {
 
 beforeEach(() => {
   vi.restoreAllMocks()
+  getModel.mockReturnValue(null) // default for every test below: no saved key -> server default
 })
 
 it('returns the rewritten text on 200', async () => {
@@ -33,6 +41,21 @@ it('returns the rewritten text on 200', async () => {
       method: 'POST',
       headers: expect.objectContaining({ Authorization: 'Bearer tok-123' }),
       body: JSON.stringify({ text: 'raw text', label: 'Remarks' }),
+    })
+  )
+})
+
+it('includes the saved model key on the request body when one is set', async () => {
+  supabase.auth.getSession.mockResolvedValue(SESSION)
+  getModel.mockReturnValue('llama-3.3')
+  global.fetch = vi.fn().mockResolvedValue(jsonResponse(200, { text: 'Rewritten.' }))
+
+  await rewriteText('raw text', 'Remarks')
+
+  expect(global.fetch).toHaveBeenCalledWith(
+    '/api/rewrite',
+    expect.objectContaining({
+      body: JSON.stringify({ text: 'raw text', label: 'Remarks', model: 'llama-3.3' }),
     })
   )
 })
