@@ -14,7 +14,7 @@ export const MODELS = [
     key: 'gemma',
     id: '@cf/google/gemma-4-26b-a4b-it',
     label: 'Recommended',
-    note: 'Most accurate in our tests · Bangla can take a few seconds',
+    note: 'Most accurate',
     options: NO_THINKING,
   },
   {
