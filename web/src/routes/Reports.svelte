@@ -6,14 +6,28 @@
   import { listReports, listReportsByVisit, listVisits, createReport } from '../lib/db.js'
   import { officer, isAdmin } from '../lib/auth.js'
   import { officers } from '../lib/officers.js'
-  import { templateFor, newReportData, computeProgress } from '../lib/reporttemplate.js'
+  import { templateFor, dbTypeFor, newReportData, computeProgress } from '../lib/reporttemplate.js'
   import Dropdown from '../components/Dropdown.svelte'
   import ReportEditor from '../components/report/ReportEditor.svelte'
   import { openReportPrint } from '../lib/reporthtml.js'
+  import { openQaReportPrint } from '../lib/qareporthtml.js'
   // docx lib is heavy: load it only when someone asks for a word file
   const downloadDocx = (...args) => import('../lib/reportdocx.js').then((m) => m.downloadReportDocx(...args))
+  const downloadQaDocx = (...args) => import('../lib/qareportdocx.js').then((m) => m.downloadQaReportDocx(...args))
 
-  const TYPE_LABELS = { surprise: 'Surprise visit', monitoring: 'Monitoring / QA' }
+  // report-row `type` -> its template's own `short` label ("Surprise visit" / "QA visit") --
+  // never hardcode the label here, the template is the one source (spec section 1).
+  function typeLabel(dbType) {
+    return templateFor(dbType)?.short ?? dbType
+  }
+  // Print/Word pick the QA layout (Annex-3 + Remarks column) or the surprise layout by the
+  // report's own template id -- see qareporthtml.js/qareportdocx.js (spec section 7).
+  function printReport(template, data, meta) {
+    return (template.id === 'qa' ? openQaReportPrint : openReportPrint)(template, data, meta)
+  }
+  function docxReport(template, data, meta) {
+    return (template.id === 'qa' ? downloadQaDocx : downloadDocx)(template, data, meta)
+  }
 
   let reports = []
   let visits = []
@@ -40,11 +54,10 @@
   }
 
   $: filtered = reports.filter((r) => r.status === tab)
-  // only visits whose purpose the chosen report type is for (template.purposes, e.g. Monitoring Visit)
-  $: newTypePurposes = templateFor(newType)?.purposes ?? []
+  // only Monitoring Visit visits get a report (spec section 1); which template(s) apply comes
+  // from the visit's own visit_type, not a type picked here.
   $: myVisits = visits
-    .filter((v) => v.officer_id === $officer?.id)
-    .filter((v) => newTypePurposes.length === 0 || newTypePurposes.includes(v.purpose))
+    .filter((v) => v.officer_id === $officer?.id && v.purpose === 'Monitoring Visit')
     .sort((a, b) => (a.start_date < b.start_date ? 1 : -1))
 
   function instituteFor(r) {
@@ -54,21 +67,37 @@
     return computeProgress(templateFor(r.type), r.data)
   }
 
+  // visit_type 'surprise'/'qa' -> that one template only; null (old rows created before the
+  // visit_type split) -> offer both, same as the spec's fallback.
+  function templateIdsFor(visit) {
+    if (visit?.visit_type === 'surprise') return ['surprise']
+    if (visit?.visit_type === 'qa') return ['qa']
+    return ['surprise', 'qa']
+  }
+
   // ---- new report modal ----
   let showNew = false
-  let newType = 'surprise'
+  let newType = ''
   let newVisitId = ''
 
   function openNew() {
-    newType = 'surprise'
+    newType = ''
     newVisitId = ''
     showNew = true
   }
 
+  $: newVisit = visits.find((v) => v.id === newVisitId) ?? null
+  $: newCandidates = newVisit ? templateIdsFor(newVisit) : []
+  // a single-candidate visit (the normal case) picks its report automatically; a legacy
+  // null-visit_type visit shows both as a radio choice -- reset newType whenever the visit changes.
+  $: if (newCandidates.length === 1) newType = newCandidates[0]
+  else if (!newCandidates.includes(newType)) newType = ''
+
   async function startNewReport() {
-    if (!newVisitId) return
+    if (!newVisitId || !newType) return
+    const dbType = dbTypeFor(newType)
     // ask the server, not the filtered list: an admin viewing another officer has a partial list
-    const existing = (await listReportsByVisit(newVisitId)).find((r) => r.type === newType)
+    const existing = (await listReportsByVisit(newVisitId)).find((r) => r.type === dbType)
     if (existing) {
       showNew = false
       current = existing
@@ -78,7 +107,7 @@
     const visit = visits.find((v) => v.id === newVisitId)
     const data = newReportData(tmpl, visit, $officer?.name ?? '')
     const row = await createReport({
-      officer_id: $officer.id, visit_id: newVisitId, type: newType,
+      officer_id: $officer.id, visit_id: newVisitId, type: dbType,
       template_version: tmpl.version, data, status: 'draft',
     })
     reports = [row, ...reports]
@@ -99,7 +128,7 @@
 
 {#if current}
   <ReportEditor report={current} template={currentTemplate} visit={currentVisit} officerName={$officer?.name ?? ''}
-    readonly={currentReadonly} onPrint={openReportPrint} onDocx={downloadDocx}
+    readonly={currentReadonly} onPrint={printReport} onDocx={docxReport}
     on:close={closeEditor} on:save={onSave} on:submit={onSave} on:delete={onDelete} />
 {:else}
   <h1>Reports</h1>
@@ -132,7 +161,7 @@
           {@const p = progressFor(r)}
           {@const flagTotal = p.flagsTicked.length + p.customFlags.length}
           <tr>
-            <td>{TYPE_LABELS[r.type] ?? r.type}</td>
+            <td>{typeLabel(r.type)}</td>
             <td>{instituteFor(r)}</td>
             <td>{p.sectionsDone}/{p.sectionsCounted} sections</td>
             <td>{#if flagTotal}<span class="flag-count">{flagTotal}</span>{:else}—{/if}</td>
@@ -151,22 +180,31 @@
       <form class="card modal" on:submit|preventDefault={startNewReport}>
         <h2>New report</h2>
         <div class="field">
-          <label for="rtype">Type</label>
-          <div class="seg">
-            <button type="button" class:active={newType === 'surprise'} on:click={() => (newType = 'surprise')}>Surprise</button>
-            <button type="button" disabled title="Coming in a later version">Monitoring / QA</button>
-          </div>
-        </div>
-        <div class="field">
           <label for="rvisit">Visit</label>
           <Dropdown id="rvisit" bind:value={newVisitId} placeholder="Select a visit"
             options={myVisits.map((v) => [v.id, `${v.institute} — ${v.start_date}`])} />
           {#if myVisits.length === 0}
-            <p class="hint">No matching visits.</p>
+            <p class="hint">No matching visits. Only Monitoring Visit visits get a report.</p>
           {/if}
         </div>
+        {#if newVisit}
+          <div class="field">
+            <label for="rtype">Report</label>
+            {#if newCandidates.length === 1}
+              <!-- decided already by the visit's own monitoring type -- nothing to pick -->
+              <div class="opt on"><span class="radio" /><div><b>{templateFor(newCandidates[0]).short}</b><small>{templateFor(newCandidates[0]).sections.length} sections · set by the visit's monitoring type</small></div></div>
+            {:else}
+              <!-- old visit, created before the monitoring-type split -- offer both -->
+              {#each newCandidates as id}
+                <button type="button" class="opt" class:on={newType === id} on:click={() => (newType = id)}>
+                  <span class="radio" /><div><b>{templateFor(id).short}</b><small>{templateFor(id).sections.length} sections</small></div>
+                </button>
+              {/each}
+            {/if}
+          </div>
+        {/if}
         <div class="row">
-          <button type="submit" class="btn btn-primary" disabled={!newVisitId}>Start</button>
+          <button type="submit" class="btn btn-primary" disabled={!newVisitId || !newType}>Start</button>
           <button type="button" class="btn" on:click={() => (showNew = false)}>Cancel</button>
         </div>
       </form>
@@ -186,4 +224,10 @@
   .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 10; }
   .modal { width: 380px; }
   h2 { font-size: 15px; margin: 0 0 12px; }
+  .opt { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 12px; margin-bottom: 6px; border: 1px solid var(--outline); border-radius: var(--radius-card); background: var(--surface); cursor: default; font: inherit; }
+  button.opt { cursor: pointer; }
+  .opt.on { border-color: var(--primary); background: var(--primary-container); }
+  .opt .radio { flex: none; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--outline); }
+  .opt.on .radio { border-color: var(--primary); background: var(--primary); box-shadow: inset 0 0 0 3px var(--surface); }
+  .opt small { display: block; color: var(--muted); font-weight: 400; }
 </style>
