@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>SICIP Surprise Visit Checklist</title>
+<style>
+  :root {
+    --ink: #15202b;
+    --ink-secondary: #4a5868;
+    --line: #dde3ea;
+    --line-strong: #8793a1;
+    --surface: #ffffff;
+    --canvas: #eef1f5;
+    --field: #f5f7fa;
+    --accent: #1747c9;
+    --accent-soft: #e8eefc;
+    --yes: #1e7a46;
+    --yes-soft: #e6f3eb;
+    --no: #c0322b;
+    --no-soft: #fbeae9;
+    --partial: #a35f00;
+    --not-applicable: #5b6776;
+    --radius: 12px;
+    --control-radius: 8px;
+    --header-height: 104px;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-padding-top: calc(var(--header-height) + 8px); }
+
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+    font-size: 16px;
+    line-height: 1.45;
+    color: var(--ink);
+    background: var(--canvas);
+    caret-color: var(--accent);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  ::selection { background: var(--accent-soft); color: var(--ink); }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  svg.icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ---------- App bar ---------- */
+
+  .app-bar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding-top: env(safe-area-inset-top);
+  }
+  .app-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 10px 16px 8px;
+  }
+  .app-title { min-width: 0; flex: 1; }
+  .app-title h1 { margin: 0; font-size: 16px; font-weight: 650; line-height: 1.25; }
+  .app-subtitle {
+    font-size: 12px;
+    color: var(--ink-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .progress-count { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink-secondary); white-space: nowrap; }
+  .progress-count strong { color: var(--ink); }
+
+  .progress-track { height: 3px; background: var(--line); }
+  .progress-fill {
+    height: 100%;
+    width: 100%;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 250ms var(--ease-out);
+  }
+
+  /* Section jump strip: scrolls sideways on phones */
+  .section-nav {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 8px 16px;
+  }
+  .section-nav::-webkit-scrollbar { display: none; }
+  .section-nav a {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-secondary);
+    text-decoration: none;
+    font-variant-numeric: tabular-nums;
+    background: var(--surface);
+  }
+  .section-nav a .chip-letter { color: var(--ink); }
+  .section-nav a.is-complete { border-color: transparent; background: var(--yes-soft); color: var(--yes); }
+  .section-nav a.is-complete .chip-letter { color: var(--yes); }
+  .section-nav a.is-current { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .section-nav a.has-flag { border-color: transparent; background: var(--no-soft); color: var(--no); }
+
+  /* ---------- Layout ---------- */
+
+  main { max-width: 720px; margin: 0 auto; padding: 12px 12px calc(96px + env(safe-area-inset-bottom)); }
+
+  .section {
+    background: var(--surface);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    box-shadow: 0 1px 2px rgba(21, 32, 43, 0.06);
+  }
+  .section > summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border-radius: var(--radius);
+  }
+  .section > summary::-webkit-details-marker { display: none; }
+  .section-letter {
+    flex: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .section.is-complete .section-letter { background: var(--yes-soft); color: var(--yes); }
+  .section-title { flex: 1; min-width: 0; font-size: 16px; font-weight: 650; line-height: 1.3; }
+  .section-count { font-size: 12px; font-weight: 600; color: var(--ink-secondary); font-variant-numeric: tabular-nums; }
+  .section-chevron { color: var(--ink-secondary); transition: transform 200ms var(--ease-out); }
+  .section[open] .section-chevron { transform: rotate(180deg); }
+
+  .section-body { padding: 0 16px 16px; }
+  .section-note {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin: 0 0 4px;
+    font-size: 14px;
+    color: var(--ink-secondary);
+  }
+  .section-note svg.icon { width: 18px; height: 18px; margin-top: 1px; }
+
+  /* ---------- Checklist item ---------- */
+
+  .item {
+    margin: 0;
+    padding: 16px 0;
+    border: none;
+    border-top: 1px solid var(--line);
+    min-width: 0;
+  }
+  [data-checklist] > .item:first-child, .section-body > .item:first-child { border-top: none; }
+  /* A floated legend leaves the fieldset border, so the divider stays a plain top rule */
+  .item legend {
+    float: left;
+    width: 100%;
+    padding: 0;
+    margin-bottom: 10px;
+    font-size: 16px;
+    font-weight: 500;
+    display: flex;
+    gap: 8px;
+  }
+  .item legend + * { clear: both; }
+  .entry .item { border-top: none; padding: 12px 0 0; }
+  .item-number { color: var(--ink-secondary); font-variant-numeric: tabular-nums; min-width: 1.4em; }
+
+  /* Segmented answer control built from native radios */
+  .segmented {
+    display: flex;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--control-radius);
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .segmented label { flex: 1 1 0; min-width: 0; position: relative; }
+  .segmented label + label { border-left: 1px solid var(--line-strong); }
+  .segmented input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+  .segmented span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 6px 4px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--ink-secondary);
+    user-select: none;
+  }
+  .segmented input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -3px; }
+  .segmented input:checked + span { color: #fff; }
+  .segmented input[value="Yes"]:checked + span     { background: var(--yes); }
+  .segmented input[value="No"]:checked + span      { background: var(--no); }
+  .segmented input[value="Partial"]:checked + span { background: var(--partial); }
+  .segmented input[value="N/A"]:checked + span     { background: var(--not-applicable); }
+
+  /* ---------- Inputs ---------- */
+
+  input[type="text"], input[type="number"], input[type="date"], input[type="time"], input[type="tel"], select, textarea {
+    width: 100%;
+    font: inherit;
+    font-size: 16px;
+    color: var(--ink);
+    background: var(--field);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--control-radius);
+    padding: 10px 12px;
+    min-height: 44px;
+    transition: border-color 150ms, background-color 150ms;
+  }
+  input[type="number"] { font-variant-numeric: tabular-nums; }
+  textarea { resize: none; overflow: hidden; display: block; }
+  textarea.single-line { white-space: pre-wrap; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+  ::placeholder { color: #5f6b7a; opacity: 1; }
+
+  textarea.remarks { margin-top: 8px; font-size: 14px; min-height: 40px; padding: 9px 12px; }
+
+  .field { display: block; margin-top: 14px; }
+  .field-label { display: block; font-size: 14px; font-weight: 500; color: var(--ink-secondary); margin-bottom: 6px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: end; }
+  .field-row > .field { min-width: 0; }
+
+  /* ---------- Repeatable entries (courses, trainees, graduates, issues) ---------- */
+
+  .entry { padding: 16px 0 4px; border-top: 1px solid var(--line); }
+  .entries:first-child .entry:first-child, .section-note + .entries .entry:first-child { border-top: none; }
+  .entry-header { display: flex; align-items: center; justify-content: space-between; min-height: 32px; }
+  .entry-title { font-size: 14px; font-weight: 700; letter-spacing: 0.01em; }
+  .entry .field:first-of-type { margin-top: 8px; }
+
+  .icon-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: none;
+    background: none;
+    font: inherit;
+    font-size: 14px;
+    color: var(--ink-secondary);
+    padding: 6px 8px;
+    margin-right: -8px;
+    border-radius: var(--control-radius);
+    cursor: pointer;
+  }
+  .icon-button:hover { color: var(--no); background: var(--no-soft); }
+  .icon-button svg.icon { width: 18px; height: 18px; }
+
+  .add-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    min-height: 44px;
+    margin: 12px 0 4px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: none;
+    border-radius: var(--control-radius);
+    cursor: pointer;
+  }
+  .add-button:hover { background: color-mix(in srgb, var(--accent-soft) 88%, var(--accent)); }
+
+  .mismatch {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin-top: 12px;
+    padding: 10px 0;
+    border-radius: var(--control-radius);
+    font-size: 14px;
+    color: var(--ink-secondary);
+  }
+  .mismatch.is-match, .mismatch.is-alert { padding: 10px 12px; }
+  .mismatch.is-match { background: var(--yes-soft); color: var(--yes); font-weight: 600; }
+  .mismatch.is-alert { background: var(--no-soft); color: var(--no); font-weight: 600; }
+
+  .subgroup-heading {
+    margin: 20px 0 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .subgroup-heading + .item { border-top: none; }
+
+  /* ---------- Critical flags ---------- */
+
+  .flag {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 12px;
+    margin: 0 -12px;
+    border-radius: var(--control-radius);
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .flag + .flag { margin-top: 2px; }
+  .flag input { width: 22px; height: 22px; margin: 1px 0 0; accent-color: var(--no); flex: none; }
+  .flag:has(input:checked) { background: var(--no-soft); color: var(--no); font-weight: 600; }
+
+  /* ---------- Bottom action bar ---------- */
+
+  .action-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+  }
+  .action-bar-inner { display: flex; align-items: center; gap: 12px; max-width: 720px; margin: 0 auto; padding: 0 16px; }
+  .save-state { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-secondary); }
+  .save-state svg.icon { width: 16px; height: 16px; color: var(--yes); }
+  .text-button {
+    border: none;
+    background: none;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink-secondary);
+    padding: 10px 8px;
+    border-radius: var(--control-radius);
+    cursor: pointer;
+  }
+  .text-button:hover { color: var(--no); }
+  .primary-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 18px;
+    border: none;
+    border-radius: var(--control-radius);
+    background: var(--accent);
+    color: #fff;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .primary-button:hover { background: color-mix(in srgb, var(--accent) 82%, var(--ink)); }
+  .primary-button:active, .add-button:active { transform: translateY(1px); }
+
+  @media (min-width: 600px) {
+    main { padding-left: 16px; padding-right: 16px; }
+    .section > summary { padding: 18px 20px; }
+    .section-body { padding: 0 20px 20px; }
+    .field-row.three { grid-template-columns: 1fr 1fr 1fr; }
+    .section-nav { flex-wrap: wrap; overflow-x: visible; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+
+  @media print {
+    .app-bar { position: static; border: none; }
+    .section-nav, .progress-track, .action-bar, .add-button, .icon-button { display: none; }
+    body { background: #fff; font-size: 12px; }
+    main { padding: 0; max-width: none; }
+    .section { box-shadow: none; border: 1px solid var(--line); }
+    .section > summary { break-after: avoid; padding: 10px 16px; }
+    .item, .entry, .flag { break-inside: avoid; }
+    .item { padding: 8px 0; }
+    .item legend { margin-bottom: 4px; font-size: 14px; }
+    .section-chevron { display: none; }
+    textarea { overflow: visible; }
+    .section-note svg.icon { display: none; }
+    /* Print only the chosen answer, in its colour; an unanswered item says so in words */
+    .segmented { border: none; display: block; }
+    .segmented label { display: inline-block; }
+    .segmented label + label { border-left: none; }
+    .segmented label:not(:has(input:checked)) { display: none; }
+    .segmented span, .flag, .mismatch, .section-letter {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .segmented span { display: inline-block; min-height: 0; padding: 2px 10px; border-radius: 4px; }
+    .segmented:not(:has(input:checked))::after { content: "Not answered"; font-style: italic; color: var(--ink-secondary); }
+    .flag:not(:has(input:checked)) { display: none; }
+    #flags:not(:has(input:checked))::after { content: "No critical flags ticked."; color: var(--ink-secondary); }
+    textarea:placeholder-shown { display: none; }
+    input[type="text"], input[type="number"], input[type="date"], input[type="time"], input[type="tel"], select, textarea {
+      border-color: var(--line); background: #fff; min-height: 0; padding: 4px 8px;
+    }
+  }
+</style>
+</head>
+<body>
+<!--
+THESIS: A field checklist that disappears into the visit: every question answerable with one thumb tap and one line of remark, in the standard mobile-form grammar officers already know from Google Forms and KoboToolbox. Refuses decoration, themes and hidden state.
+OWN-WORLD: Restrained. White section panels on a cool grey canvas, one working blue for actions and focus, four semantic answer colours (green yes, red no, amber partial, slate N/A) that only appear once chosen. System sans, 12/14/16 px steps, tabular numerals.
+STORY: The officer opens the file on site, jumps between sections from the chip strip, taps answers, adds remarks, sees attendance mismatches the moment figures are typed, and prints a PDF at the end. Nothing typed is lost.
+FIRST VIEWPORT: App bar with the report title, the TI name once typed, the answered count and a thin progress line; section chips beneath; section A open below. Print sits bottom-right in a fixed action bar.
+FORM: canon (category standard), seed 525bc6df.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
+-->
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="icon-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+  <symbol id="icon-printer" viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4v-7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7h-2M6 14h12v7H6z"/></symbol>
+  <symbol id="icon-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="icon-alert" viewBox="0 0 24 24"><path d="M12 3l9.5 17h-19zM12 10v4M12 17.5v.01"/></symbol>
+  <symbol id="icon-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.01"/></symbol>
+</svg>
+
+<header class="app-bar">
+  <div class="app-bar-row">
+    <div class="app-title">
+      <h1>SICIP Surprise Visit</h1>
+      <div class="app-subtitle" id="app-subtitle">Quality Assurance checklist</div>
+    </div>
+    <div class="progress-count" id="progress-count" aria-live="polite"><strong>0</strong>/0</div>
+  </div>
+  <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+  <nav class="section-nav" id="section-nav" aria-label="Sections"></nav>
+</header>
+
+<main id="form">
+
+  <details class="section" id="section-a" data-short="Visit" open>
+    <summary><span class="section-letter">A</span><span class="section-title">Visit details</span><svg class="icon section-chevron"><use href="#icon-chevron"/></svg></summary>
+    <div class="section-body">
+      <label class="field"><span class="field-label">Name of TI/TC visited</span><textarea class="single-line" name="ti_name" rows="1"></textarea></label>
+      <label class="field"><span class="field-label">Association / provider</span><textarea class="single-line" name="provider" rows="1"></textarea></label>
+      <label class="field"><span class="field-label">Address and contact</span><textarea name="address" rows="1"></textarea></label>
+      <div class="field-row three">
+        <label class="field"><span class="field-label">Date of visit</span><input type="date" name="visit_date"></label>
+        <label class="field"><span class="field-label">Arrival time</span><input type="time" name="arrival_time"></label>
+        <label class="field"><span class="field-label">Departure time</span><input type="time" name="departure_time"></label>
+      </div>
+      <label class="field"><span class="field-label">Visiting officer(s) with designation</span><textarea name="officers" rows="1"></textarea></label>
+      <label class="field"><span class="field-label">Received by (name, designation)</span><textarea class="single-line" name="received_by" rows="1"></textarea></label>
+      <label class="field"><span class="field-label">Courses / batches scheduled today (as per routine or TDP)</span><textarea name="scheduled_batches" rows="1"></textarea></label>
+    </div>
+  </details>
+
+  <details class="section" id="section-b" data-short="Arrival" open>
+    <summary><span class="section-letter">B</span><span class="section-title">Status on arrival</span><span class="section-count"></span><svg class="icon section-chevron"><use href="#icon-chevron"/></svg></summary>
+    <div class="section-body" data-checklist="arrival"></div>
+  </details>
+
+  <details class="section" id="section-c" data-short="Attendance" open>
+    <summary><span class="section-letter">C</span><span class="section-title">Attendance in each course</span><span class="section-count"></span><svg class="icon section-chevron"><use href="#icon-chevron"/></svg></summary>
+    <div class="section-body">
+      <p class="section-note"><svg class="icon"><use href="#icon-info"/></svg><span>Count heads in the room first, then open the attendance register and TMS. One entry per course; add up all running batches of that course.</span></p>
+      <div class="entries" id="attendance-cards"></div>
+      <button type="button" class="add-button" data-add="attendance"><svg class="icon"><use href="#icon-plus"/></svg>Add course</button>
+      <h3 class="subgroup-heading">Attendance register</h3>
+      <div data-checklist="attendance_register"></div>
+    </div>
+  </details>
+
+  <details class="section" id="section-d" data-short="Identity">
+    <summary><span class="section-letter">D</span><span class="section-title">Trainee identity spot-check</span><span class="section-count"></span><svg class="icon section-chevron"><use href="#icon-chevron"/></svg></summary>
+    <div class="section-body">
+      <p class="section-note"><svg class="icon"><use href="#icon-info"/></svg><span>Pick 5 names at random from the TMS enrolment list and verify each person.</span></p>
+      <div class="entries" id="identity-cards"></div>
+      <button type="button" class="add-button" data-add="identity"><svg class="icon"><use href="#icon-plus"/></svg>Add trainee</button>
+      <h3 class="subgroup-heading">Enrolment</h3>
+      <div data-checklist="identity"></div>
+    </div>
+  </details>
+
+  <details class="section" id="section-e" data-short="Materials">
+    <summary><span class="section-letter">E</span><span class="section-title">Materials &amp; safety gear provided</span><span class="section-count"></span><svg class="icon section-chevron"><use href="#icon-chevron"/></svg></summary>
+    <div class="section-body" data-checklist="materials"></div>
+  </details>
+
+  <details class="section" id="section-f" data-short="Delivery">
+    <summary><span class="section-letter">F</span><span class="section-title">Training delivery observation</span><span class="section-count"></span><svg class="icon section-chevron"><use href="#icon-chevron"/></svg></summary>
+    <div class="section-body">
+      <p class="section-note"><svg class="icon"><use href="#icon-info"/></svg><span>Observe one class or workshop for about 15 minutes.</span></p>
+      <div data-checklist="delivery"></div>
+    </div>
+  </details>
+
+  <details class="section" id="section-g" data-short="Assessment">
+    <summary><span class="section-letter">G</span><span class="section-title">Formative assessment</span><span class="section-count"></span><svg class="icon section-chevron"><use href="#icon-chevron"/></svg></summary>
+    <div class="section-body">
+      <p class="section-note"><svg class="icon"><use href="#icon-info"/></svg><span>Ask for the latest formative assessment paper and result sheet of one running batch.</span></p>
+      <div data-checklist="assessment"></div>
+    </div>
+  </details>
+
+  <details class="section" id="section-h" data-short="Registers">
+    <summary><span class="section-letter">H</span><span class="section-title">Daily registers</span><span class="section-count"></span><svg class="icon section-chevron"><use href="#icon-chevron"/></svg></summary>
+    <div class="section-body" data-checklist="registers"></div>
+  </details>
+
+  <details class="section" id="section-i" data-short="Trainees">
+    <summary><span class="section-letter">I</span><span class="section-title">Trainee interviews (no staff present)</span><span class="section-count"></span><svg class="icon section-chevron"><use href="#icon-chevron"/></svg></summary>
+    <div class="section-body">
+      <p class="section-note"><svg class="icon"><use href="#icon-info"/></svg><span>Talk with a group of trainees away from centre staff and record their general response.</span></p>
+      <div class="field-row">
+        <label class="field"><span class="field-label">Trainees interviewed</span><input type="number" min="0" inputmode="numeric" name="interview_trainee_count"></label>
+        <label class="field"><span class="field-label">Course(s)</span><textarea class="single-line" name="interview_courses" rows="1"></textarea></label>
+      </div>
+      <div data-checklist="interview"></div>
+      <label class="field"><span class="field-label">Complaints or other feedback</span><textarea name="interview_feedback" rows="1"></textarea></label>
+    </div>
+  </details>
+
+  <details class="section" id="section-j" data-short="Job calls">
+    <summary><span class="section-letter">J</span><span class="section-title">Job placement verification calls</span><span class="section-count"></span><svg class="icon section-chevron"><use href="#icon-chevron"/></svg></summary>
+    <div class="section-body">
+      <p class="section-note"><svg class="icon"><use href="#icon-info"/></svg><span>Pick 5 graduates at random from the TMS job-placed list and call them yourself, not through the centre.</span></p>
+      <div class="entries" id="graduate-cards"></div>
+      <button type="button" class="add-button" data-add="graduate"><svg class="icon"><use href="#icon-plus"/></svg>Add graduate</button>
+    </div>
+  </details>
+
+  <details class="section" id="section-k" data-short="Follow-up">
+    <summary><span class="section-letter">K</span><span class="section-title">Previous visit follow-up</span><span class="section-count"></span><svg class="icon section-chevron"><use href="#icon-chevron"/></svg></summary>
+    <div class="section-body">
+      <div class="field-row">
+        <label class="field"><span class="field-label">Date of last visit</span><input type="date" name="last_visit_date"></label>
+        <label class="field"><span class="field-label">Type of last visit</span>
+          <select name="last_visit_type"><option></option><option>Full QA visit</option><option>Monitoring visit</option><option>Surprise visit</option></select>
+        </label>
+      </div>
+      <div class="entries" id="followup-cards"></div>
+      <button type="button" class="add-button" data-add="followup"><svg class="icon"><use href="#icon-plus"/></svg>Add pending issue</button>
+    </div>
+  </details>
+
+  <details class="section" id="section-l" data-short="Flags">
+    <summary><span class="section-letter">L</span><span class="section-title">Critical non-compliance flags</span><span class="section-count" id="flag-count"></span><svg class="icon section-chevron"><use href="#icon-chevron"/></svg></summary>
+    <div class="section-body">
+      <p class="section-note"><svg class="icon"><use href="#icon-info"/></svg><span>Tick every flag observed. Explain each ticked flag under key findings in section M.</span></p>
+      <div id="flags"></div>
+    </div>
+  </details>
+
+  <details class="section" id="section-m" data-short="Rating">
+    <summary><span class="section-letter">M</span><span class="section-title">Overall rating and action</span><svg class="icon section-chevron"><use href="#icon-chevron"/></svg></summary>
+    <div class="section-body">
+      <fieldset class="item">
+        <legend>Overall rating</legend>
+        <div class="segmented">
+          <label><input type="radio" name="overall_rating" value="Yes"><span>Satisfactory</span></label>
+          <label><input type="radio" name="overall_rating" value="Partial"><span>Needs improvement</span></label>
+          <label><input type="radio" name="overall_rating" value="No"><span>Unsatisfactory</span></label>
+        </div>
+      </fieldset>
+      <label class="field"><span class="field-label">Key findings</span><textarea name="key_findings" rows="3"></textarea></label>
+      <label class="field"><span class="field-label">Instructions given to the TI on the spot</span><textarea name="instructions_given" rows="2"></textarea></label>
+      <label class="field"><span class="field-label">Recommended follow-up</span>
+        <select name="follow_up">
+          <option></option>
+          <option>No further action</option>
+          <option>Full QA visit</option>
+          <option>Written explanation from TI</option>
+          <option>Escalate to PIU</option>
+        </select>
+      </label>
+    </div>
+  </details>
+
+</main>
+
+<div class="action-bar">
+  <div class="action-bar-inner">
+    <div class="save-state" id="save-state" aria-live="polite">Answers are saved on this phone</div>
+    <button type="button" class="text-button" id="clear-button">Clear</button>
+    <button type="button" class="primary-button" id="print-button"><svg class="icon"><use href="#icon-printer"/></svg>Print / PDF</button>
+  </div>
+</div>
+
+<!-- Entry templates. "{n}" is replaced by the entry number so every input name is unique. -->
+<template id="template-attendance">
+  <div class="entry" data-card>
+    <div class="entry-header"><span class="entry-title">Course {n}</span><button type="button" class="icon-button remove-card" aria-label="Remove course {n}"><svg class="icon"><use href="#icon-trash"/></svg>Remove</button></div>
+    <div class="field-row">
+      <label class="field"><span class="field-label">Course name</span><textarea class="single-line" name="attendance_{n}_course" rows="1"></textarea></label>
+      <label class="field"><span class="field-label">Batch no(s).</span><textarea class="single-line" name="attendance_{n}_batch" rows="1"></textarea></label>
+    </div>
+    <div class="field-row">
+      <label class="field"><span class="field-label">Enrolled, total</span><input type="number" min="0" inputmode="numeric" name="attendance_{n}_enrolled_total"></label>
+      <label class="field"><span class="field-label">Enrolled, female</span><input type="number" min="0" inputmode="numeric" name="attendance_{n}_enrolled_female"></label>
+    </div>
+    <div class="field-row">
+      <label class="field"><span class="field-label">Headcount, total</span><input type="number" min="0" inputmode="numeric" name="attendance_{n}_present_total" data-role="headcount"></label>
+      <label class="field"><span class="field-label">Headcount, female</span><input type="number" min="0" inputmode="numeric" name="attendance_{n}_present_female"></label>
+    </div>
+    <div class="field-row">
+      <label class="field"><span class="field-label">Present in register</span><input type="number" min="0" inputmode="numeric" name="attendance_{n}_register" data-role="register"></label>
+      <label class="field"><span class="field-label">Present in TMS</span><input type="number" min="0" inputmode="numeric" name="attendance_{n}_tms" data-role="tms"></label>
+    </div>
+    <div class="mismatch" data-role="mismatch"></div>
+    <fieldset class="item">
+      <legend>Trainer present</legend>
+      <div class="segmented">
+        <label><input type="radio" name="attendance_{n}_trainer" value="Yes"><span>Yes</span></label>
+        <label><input type="radio" name="attendance_{n}_trainer" value="No"><span>No</span></label>
+      </div>
+      <textarea class="remarks" name="attendance_{n}_remarks" rows="1" placeholder="Remarks" aria-label="Remarks for course {n}"></textarea>
+    </fieldset>
+  </div>
+</template>
+
+<template id="template-identity">
+  <div class="entry" data-card>
+    <div class="entry-header"><span class="entry-title">Trainee {n}</span><button type="button" class="icon-button remove-card" aria-label="Remove trainee {n}"><svg class="icon"><use href="#icon-trash"/></svg>Remove</button></div>
+    <div class="field-row">
+      <label class="field"><span class="field-label">Name (from TMS)</span><textarea class="single-line" name="identity_{n}_name" rows="1"></textarea></label>
+      <label class="field"><span class="field-label">Course / batch</span><textarea class="single-line" name="identity_{n}_batch" rows="1"></textarea></label>
+    </div>
+    <fieldset class="item">
+      <legend>Result</legend>
+      <div class="segmented">
+        <label><input type="radio" name="identity_{n}_result" value="Yes"><span>Present &amp; verified</span></label>
+        <label><input type="radio" name="identity_{n}_result" value="Partial"><span>Absent</span></label>
+        <label><input type="radio" name="identity_{n}_result" value="No"><span>Doesn't match</span></label>
+      </div>
+      <textarea class="remarks" name="identity_{n}_remarks" rows="1" placeholder="ID checked, entry qualification, reason for absence…" aria-label="Remarks for trainee {n}"></textarea>
+    </fieldset>
+  </div>
+</template>
+
+<template id="template-graduate">
+  <div class="entry" data-card>
+    <div class="entry-header"><span class="entry-title">Graduate {n}</span><button type="button" class="icon-button remove-card" aria-label="Remove graduate {n}"><svg class="icon"><use href="#icon-trash"/></svg>Remove</button></div>
+    <div class="field-row">
+      <label class="field"><span class="field-label">Name</span><textarea class="single-line" name="graduate_{n}_name" rows="1"></textarea></label>
+      <label class="field"><span class="field-label">Course / batch</span><textarea class="single-line" name="graduate_{n}_batch" rows="1"></textarea></label>
+    </div>
+    <div class="field-row">
+      <label class="field"><span class="field-label">Phone</span><input type="tel" name="graduate_{n}_phone"></label>
+      <label class="field"><span class="field-label">Employer as per TMS</span><textarea class="single-line" name="graduate_{n}_employer_tms" rows="1"></textarea></label>
+    </div>
+    <fieldset class="item">
+      <legend>Call result</legend>
+      <div class="segmented">
+        <label><input type="radio" name="graduate_{n}_call" value="Yes"><span>Reached</span></label>
+        <label><input type="radio" name="graduate_{n}_call" value="No"><span>Not reached</span></label>
+      </div>
+    </fieldset>
+    <fieldset class="item">
+      <legend>Employment confirmed</legend>
+      <div class="segmented">
+        <label><input type="radio" name="graduate_{n}_confirmed" value="Yes"><span>Same employer</span></label>
+        <label><input type="radio" name="graduate_{n}_confirmed" value="Partial"><span>Other job / self-employed</span></label>
+        <label><input type="radio" name="graduate_{n}_confirmed" value="No"><span>Not employed</span></label>
+      </div>
+    </fieldset>
+    <div class="field-row">
+      <label class="field"><span class="field-label">Position</span><textarea class="single-line" name="graduate_{n}_position" rows="1"></textarea></label>
+      <label class="field"><span class="field-label">Monthly salary (BDT)</span><input type="number" min="0" inputmode="numeric" name="graduate_{n}_salary"></label>
+    </div>
+    <textarea class="remarks" name="graduate_{n}_remarks" rows="1" placeholder="Job related to the trade? How long employed?" aria-label="Remarks for graduate {n}"></textarea>
+  </div>
+</template>
+
+<template id="template-followup">
+  <div class="entry" data-card>
+    <div class="entry-header"><span class="entry-title">Issue {n}</span><button type="button" class="icon-button remove-card" aria-label="Remove issue {n}"><svg class="icon"><use href="#icon-trash"/></svg>Remove</button></div>
+    <label class="field"><span class="field-label">Issue raised in last visit</span><textarea name="followup_{n}_issue" rows="1"></textarea></label>
+    <fieldset class="item">
+      <legend>Status</legend>
+      <div class="segmented">
+        <label><input type="radio" name="followup_{n}_status" value="Yes"><span>Resolved</span></label>
+        <label><input type="radio" name="followup_{n}_status" value="Partial"><span>Partly</span></label>
+        <label><input type="radio" name="followup_{n}_status" value="No"><span>Not resolved</span></label>
+      </div>
+      <textarea class="remarks" name="followup_{n}_remarks" rows="1" placeholder="Remarks" aria-label="Remarks for issue {n}"></textarea>
+    </fieldset>
+  </div>
+</template>
+
+<script>
+// Checklist questions per section. Edit these lists to change the template.
+const CHECKLISTS = {
+  arrival: [
+    "Centre open and training in session at the scheduled time",
+    "Trainer present in each scheduled batch",
+    "Session being taught matches today's topic in the session plan / TDP",
+    "Training calendar displayed and followed",
+  ],
+  attendance_register: [
+    "Attendance register up to date (no blank days)",
+    "No attendance marked in advance for later sessions",
+    "Long-absent trainees entered in the dropout register",
+  ],
+  identity: [
+    "No existing employees of the centre or partner industry enrolled as trainees",
+    "No trainees / students of other (non-SICIP) courses at the centre enrolled in SICIP courses",
+  ],
+  materials: [
+    "Competency Standard (CS) available",
+    "CBLM provided to each trainee",
+    "Apron / T-shirt provided to each trainee",
+    "Required PPE provided to trainees",
+    "PPE worn during practical session",
+  ],
+  delivery: [
+    "Job sheets / information sheets in use",
+    "Trainees doing hands-on practice (80:20 practice to theory)",
+    "Required tools and equipment available and in use",
+    "Consumables available and being used",
+    "Fire extinguisher available and inspection date valid",
+    "First aid kit available and stocked",
+    "Safety and PPE signs displayed in workshop",
+    "Women and trainees with disabilities taking part equally",
+    "Industry logbook filled up to date (industry-based centres only)",
+  ],
+  assessment: [
+    "Formative assessments held as per assessment plan",
+    "Formative assessment includes relevant technical questions for the unit of competency",
+    "Practical assessment uses a demonstration / observation checklist",
+    "OHS included in the assessment",
+    "Formative assessment results recorded",
+  ],
+  registers: [
+    "Daily consumption register updated today",
+    "Stock register up to date",
+    "Monitoring logbook / visit register available, used, and its findings complied with",
+  ],
+  interview: [
+    "Classes run on all scheduled days and hours",
+    "No fee charged to trainees",
+    "Trainees receive stipend / allowance on time",
+    "Trainees received CBLM and apron / T-shirt",
+    "Trainees get enough hands-on practice with tools",
+    "Formative assessments have been held",
+    "Job placement / career counselling provided",
+  ],
+};
+
+const FLAGS = [
+  "Centre closed or no class during scheduled hours",
+  "Trainer absent or replaced by an unapproved person",
+  "Trainees on register / TMS but not present (possible ghost trainees)",
+  "Proxy or advance attendance marking",
+  "Existing employees, or trainees of non-SICIP courses, enrolled in SICIP courses",
+  "Fees charged to trainees",
+  "Required tools and equipment missing or unused",
+  "Facility used at the same time for another program's training",
+  "Graduate reported as job-placed in TMS but not employed",
+];
+
+// How many entries each repeatable section starts with
+const STARTING_CARDS = { attendance: 2, identity: 5, graduate: 5, followup: 1 };
+
+const STORAGE_KEY = "sicip-surprise-visit-draft";
+const form = document.getElementById("form");
+const cardCounters = {};
+
+function slugify(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 40);
+}
+
+function icon(name) {
+  return `<svg class="icon"><use href="#icon-${name}"/></svg>`;
+}
+
+function buildChecklistItem(question, itemNumber, fieldName) {
+  const item = document.createElement("fieldset");
+  item.className = "item";
+  item.dataset.item = "";
+
+  const legend = document.createElement("legend");
+  legend.innerHTML = `<span class="item-number">${itemNumber}.</span>`;
+  const questionText = document.createElement("span");
+  questionText.textContent = question;
+  legend.append(questionText);
+  item.append(legend);
+
+  const answers = document.createElement("div");
+  answers.className = "segmented";
+  for (const option of ["Yes", "No", "Partial", "N/A"]) {
+    const label = document.createElement("label");
+    label.innerHTML = `<input type="radio" name="${fieldName}" value="${option}"><span>${option}</span>`;
+    answers.append(label);
+  }
+  item.append(answers);
+
+  const remarks = document.createElement("textarea");
+  remarks.className = "remarks";
+  remarks.name = `${fieldName}_remarks`;
+  remarks.placeholder = "Remarks";
+  remarks.rows = 1;
+  remarks.setAttribute("aria-label", `Remarks for: ${question}`);
+  item.append(remarks);
+
+  return item;
+}
+
+function renderChecklists(root) {
+  for (const container of root.querySelectorAll("[data-checklist]")) {
+    const listName = container.dataset.checklist;
+    const prefix = container.dataset.prefix || listName;
+    CHECKLISTS[listName].forEach((question, index) => {
+      const fieldName = `${prefix}_${slugify(question)}`;
+      container.append(buildChecklistItem(question, index + 1, fieldName));
+    });
+  }
+}
+
+function renderFlags() {
+  const container = document.getElementById("flags");
+  for (const flagText of FLAGS) {
+    const label = document.createElement("label");
+    label.className = "flag";
+    label.innerHTML = `<input type="checkbox" name="flag_${slugify(flagText)}">`;
+    const text = document.createElement("span");
+    text.textContent = flagText;
+    label.append(text);
+    container.append(label);
+  }
+}
+
+function renderSectionNav() {
+  const nav = document.getElementById("section-nav");
+  for (const section of form.querySelectorAll(".section")) {
+    const letter = section.querySelector(".section-letter").textContent;
+    const chip = document.createElement("a");
+    chip.href = `#${section.id}`;
+    chip.dataset.section = section.id;
+    chip.innerHTML = `<span class="chip-letter">${letter}</span><span>${section.dataset.short}</span><span class="chip-count"></span>`;
+    nav.append(chip);
+  }
+}
+
+// Jumping to a closed section should open it rather than land on a bare header
+document.getElementById("section-nav").addEventListener("click", event => {
+  const chip = event.target.closest("a[data-section]");
+  if (!chip) return;
+  event.preventDefault();
+  const section = document.getElementById(chip.dataset.section);
+  section.open = true;
+  section.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+function autoGrow(textarea) {
+  textarea.style.height = "auto";
+  textarea.style.height = `${textarea.scrollHeight + 2}px`;
+}
+
+function addCard(kind, cardNumber) {
+  if (cardNumber === undefined) cardNumber = (cardCounters[kind] || 0) + 1;
+  cardCounters[kind] = Math.max(cardCounters[kind] || 0, cardNumber);
+  const templateHtml = document.getElementById(`template-${kind}`).innerHTML.replaceAll("{n}", cardNumber);
+  const holder = document.createElement("div");
+  holder.innerHTML = templateHtml;
+  const card = holder.firstElementChild;
+  card.dataset.number = cardNumber;
+  renderChecklists(card);
+  document.getElementById(`${kind}-cards`).append(card);
+  if (kind === "attendance") updateMismatch(card);
+  return card;
+}
+
+// Flags the course when headcount, register and TMS figures disagree
+function updateMismatch(card) {
+  const read = role => card.querySelector(`[data-role="${role}"]`).value;
+  const headcount = read("headcount");
+  const register = read("register");
+  const tms = read("tms");
+  const output = card.querySelector('[data-role="mismatch"]');
+  output.classList.remove("is-match", "is-alert");
+  if (headcount === "" || register === "" || tms === "") {
+    output.innerHTML = `${icon("info")}<span>Enter headcount, register and TMS figures to check for a mismatch.</span>`;
+    return;
+  }
+  const registerGap = Number(register) - Number(headcount);
+  const tmsGap = Number(tms) - Number(headcount);
+  const signed = gap => (gap > 0 ? `+${gap}` : `${gap}`);
+  if (registerGap === 0 && tmsGap === 0) {
+    output.innerHTML = `${icon("check")}<span>Headcount, register and TMS match.</span>`;
+    output.classList.add("is-match");
+  } else {
+    output.innerHTML = `${icon("alert")}<span>Mismatch against headcount: register ${signed(registerGap)}, TMS ${signed(tmsGap)}.</span>`;
+    output.classList.add("is-alert");
+  }
+}
+
+function countAnswered(items) {
+  return [...items].filter(item => item.querySelector("input:checked")).length;
+}
+
+function updateProgress() {
+  const allItems = form.querySelectorAll("[data-item]");
+  const answeredTotal = countAnswered(allItems);
+  const share = allItems.length ? answeredTotal / allItems.length : 0;
+  document.getElementById("progress-fill").style.transform = `scaleX(${share})`;
+  document.getElementById("progress-count").innerHTML = `<strong>${answeredTotal}</strong>/${allItems.length}`;
+
+  for (const section of form.querySelectorAll(".section")) {
+    const chip = document.querySelector(`#section-nav a[data-section="${section.id}"]`);
+    const chipCount = chip.querySelector(".chip-count");
+    const counter = section.querySelector(".section-count");
+    const sectionItems = section.querySelectorAll("[data-item]");
+    const isComplete = sectionItems.length > 0 && countAnswered(sectionItems) === sectionItems.length;
+    section.classList.toggle("is-complete", isComplete);
+    chip.classList.toggle("is-complete", isComplete);
+    if (sectionItems.length && counter) {
+      const text = `${countAnswered(sectionItems)}/${sectionItems.length}`;
+      counter.textContent = text;
+      chipCount.textContent = text;
+    }
+  }
+
+  const flagsTicked = form.querySelectorAll("#flags input:checked").length;
+  document.getElementById("flag-count").textContent = flagsTicked ? `${flagsTicked} ticked` : "";
+  const flagChip = document.querySelector('#section-nav a[data-section="section-l"]');
+  flagChip.classList.toggle("has-flag", flagsTicked > 0);
+  flagChip.querySelector(".chip-count").textContent = flagsTicked ? flagsTicked : "";
+}
+
+function updateSubtitle() {
+  const instituteName = form.querySelector('[name="ti_name"]').value.trim();
+  document.getElementById("app-subtitle").textContent = instituteName || "Quality Assurance checklist";
+}
+
+// Draft is kept on the device so a dropped connection or closed tab loses nothing
+function saveDraft() {
+  const values = {};
+  for (const input of form.querySelectorAll("input, textarea, select")) {
+    if (!input.name) continue;
+    if (input.type === "radio") {
+      if (input.checked) values[input.name] = input.value;
+    } else if (input.type === "checkbox") {
+      values[input.name] = input.checked;
+    } else {
+      values[input.name] = input.value;
+    }
+  }
+  // Remember which entries exist, so removed entries stay removed after reload
+  const cardNumbers = {};
+  for (const kind of Object.keys(STARTING_CARDS)) {
+    cardNumbers[kind] = [...document.querySelectorAll(`#${kind}-cards [data-card]`)].map(card => Number(card.dataset.number));
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ cardNumbers, values }));
+  const savedAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  document.getElementById("save-state").innerHTML = `${icon("check")}<span>Saved on this phone at ${savedAt}</span>`;
+}
+
+function loadDraft() {
+  const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+  if (!saved) {
+    for (const [kind, count] of Object.entries(STARTING_CARDS)) {
+      for (let index = 0; index < count; index += 1) addCard(kind);
+    }
+    return;
+  }
+  // Drafts saved by an older version of this form may list entry types that no longer exist
+  for (const [kind, numbers] of Object.entries(saved.cardNumbers || {})) {
+    if (!(kind in STARTING_CARDS)) continue;
+    for (const cardNumber of numbers) addCard(kind, cardNumber);
+  }
+  for (const [name, value] of Object.entries(saved.values)) {
+    for (const input of form.querySelectorAll(`[name="${name}"]`)) {
+      if (input.type === "radio") input.checked = input.value === value;
+      else if (input.type === "checkbox") input.checked = value;
+      else input.value = value;
+    }
+  }
+  for (const card of document.querySelectorAll("#attendance-cards [data-card]")) updateMismatch(card);
+}
+
+// Name and short-text boxes wrap like inputs but must stay one paragraph
+form.addEventListener("keydown", event => {
+  if (event.key === "Enter" && event.target.matches("textarea.single-line")) event.preventDefault();
+});
+
+form.addEventListener("input", event => {
+  if (event.target.matches("textarea")) autoGrow(event.target);
+  const card = event.target.closest("#attendance-cards [data-card]");
+  if (card) updateMismatch(card);
+  if (event.target.name === "ti_name") updateSubtitle();
+  updateProgress();
+  saveDraft();
+});
+
+form.addEventListener("click", event => {
+  const addButton = event.target.closest("[data-add]");
+  if (addButton) {
+    const card = addCard(addButton.dataset.add);
+    card.querySelector("input, textarea").focus();
+    updateProgress();
+    saveDraft();
+  }
+  const removeButton = event.target.closest(".remove-card");
+  if (removeButton) {
+    removeButton.closest("[data-card]").remove();
+    updateProgress();
+    saveDraft();
+  }
+});
+
+// Closed sections hide their textareas, so their height is measured once they open
+form.addEventListener("toggle", event => {
+  if (event.target.open) event.target.querySelectorAll("textarea").forEach(autoGrow);
+}, true);
+
+// Printing from the browser menu skips the Print button, so every print path opens all sections
+function prepareForPrint() {
+  for (const section of form.querySelectorAll(".section")) section.open = true;
+  form.querySelectorAll("textarea").forEach(autoGrow);
+}
+window.addEventListener("beforeprint", prepareForPrint);
+
+document.getElementById("print-button").addEventListener("click", () => {
+  prepareForPrint();
+  window.print();
+});
+
+// Tapping the chosen answer again clears it, so a wrong tap does not print as an answer
+let radioWasChecked = false;
+form.addEventListener("pointerdown", event => {
+  const radio = event.target.closest(".segmented label")?.querySelector("input");
+  radioWasChecked = Boolean(radio && radio.checked);
+});
+form.addEventListener("click", event => {
+  const radio = event.target.closest(".segmented input");
+  // Reset on every click so keyboard selection never inherits a stale pointer state
+  const shouldClear = radioWasChecked;
+  radioWasChecked = false;
+  if (!radio || !shouldClear) return;
+  radio.checked = false;
+  radio.dispatchEvent(new Event("input", { bubbles: true }));
+});
+
+// Highlights the chip of the section being read and keeps it visible in the strip
+const sectionObserver = new IntersectionObserver(entries => {
+  for (const entry of entries) {
+    if (!entry.isIntersecting) continue;
+    const chips = document.querySelectorAll("#section-nav a");
+    chips.forEach(chip => chip.classList.toggle("is-current", chip.dataset.section === entry.target.id));
+    const nav = document.getElementById("section-nav");
+    const currentChip = nav.querySelector(`a[data-section="${entry.target.id}"]`);
+    nav.scrollTo({ left: currentChip.offsetLeft - 16 });
+  }
+}, { rootMargin: "-40% 0px -55% 0px" });
+
+document.getElementById("clear-button").addEventListener("click", () => {
+  if (!confirm("Clear all answers saved on this phone?")) return;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+});
+
+// Keeps jump targets clear of the sticky header, whose height changes when the chips wrap
+function measureHeader() {
+  const headerHeight = document.querySelector(".app-bar").offsetHeight;
+  document.documentElement.style.setProperty("--header-height", `${headerHeight}px`);
+}
+
+window.addEventListener("resize", () => {
+  measureHeader();
+  form.querySelectorAll(".section[open] textarea").forEach(autoGrow);
+});
+
+renderChecklists(form);
+renderFlags();
+renderSectionNav();
+loadDraft();
+updateSubtitle();
+updateProgress();
+measureHeader();
+form.querySelectorAll(".section[open] textarea").forEach(autoGrow);
+form.querySelectorAll(".section").forEach(section => sectionObserver.observe(section));
+</script>
+</body>
+</html>

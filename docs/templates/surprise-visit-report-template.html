@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SICIP Surprise Visit Report</title>
+<style>
+  @page {
+    size: A4 portrait;
+    margin: 10mm 11mm 12mm;
+    @bottom-left { content: "SICIP Surprise Visit Report"; font: 7pt "Noto Sans", Arial, sans-serif; color: #555; }
+    @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 7pt "Noto Sans", Arial, sans-serif; color: #555; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Noto Sans", "Segoe UI", Arial, sans-serif; font-size: 8.4pt; line-height: 1.25; color: #111; }
+
+  header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.6pt solid #111; padding-bottom: 4pt; margin-bottom: 6pt; }
+  header .program { font-size: 8pt; }
+  header h1 { margin: 1pt 0 0; font-size: 13pt; font-weight: 700; letter-spacing: 0.01em; }
+  header .form-code { font-size: 7.5pt; text-align: right; color: #333; }
+
+  h2 { display: flex; align-items: baseline; gap: 5pt; margin: 8pt 0 3pt; font-size: 9.2pt; font-weight: 700; break-after: avoid; }
+  h2 .letter { display: inline-block; min-width: 13pt; padding: 0.5pt 0; text-align: center; background: #111; color: #fff; font-size: 8pt; }
+  h2 .note { margin-left: auto; font-weight: 400; font-size: 7.4pt; font-style: italic; color: #333; }
+  h3 { margin: 4pt 0 2pt; font-size: 8.2pt; font-weight: 700; }
+
+  .details { display: grid; grid-template-columns: 1fr 1fr; column-gap: 12pt; row-gap: 3pt; }
+  .details .line { display: flex; align-items: flex-end; gap: 4pt; min-height: 15pt; }
+  .details .line.full { grid-column: 1 / -1; }
+  .details .label { white-space: nowrap; }
+  .details .rule { flex: 1; border-bottom: 0.6pt solid #555; height: 11pt; }
+  .details .triple { grid-column: 1 / -1; display: grid; grid-template-columns: 1.2fr 1fr 1fr; column-gap: 12pt; }
+
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th, td { border: 0.6pt solid #666; padding: 2pt 3pt; vertical-align: middle; }
+  th { background: #e6e6e6; font-weight: 700; font-size: 7.4pt; text-align: center; line-height: 1.15; }
+  tr { break-inside: avoid; }
+  td.num, th.num { width: 16pt; text-align: center; }
+
+  .checklist col.c-num { width: 16pt; }
+  .checklist col.c-question { width: 44%; }
+  .checklist col.c-tick { width: 24pt; }
+  .checklist td { height: 16pt; }
+  .checklist td.tick { text-align: center; }
+  .checklist td.num { color: #333; }
+
+  .grid td { height: 17pt; }
+  .grid th.wide { width: 24%; }
+  .grid th.tick-head { width: 44pt; }
+  .grid td.tick { text-align: center; }
+  .attendance th:first-child { width: 18%; }
+  .attendance th.batch { width: 10%; }
+
+  .box { display: inline-block; width: 8pt; height: 8pt; border: 0.7pt solid #111; vertical-align: middle; }
+
+  .inline-fields { display: flex; gap: 12pt; margin: 2pt 0 3pt; }
+  .inline-fields .line { display: flex; align-items: flex-end; gap: 4pt; flex: 1; }
+  .inline-fields .rule { flex: 1; border-bottom: 0.6pt solid #555; height: 11pt; }
+
+  .flags { columns: 2; column-gap: 14pt; margin: 0; padding: 0; list-style: none; }
+  .flags li { display: flex; gap: 5pt; align-items: flex-start; padding: 1.8pt 0; break-inside: avoid; }
+  .flags .box { flex: none; margin-top: 1pt; }
+
+  .choice-row { display: flex; flex-wrap: wrap; gap: 4pt 14pt; align-items: center; margin: 2pt 0 4pt; }
+  .choice-row .label { font-weight: 700; margin-right: 2pt; }
+  .choice-row span.choice { display: inline-flex; align-items: center; gap: 4pt; }
+  .write-box { border: 0.6pt solid #666; margin: 1pt 0 5pt; }
+  .write-box.findings { height: 78pt; }
+  .write-box.instructions { height: 46pt; }
+  .write-box.feedback { height: 30pt; }
+
+  .keep { break-inside: avoid; }
+  footer.legend { margin-top: 6pt; font-size: 7pt; color: #333; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="program">Skills for Industry Competitiveness and Innovation Program (SICIP)</div>
+    <h1>Surprise Visit Report: Quality Assurance</h1>
+  </div>
+  <div class="form-code">Unannounced visit to partner TI/TC</div>
+</header>
+
+<section class="keep">
+  <h2><span class='letter'>A</span>Visit details</h2>
+  <div class="details">
+    <div class="line full"><span class="label">Name of TI/TC visited</span><span class="rule"></span></div>
+    <div class="line"><span class="label">Association / provider</span><span class="rule"></span></div>
+    <div class="line"><span class="label">Received by (name, designation)</span><span class="rule"></span></div>
+    <div class="line full"><span class="label">Address and contact</span><span class="rule"></span></div>
+    <div class="triple">
+      <div class="line"><span class="label">Date of visit</span><span class="rule"></span></div>
+      <div class="line"><span class="label">Arrival time</span><span class="rule"></span></div>
+      <div class="line"><span class="label">Departure time</span><span class="rule"></span></div>
+    </div>
+    <div class="line full"><span class="label">Visiting officer(s) with designation</span><span class="rule"></span></div>
+    <div class="line full"><span class="label">Courses / batches scheduled today (routine or TDP)</span><span class="rule"></span></div>
+  </div>
+</section>
+
+<section class="keep">
+  <h2><span class='letter'>B</span>Status on arrival</h2>
+  <table class='checklist'><colgroup><col class='c-num'><col class='c-question'><col class='c-tick'><col class='c-tick'><col class='c-tick'><col class='c-tick'><col class='c-remarks'></colgroup><thead><tr><th>#</th><th>Item</th><th>Yes</th><th>No</th><th>Part</th><th>N/A</th><th>Remarks</th></tr></thead><tbody><tr><td class='num'>1</td><td class='question'>Centre open and training in session at the scheduled time</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>2</td><td class='question'>Trainer present in each scheduled batch</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>3</td><td class='question'>Session being taught matches today&#x27;s topic in the session plan / TDP</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>4</td><td class='question'>Training calendar displayed and followed</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr></tbody></table>
+</section>
+
+<section class="keep">
+  <h2><span class='letter'>C</span>Attendance in each course<span class='note'>Count heads first, then check the register and TMS. One row per course.</span></h2>
+  <table class='grid attendance'><thead><tr><th rowspan='2'>Course</th><th rowspan='2' class='batch'>Batch no(s).</th><th colspan='2'>Enrolled</th><th colspan='2'>Headcount</th><th rowspan='2'>Present in register</th><th rowspan='2'>Present in TMS</th><th rowspan='2'>Trainer present Y / N</th><th rowspan='2' class='wide'>Remarks</th></tr><tr><th>T</th><th>F</th><th>T</th><th>F</th></tr></thead><tbody><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table>
+  <h3>Attendance register</h3>
+  <table class='checklist'><colgroup><col class='c-num'><col class='c-question'><col class='c-tick'><col class='c-tick'><col class='c-tick'><col class='c-tick'><col class='c-remarks'></colgroup><thead><tr><th>#</th><th>Item</th><th>Yes</th><th>No</th><th>Part</th><th>N/A</th><th>Remarks</th></tr></thead><tbody><tr><td class='num'>1</td><td class='question'>Attendance register up to date (no blank days)</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>2</td><td class='question'>No attendance marked in advance for later sessions</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>3</td><td class='question'>Long-absent trainees entered in the dropout register</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr></tbody></table>
+</section>
+
+<section class="keep">
+  <h2><span class='letter'>D</span>Trainee identity spot-check<span class='note'>5 names picked at random from the TMS enrolment list</span></h2>
+  <table class='grid'><thead><tr><th class='num'>#</th><th>Name (from TMS)</th><th>Course / batch</th><th class='tick-head'>Present &amp; verified</th><th class='tick-head'>Absent</th><th class='tick-head'>Doesn't match</th><th class='wide'>Remarks</th></tr></thead><tbody><tr><td class='num'>1</td><td></td><td></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td></td></tr><tr><td class='num'>2</td><td></td><td></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td></td></tr><tr><td class='num'>3</td><td></td><td></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td></td></tr><tr><td class='num'>4</td><td></td><td></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td></td></tr><tr><td class='num'>5</td><td></td><td></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td></td></tr></tbody></table>
+  <h3>Enrolment</h3>
+  <table class='checklist'><colgroup><col class='c-num'><col class='c-question'><col class='c-tick'><col class='c-tick'><col class='c-tick'><col class='c-tick'><col class='c-remarks'></colgroup><thead><tr><th>#</th><th>Item</th><th>Yes</th><th>No</th><th>Part</th><th>N/A</th><th>Remarks</th></tr></thead><tbody><tr><td class='num'>1</td><td class='question'>No existing employees of the centre or partner industry enrolled as trainees</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>2</td><td class='question'>No trainees / students of other (non-SICIP) courses at the centre enrolled in SICIP courses</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr></tbody></table>
+</section>
+
+<section class="keep">
+  <h2><span class='letter'>E</span>Materials and safety gear provided</h2>
+  <table class='checklist'><colgroup><col class='c-num'><col class='c-question'><col class='c-tick'><col class='c-tick'><col class='c-tick'><col class='c-tick'><col class='c-remarks'></colgroup><thead><tr><th>#</th><th>Item</th><th>Yes</th><th>No</th><th>Part</th><th>N/A</th><th>Remarks</th></tr></thead><tbody><tr><td class='num'>1</td><td class='question'>Competency Standard (CS) available</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>2</td><td class='question'>CBLM provided to each trainee</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>3</td><td class='question'>Apron / T-shirt provided to each trainee</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>4</td><td class='question'>Required PPE provided to trainees</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>5</td><td class='question'>PPE worn during practical session</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr></tbody></table>
+</section>
+
+<section class="keep">
+  <h2><span class='letter'>F</span>Training delivery observation<span class='note'>Observe one class or workshop for about 15 minutes</span></h2>
+  <table class='checklist'><colgroup><col class='c-num'><col class='c-question'><col class='c-tick'><col class='c-tick'><col class='c-tick'><col class='c-tick'><col class='c-remarks'></colgroup><thead><tr><th>#</th><th>Item</th><th>Yes</th><th>No</th><th>Part</th><th>N/A</th><th>Remarks</th></tr></thead><tbody><tr><td class='num'>1</td><td class='question'>Job sheets / information sheets in use</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>2</td><td class='question'>Trainees doing hands-on practice (80:20 practice to theory)</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>3</td><td class='question'>Required tools and equipment available and in use</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>4</td><td class='question'>Consumables available and being used</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>5</td><td class='question'>Fire extinguisher available and inspection date valid</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>6</td><td class='question'>First aid kit available and stocked</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>7</td><td class='question'>Safety and PPE signs displayed in workshop</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>8</td><td class='question'>Women and trainees with disabilities taking part equally</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>9</td><td class='question'>Industry logbook filled up to date (industry-based centres only)</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr></tbody></table>
+</section>
+
+<section class="keep">
+  <h2><span class='letter'>G</span>Formative assessment<span class='note'>Latest assessment paper and result sheet of one running batch</span></h2>
+  <table class='checklist'><colgroup><col class='c-num'><col class='c-question'><col class='c-tick'><col class='c-tick'><col class='c-tick'><col class='c-tick'><col class='c-remarks'></colgroup><thead><tr><th>#</th><th>Item</th><th>Yes</th><th>No</th><th>Part</th><th>N/A</th><th>Remarks</th></tr></thead><tbody><tr><td class='num'>1</td><td class='question'>Formative assessments held as per assessment plan</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>2</td><td class='question'>Formative assessment includes relevant technical questions for the unit of competency</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>3</td><td class='question'>Practical assessment uses a demonstration / observation checklist</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>4</td><td class='question'>OHS included in the assessment</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>5</td><td class='question'>Formative assessment results recorded</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr></tbody></table>
+</section>
+
+<section class="keep">
+  <h2><span class='letter'>H</span>Daily registers</h2>
+  <table class='checklist'><colgroup><col class='c-num'><col class='c-question'><col class='c-tick'><col class='c-tick'><col class='c-tick'><col class='c-tick'><col class='c-remarks'></colgroup><thead><tr><th>#</th><th>Item</th><th>Yes</th><th>No</th><th>Part</th><th>N/A</th><th>Remarks</th></tr></thead><tbody><tr><td class='num'>1</td><td class='question'>Daily consumption register updated today</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>2</td><td class='question'>Stock register up to date</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>3</td><td class='question'>Monitoring logbook / visit register available, used, and its findings complied with</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr></tbody></table>
+</section>
+
+<section class="keep">
+  <h2><span class='letter'>I</span>Trainee interviews (no staff present)<span class='note'>General response of a group of trainees</span></h2>
+  <div class="inline-fields">
+    <div class="line"><span>Trainees interviewed</span><span class="rule"></span></div>
+    <div class="line"><span>Course(s)</span><span class="rule"></span></div>
+  </div>
+  <table class='checklist'><colgroup><col class='c-num'><col class='c-question'><col class='c-tick'><col class='c-tick'><col class='c-tick'><col class='c-tick'><col class='c-remarks'></colgroup><thead><tr><th>#</th><th>Item</th><th>Yes</th><th>No</th><th>Part</th><th>N/A</th><th>Remarks</th></tr></thead><tbody><tr><td class='num'>1</td><td class='question'>Classes run on all scheduled days and hours</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>2</td><td class='question'>No fee charged to trainees</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>3</td><td class='question'>Trainees receive stipend / allowance on time</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>4</td><td class='question'>Trainees received CBLM and apron / T-shirt</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>5</td><td class='question'>Trainees get enough hands-on practice with tools</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>6</td><td class='question'>Formative assessments have been held</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr><tr><td class='num'>7</td><td class='question'>Job placement / career counselling provided</td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='remarks'></td></tr></tbody></table>
+  <h3>Complaints or other feedback</h3>
+  <div class="write-box feedback"></div>
+</section>
+
+<section class="keep">
+  <h2><span class='letter'>J</span>Job placement verification calls<span class='note'>5 graduates from the TMS job-placed list, called by the officer</span></h2>
+  <table class='grid'><thead><tr><th class='num'>#</th><th>Name</th><th>Course / batch</th><th>Phone</th><th>Employer as per TMS</th><th>Reached Y / N</th><th>Employed: Same / Other / None</th><th>Position, salary (BDT)</th><th class='wide'>Remarks</th></tr></thead><tbody><tr><td class='num'>1</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td class='num'>2</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td class='num'>3</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td class='num'>4</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td class='num'>5</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table>
+</section>
+
+<section class="keep">
+  <h2><span class='letter'>K</span>Previous visit follow-up</h2>
+  <div class="inline-fields">
+    <div class="line"><span>Date of last visit</span><span class="rule"></span></div>
+    <div class="line"><span>Type: <span class="box"></span> Full QA &nbsp; <span class="box"></span> Monitoring &nbsp; <span class="box"></span> Surprise</span></div>
+  </div>
+  <table class='grid'><thead><tr><th class='num'>#</th><th class='wide'>Issue raised in last visit</th><th class='tick-head'>Resolved</th><th class='tick-head'>Partly</th><th class='tick-head'>Not resolved</th><th class='wide'>Remarks</th></tr></thead><tbody><tr><td class='num'>1</td><td></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td></td></tr><tr><td class='num'>2</td><td></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td></td></tr><tr><td class='num'>3</td><td></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td class='tick'><span class="box"></span></td><td></td></tr></tbody></table>
+</section>
+
+<section class="keep">
+  <h2><span class='letter'>L</span>Critical non-compliance flags<span class='note'>Tick each flag observed and explain it under key findings</span></h2>
+  <ul class="flags"><li><span class="box"></span><span>Centre closed or no class during scheduled hours</span></li><li><span class="box"></span><span>Trainer absent or replaced by an unapproved person</span></li><li><span class="box"></span><span>Trainees on register / TMS but not present (possible ghost trainees)</span></li><li><span class="box"></span><span>Proxy or advance attendance marking</span></li><li><span class="box"></span><span>Existing employees, or trainees of non-SICIP courses, enrolled in SICIP courses</span></li><li><span class="box"></span><span>Fees charged to trainees</span></li><li><span class="box"></span><span>Required tools and equipment missing or unused</span></li><li><span class="box"></span><span>Facility used at the same time for another program&#x27;s training</span></li><li><span class="box"></span><span>Graduate reported as job-placed in TMS but not employed</span></li></ul>
+</section>
+
+<section class="keep">
+  <h2><span class='letter'>M</span>Overall rating and action</h2>
+  <div class="choice-row">
+    <span class="label">Overall rating:</span>
+    <span class="choice"><span class="box"></span> Satisfactory</span>
+    <span class="choice"><span class="box"></span> Needs improvement</span>
+    <span class="choice"><span class="box"></span> Unsatisfactory</span>
+  </div>
+  <h3>Key findings</h3>
+  <div class="write-box findings"></div>
+  <h3>Instructions given to the TI on the spot</h3>
+  <div class="write-box instructions"></div>
+  <div class="choice-row">
+    <span class="label">Recommended follow-up:</span>
+    <span class="choice"><span class="box"></span> No further action</span>
+    <span class="choice"><span class="box"></span> Full QA visit</span>
+    <span class="choice"><span class="box"></span> Written explanation from TI</span>
+    <span class="choice"><span class="box"></span> Escalate to PIU</span>
+  </div>
+</section>
+
+<footer class="legend">T = total, F = female, TMS = Training Management System, TDP = training delivery plan, CS = competency standard, CBLM = competency-based learning material, PPE = personal protective equipment, OHS = occupational health and safety.</footer>
+
+</body>
+</html>
