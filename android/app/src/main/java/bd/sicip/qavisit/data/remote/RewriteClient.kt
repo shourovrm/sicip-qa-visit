@@ -7,6 +7,7 @@ package bd.sicip.qavisit.data.remote
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
@@ -17,6 +18,7 @@ import java.net.URL
 import javax.net.ssl.HttpsURLConnection
 
 private const val REWRITE_URL = "https://sicip-qa-visit.shourovrm.workers.dev/api/rewrite"
+private const val MODELS_URL = "https://sicip-qa-visit.shourovrm.workers.dev/api/models"
 private const val TIMEOUT_MS = 20_000
 
 // server's own limit (413 above this) -- checked client-side too so an obviously-too-long
@@ -31,16 +33,35 @@ sealed class RewriteResult {
     data class Err(val message: String) : RewriteResult()
 }
 
-// pure: builds the fixed {"text","label"} request body the worker expects.
-internal fun buildRewriteRequestBody(text: String, label: String): String =
+// one GET /api/models {key,id,label,note} entry -- key is what the officer's pick + the rewrite
+// request's "model" field carry, id/label/note are display-only (worker's own model id + officer
+// facing name + one muted line, e.g. quirks or speed).
+@Serializable
+data class RewriteModel(val key: String, val id: String, val label: String, val note: String? = null)
+
+// full GET /api/models body -- default is a key present in models, the server's own pick when
+// the officer hasn't saved one (see settings/RewriteModelPref.kt).
+@Serializable
+data class RewriteModelsResponse(val default: String, val models: List<RewriteModel>)
+
+// pure: builds the fixed {"text","label"[,"model"]} request body the worker expects. modelKey
+// null means "let the server use its own default" -- the key is simply omitted, never sent blank.
+internal fun buildRewriteRequestBody(text: String, label: String, modelKey: String? = null): String =
     buildJsonObject {
         put("text", text)
         put("label", label)
+        if (modelKey != null) put("model", modelKey)
     }.toString()
 
 // pure: pulls "text" out of the worker's 200 {"text"} response.
 internal fun parseRewriteResponseText(body: String): String =
     Json.parseToJsonElement(body).jsonObject.getValue("text").jsonPrimitive.content
+
+// pure: decodes GET /api/models's 200 body. Public (not internal) -- ui/profile/ProfileScreen.kt
+// also calls this to re-parse the cached copy of this same body when offline.
+// ignoreUnknownKeys: a field the worker adds later must not break the list on old APKs.
+private val modelsJson = Json { ignoreUnknownKeys = true }
+fun parseModelsResponse(body: String): RewriteModelsResponse = modelsJson.decodeFromString(body)
 
 // pure: http status -> officer-facing message, per the fixed API contract's error codes.
 fun rewriteErrorMessage(httpStatus: Int): String = when (httpStatus) {
@@ -51,7 +72,10 @@ fun rewriteErrorMessage(httpStatus: Int): String = when (httpStatus) {
 }
 
 class RewriteClient {
-    suspend fun rewrite(text: String, label: String, accessToken: String): RewriteResult =
+    // modelKey = officer's saved settings/RewriteModelPref.kt pick, or null to let the worker
+    // use its own default (unknown/stale key from an old cache is also the server's problem to
+    // fall back on, per the API contract -- android never validates it against the model list).
+    suspend fun rewrite(text: String, label: String, accessToken: String, modelKey: String? = null): RewriteResult =
         withContext(Dispatchers.IO) {
             if (text.length > REWRITE_MAX_CHARS) return@withContext RewriteResult.Err(REWRITE_TOO_LONG_MESSAGE)
             try {
@@ -63,7 +87,7 @@ class RewriteClient {
                     conn.setRequestProperty("Authorization", "Bearer $accessToken")
                     conn.setRequestProperty("Content-Type", "application/json")
                     conn.doOutput = true
-                    conn.outputStream.use { it.write(buildRewriteRequestBody(text, label).toByteArray()) }
+                    conn.outputStream.use { it.write(buildRewriteRequestBody(text, label, modelKey).toByteArray()) }
                     val code = conn.responseCode
                     val responseBody = (if (code in 200..299) conn.inputStream else conn.errorStream)
                         ?.bufferedReader()?.use { it.readText() } ?: ""
@@ -82,4 +106,27 @@ class RewriteClient {
                 RewriteResult.Err(rewriteErrorMessage(0))
             }
         }
+
+    // GET /api/models -- no auth (see worker contract). Returns null on any failure (offline,
+    // non-200, malformed body); the caller (ui/profile/ProfileScreen.kt) falls back to its own
+    // cached copy of the last successful response, and to an "unavailable offline" message if
+    // there isn't one yet.
+    suspend fun fetchModels(): RewriteModelsResponse? = withContext(Dispatchers.IO) {
+        try {
+            val conn = URL(MODELS_URL).openConnection() as HttpsURLConnection
+            try {
+                conn.requestMethod = "GET"
+                conn.connectTimeout = TIMEOUT_MS
+                conn.readTimeout = TIMEOUT_MS
+                val code = conn.responseCode
+                if (code !in 200..299) return@withContext null
+                val body = conn.inputStream.bufferedReader().use { it.readText() }
+                parseModelsResponse(body)
+            } finally {
+                conn.disconnect()
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
 }

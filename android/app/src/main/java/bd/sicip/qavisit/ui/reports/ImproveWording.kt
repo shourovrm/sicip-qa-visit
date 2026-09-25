@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +39,7 @@ import bd.sicip.qavisit.data.auth.SessionStore
 import bd.sicip.qavisit.data.remote.RewriteClient
 import bd.sicip.qavisit.data.remote.RewriteResult
 import bd.sicip.qavisit.data.remote.SupabaseClient
+import bd.sicip.qavisit.settings.RewriteModelPrefs
 import kotlinx.coroutines.launch
 
 // plain framework check -- this build ships no-GMS, so no play-services connectivity helper.
@@ -69,6 +71,10 @@ fun ImproveWordingButton(
     val sessionStore = remember { SessionStore(context) }
     val supabaseClient = remember { SupabaseClient() }
     val rewriteClient = remember { RewriteClient() }
+    val rewriteModelPrefs = remember { RewriteModelPrefs(context) }
+    // officer's saved settings/RewriteModelPref.kt pick; null = server default (see ui/profile's
+    // "Writing helper" section, where this same pref is set).
+    val modelKey by rewriteModelPrefs.selectedKey.collectAsState(initial = null)
 
     var loading by remember { mutableStateOf(false) }
     var error by remember(text) { mutableStateOf<String?>(null) } // a fresh edit clears a stale error
@@ -89,7 +95,7 @@ fun ImproveWordingButton(
                         val result = if (session == null) {
                             RewriteResult.Err("Session expired — sign in again")
                         } else {
-                            rewriteClient.rewrite(text, label, session.accessToken)
+                            rewriteClient.rewrite(text, label, session.accessToken, modelKey)
                         }
                         loading = false
                         when (result) {

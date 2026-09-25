@@ -9,7 +9,9 @@ import bd.sicip.qavisit.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-private val Context.themeDataStore by preferencesDataStore(name = "theme_prefs")
+// internal (not private): settings/RewriteModelPref.kt shares this same DataStore file rather
+// than opening a second small prefs file for one more device-local setting.
+internal val Context.themeDataStore by preferencesDataStore(name = "theme_prefs")
 private val MODE_KEY = stringPreferencesKey("theme_mode")
 
 class ThemePrefs(private val context: Context) {

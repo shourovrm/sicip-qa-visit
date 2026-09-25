@@ -29,6 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -52,13 +53,17 @@ import bd.sicip.qavisit.BuildConfig
 import bd.sicip.qavisit.data.auth.SessionStore
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Officer
+import bd.sicip.qavisit.data.remote.RewriteClient
+import bd.sicip.qavisit.data.remote.RewriteModelsResponse
 import bd.sicip.qavisit.data.remote.SupabaseClient
 import bd.sicip.qavisit.data.remote.SupabaseException
+import bd.sicip.qavisit.data.remote.parseModelsResponse
 import bd.sicip.qavisit.data.sync.SyncNow
 import bd.sicip.qavisit.data.sync.SyncStateStore
 import bd.sicip.qavisit.domain.RankOfficer
 import bd.sicip.qavisit.domain.VisitScore
 import bd.sicip.qavisit.domain.rank
+import bd.sicip.qavisit.settings.RewriteModelPrefs
 import bd.sicip.qavisit.settings.ThemePrefs
 import bd.sicip.qavisit.ui.common.StatusPill
 import bd.sicip.qavisit.ui.shell.syncChipText
@@ -88,6 +93,7 @@ fun ProfileScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val syncState = remember { SyncStateStore(context) }
+    val rewriteModelPrefs = remember { RewriteModelPrefs(context) }
 
     var officer by remember { mutableStateOf<Officer?>(null) }
     var stats by remember { mutableStateOf(MyStats()) }
@@ -120,6 +126,7 @@ fun ProfileScreen(
         item { ProfileHeaderCard(officer, session?.email) }
         item { StatsRow(stats) }
         item { ThemeCard(themeMode) { mode -> scope.launch { themePrefs.set(mode) } } }
+        item { RewriteModelCard(rewriteModelPrefs) }
         item { ChangePasswordCard(sessionStore, client) }
         item { VisitScoresRow { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(VISIT_SCORES_URL))) } }
         item { SyncCard(lastSyncAt, lastError) { SyncNow.enqueue(context) } }
@@ -209,6 +216,69 @@ private fun ThemeCard(mode: ThemeMode, onPick: (ThemeMode) -> Unit) {
                         onClick = { onPick(entry) },
                         shape = SegmentedButtonDefaults.itemShape(index = index, count = ThemeMode.entries.size),
                     ) { Text(entry.name.lowercase().replaceFirstChar { it.uppercase() }) }
+                }
+            }
+        }
+    }
+}
+
+// per-device pick of which free model POST /api/rewrite uses for "Improve wording" (ui/reports/
+// ImproveWording.kt). Radio rows mirror ThemeCard's look (Card > title + control), but a
+// segmented row doesn't fit an open-ended server-supplied list, so this uses stacked radio rows
+// instead. Fetches GET /api/models fresh on every Profile visit and caches the body (settings/
+// RewriteModelPref.kt) so the saved pick's label still shows with no connection.
+@Composable
+private fun RewriteModelCard(prefs: RewriteModelPrefs) {
+    val scope = rememberCoroutineScope()
+    val rewriteClient = remember { RewriteClient() }
+    val savedKey by prefs.selectedKey.collectAsState(initial = null)
+    val cachedJson by prefs.cachedModelsJson.collectAsState(initial = null)
+    var fetched by remember { mutableStateOf<RewriteModelsResponse?>(null) }
+
+    LaunchedEffect(Unit) {
+        val response = rewriteClient.fetchModels()
+        if (response != null) {
+            fetched = response
+            prefs.cacheModelsJson(Json.encodeToString(RewriteModelsResponse.serializer(), response))
+        }
+    }
+
+    // a fresh fetch wins; otherwise fall back to whatever this device last cached successfully.
+    val shown = fetched ?: cachedJson?.let { json -> runCatching { parseModelsResponse(json) }.getOrNull() }
+
+    Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Writing helper", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Used by Improve wording in reports. All options are free; they share one daily limit.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (shown == null) {
+                Text(
+                    "Model list unavailable offline",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    shown.models.forEach { model ->
+                        val selected = selectedModelKey(savedKey, shown.default, shown.models.map { it.key }) == model.key
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                scope.launch { prefs.setSelectedKey(modelKeyToSave(model.key, shown.default)) }
+                            },
+                        ) {
+                            RadioButton(selected = selected, onClick = null)
+                            Column(modifier = Modifier.padding(start = 8.dp)) {
+                                Text(model.label, style = MaterialTheme.typography.bodyMedium)
+                                model.note?.let {
+                                    Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -375,6 +445,18 @@ private fun AboutCard(onOpen: (String) -> Unit) {
 }
 
 // -- pure fns below, unit-testable without touching compose/android --
+
+// which model key the Writing helper card shows selected -- the officer's saved pick, else
+// whatever GET /api/models currently calls default. a saved key the server no longer lists
+// falls back to the default server-side, so show the default then too.
+internal fun selectedModelKey(savedKey: String?, defaultKey: String, listedKeys: List<String>): String =
+    if (savedKey != null && savedKey in listedKeys) savedKey else defaultKey
+
+// what to persist when the officer taps a model row -- tapping the row that IS the current
+// server default clears back to "follow default" (null) instead of pinning that key verbatim,
+// so this device keeps tracking the server's choice if it ever changes.
+internal fun modelKeyToSave(tappedKey: String, defaultKey: String): String? =
+    if (tappedKey == defaultKey) null else tappedKey
 
 fun passwordFormValid(newPassword: String, confirmPassword: String): Boolean =
     newPassword.length >= 8 && newPassword == confirmPassword
