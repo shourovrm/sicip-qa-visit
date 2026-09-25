@@ -1,6 +1,7 @@
 // rewrite handler tests -- mocked env.AI + mocked global fetch (auth).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { handleRewrite } from './rewrite.js'
+import { modelFor, DEFAULT_MODEL_KEY } from './models.js'
 
 const env = { AI: { run: vi.fn() }, SUPABASE_URL: 'https://x.supabase.co', SUPABASE_KEY: 'anon-key' }
 
@@ -94,14 +95,41 @@ describe('handleRewrite', () => {
     env.AI.run.mockResolvedValue({ response: 'Here is the rewritten text: "Trainer arrived late."' })
     const res = await handleRewrite(req({ text: 'trainer aslo lat', label: 'Findings' }), env)
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ text: 'Trainer arrived late.' })
+    expect(await res.json()).toEqual({ text: 'Trainer arrived late.', model: 'quality' })
 
-    const [model, options] = env.AI.run.mock.calls[0]
-    expect(model).toContain('@cf/')
+    const [modelId, options] = env.AI.run.mock.calls[0]
+    expect(modelId).toContain('@cf/')
     expect(options.temperature).toBeCloseTo(0.2)
     expect(options.max_tokens).toBe(700)
     expect(options.messages[1].content).toContain('Findings')
     expect(options.messages[1].content).toContain('trainer aslo lat')
+  })
+
+  it('uses the requested model id in env.AI.run when a known key is sent', async () => {
+    env.AI.run.mockResolvedValue({ response: 'ok' })
+    const res = await handleRewrite(req({ text: 'hello', model: 'quality' }), env)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ text: 'ok', model: 'quality' })
+    const [modelId] = env.AI.run.mock.calls[0]
+    expect(modelId).toBe(modelFor('quality').id)
+  })
+
+  it('falls back to the default model id for an unknown model key', async () => {
+    env.AI.run.mockResolvedValue({ response: 'ok' })
+    const res = await handleRewrite(req({ text: 'hello', model: 'not-a-real-model' }), env)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ text: 'ok', model: DEFAULT_MODEL_KEY })
+    const [modelId] = env.AI.run.mock.calls[0]
+    expect(modelId).toBe(modelFor(DEFAULT_MODEL_KEY).id)
+  })
+
+  it('falls back to the default model id when no model key is sent', async () => {
+    env.AI.run.mockResolvedValue({ response: 'ok' })
+    const res = await handleRewrite(req({ text: 'hello' }), env)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ text: 'ok', model: DEFAULT_MODEL_KEY })
+    const [modelId] = env.AI.run.mock.calls[0]
+    expect(modelId).toBe(modelFor(DEFAULT_MODEL_KEY).id)
   })
 
   it('truncates an oversized label to 80 chars without failing', async () => {

@@ -1,13 +1,7 @@
 // rewrite -- POST /api/rewrite handler. one job: text in, rewritten text out.
 import { isValidToken, bearerToken } from './auth.js'
 import { buildMessages, cleanOutput } from './prompt.js'
-
-// current pick after comparing llama-3.1-8b-instruct-fp8, llama-3.3-70b-instruct-fp8-fast and
-// mistral-small-3.1-24b-instruct on 5 real remarks (English/Bangla/Banglish) via wrangler dev
-// --remote (gemma-3-12b-it: account not allowed, error 5018). 8b flipped a negation ("pai nai" =
-// did not receive -> came out as "receives"); mistral echoed the field label in bold markdown
-// into the output. 70b-fast had zero factual errors and no leaked formatting.
-const MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast'
+import { modelFor } from './models.js'
 
 const MAX_LEN = 1500
 const MAX_LABEL_LEN = 80
@@ -38,10 +32,13 @@ export async function handleRewrite(request, env) {
   if (text.length > MAX_LEN) return json({ error: 'too_long' }, 413)
 
   const label = typeof body.label === 'string' ? body.label.trim().slice(0, MAX_LABEL_LEN) : ''
+  // unknown/missing key resolves to the default model -- old clients or a stale saved
+  // setting must keep working, this never 400s.
+  const model = modelFor(typeof body.model === 'string' ? body.model : undefined)
 
   let result
   try {
-    result = await env.AI.run(MODEL, {
+    result = await env.AI.run(model.id, {
       messages: buildMessages(text, label),
       temperature: 0.2,
       max_tokens: 700,
@@ -58,5 +55,5 @@ export async function handleRewrite(request, env) {
   const rewritten = cleanOutput(result && result.response)
   if (!rewritten) return json({ error: 'ai' }, 502)
 
-  return json({ text: rewritten }, 200)
+  return json({ text: rewritten, model: model.key }, 200)
 }
