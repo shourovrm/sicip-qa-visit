@@ -47,6 +47,32 @@ export function buildRemarks(item, entry) {
   return bullets
 }
 
+// "AI remarks" queue rule (spec section 6): a criterion is worth an AI request only when it has
+// something to smooth -- nonblank bullets, AND either the officer actually typed something
+// (a remark/detail/evidence/note, not just a tap on a fixed option) or there are already 3+
+// bullets -- AND the last AI result (if any) is stale (entry.ai.source no longer matches the
+// current bullets, same staleness check printedRemarks uses).
+export function isEligibleForAiRemarks(item, entry) {
+  const bullets = buildRemarks(item, entry)
+  if (bullets.length === 0) return false
+  const opts = entry.opts ?? {}
+  const typedSomething = Object.values(opts).some((o) => !isBlank(o?.remark) || !isBlank(o?.detail)) ||
+    !isBlank(entry.evidence) || !isBlank(entry.note)
+  if (!typedSomething && bullets.length < 3) return false
+  const ai = entry.ai ?? {}
+  return String(ai.source ?? '') !== bullets.join('\n')
+}
+
+// AI-remarks fact guard (spec section 6): every run of digits in the AI's output must also
+// appear somewhere in the input, or the whole result is discarded (a changed number/date is
+// worse than no rewrite at all). Order and repeat count don't matter -- only "did this number
+// exist anywhere in the input".
+export function outputKeepsNumbers(input, output) {
+  const inputNumbers = new Set(String(input ?? '').match(/\d+/g) ?? [])
+  const outputNumbers = String(output ?? '').match(/\d+/g) ?? []
+  return outputNumbers.every((n) => inputNumbers.has(n))
+}
+
 // what actually prints in the Remarks cell/preview: the AI rewrite (entry.ai.text) replaces the
 // fixed bullets ONLY while it is still fresh -- entry.ai.source must equal the CURRENT bullets
 // joined by "\n". Any edit to an option/remark/detail/evidence/note since the AI ran changes that
