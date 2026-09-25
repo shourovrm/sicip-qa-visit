@@ -132,6 +132,22 @@ describe('handleRewrite', () => {
     expect(modelId).toBe(modelFor(DEFAULT_MODEL_KEY).id)
   })
 
+  it('mode:"remarks" uses the remarks system prompt (QA report AI remarks)', async () => {
+    env.AI.run.mockResolvedValue({ response: 'ok' })
+    const res = await handleRewrite(req({ text: 'bullet one\nbullet two', mode: 'remarks' }), env)
+    expect(res.status).toBe(200)
+    const [, options] = env.AI.run.mock.calls[0]
+    expect(options.messages[0].content).toMatch(/one per line/i)
+  })
+
+  it('an unrecognised mode value falls back to the default prompt, never 400s', async () => {
+    env.AI.run.mockResolvedValue({ response: 'ok' })
+    const res = await handleRewrite(req({ text: 'hello', mode: 'not-a-real-mode' }), env)
+    expect(res.status).toBe(200)
+    const [, options] = env.AI.run.mock.calls[0]
+    expect(options.messages[0].content).not.toMatch(/one per line/i)
+  })
+
   it('truncates an oversized label to 80 chars without failing', async () => {
     env.AI.run.mockResolvedValue({ response: 'ok' })
     const longLabel = 'x'.repeat(200)

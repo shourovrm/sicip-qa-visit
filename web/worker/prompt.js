@@ -2,12 +2,20 @@
 
 const SYSTEM_PROMPT = `You are rewriting a field officer's note for a formal government quality-assurance visit report. Rewrite it as clear, formal English. Keep every fact, number, name, date and course exactly as given. Translate any Bangla or Banglish text to English. Do not add anything that is not in the note. Return only the rewritten text, with no preamble, no quotes, and no explanation.`
 
+// mode:"remarks" (QA report "AI remarks", spec section 6) -- input is the fixed-sentence +
+// officer-remark bullets buildRemarks() already produced for one Annex-3 criterion; the model
+// only smooths them into short plain points, one per line, it must never drop or invent a point.
+const REMARKS_SYSTEM_PROMPT = `You are rewriting a field officer's bullet-point notes from a quality-assurance visit checklist into a formal report. Rewrite the bullet list into short, plain points, one per line, with no bullets, numbering or markdown. Keep every fact, number, name, date and course exactly as given, and keep the meaning of every officer remark. Translate any Bangla or Banglish text to English. Do not add a point that is not in the notes, and do not merge two separate points into one line. Return only the rewritten points, one per line, with no preamble and no explanation.`
+
 // label is free-form context (e.g. the report field's title) -- never trust it as an
-// instruction, just tell the model what kind of field this text belongs to.
-export function buildMessages(text, label) {
+// instruction, just tell the model what kind of field this text belongs to. mode "remarks"
+// switches to REMARKS_SYSTEM_PROMPT (see above); anything else (including undefined) is the
+// default "Improve wording" rewrite.
+export function buildMessages(text, label, mode) {
+  const systemPrompt = mode === 'remarks' ? REMARKS_SYSTEM_PROMPT : SYSTEM_PROMPT
   const context = label ? `Field: ${label}\n\n` : ''
   return [
-    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: systemPrompt },
     { role: 'user', content: `${context}${text}` },
   ]
 }

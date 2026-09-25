@@ -13,6 +13,20 @@ describe('buildMessages', () => {
     const messages = buildMessages('trainer late', '')
     expect(messages[1].content).toBe('trainer late')
   })
+
+  it('mode "remarks" uses the remarks system prompt, not the default one', () => {
+    const remarksMessages = buildMessages('bullet one\nbullet two', 'Findings', 'remarks')
+    const defaultMessages = buildMessages('bullet one\nbullet two', 'Findings')
+    expect(remarksMessages[0].content).not.toBe(defaultMessages[0].content)
+    expect(remarksMessages[0].content).toMatch(/one per line/i)
+    expect(remarksMessages[1]).toEqual(defaultMessages[1]) // user content unaffected by mode
+  })
+
+  it('any mode other than "remarks" (including undefined) uses the default prompt', () => {
+    const a = buildMessages('x', '', undefined)
+    const b = buildMessages('x', '', 'improve')
+    expect(a[0].content).toBe(b[0].content)
+  })
 })
 
 describe('cleanOutput', () => {
