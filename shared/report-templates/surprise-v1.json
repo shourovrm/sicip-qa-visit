@@ -2,10 +2,11 @@
  "id": "surprise",
  "version": 1,
  "title": "Surprise Visit Report: Quality Assurance",
+ "short": "Surprise visit",
+ "visitType": "surprise",
  "program": "Skills for Industry Competitiveness and Innovation Program (SICIP)",
  "subtitle": "Unannounced visit to partner TI/TC",
  "purposes": [
-  "Surprise Visit",
   "Monitoring Visit"
  ],
  "answers": [
