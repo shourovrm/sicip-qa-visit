@@ -61,6 +61,9 @@ private fun prefillValue(
     "institute" -> visit.institute
     "association" -> visit.association
     "visit_date" -> visit.startDate
+    // QA report spec §2: date_to prefills the visit's own end date (a QA visit can span more
+    // than one day) -- surprise-v1.json has no field using this, so it's new here only.
+    "visit_end" -> visit.endDate
     "officers" -> if (officerDesignation.isNullOrBlank()) officerName else "$officerName ($officerDesignation)"
     else -> null
 }

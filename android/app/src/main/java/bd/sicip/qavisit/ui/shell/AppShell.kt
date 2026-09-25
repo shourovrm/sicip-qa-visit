@@ -45,7 +45,7 @@ import bd.sicip.qavisit.ui.reports.ReportReview
 import bd.sicip.qavisit.ui.reports.ReportSectionScreen
 import bd.sicip.qavisit.ui.reports.ReportsScreen
 import bd.sicip.qavisit.ui.reports.rememberReportEditorRegistry
-import bd.sicip.qavisit.ui.reports.surpriseTemplate
+import bd.sicip.qavisit.ui.reports.templateForType
 import bd.sicip.qavisit.ui.team.TeamScreen
 import bd.sicip.qavisit.ui.visits.VisitForm
 import bd.sicip.qavisit.ui.visits.VisitsScreen
@@ -73,8 +73,7 @@ fun AppShell(context: Context, officerId: String) {
     // one shared ReportEditor per open report across hub/section/review -- see
     // ReportEditorRegistry's own comment for why one instance per report (not one per screen)
     // matters. lives at the shell level so it survives navigating between those three routes.
-    val reportTemplate = remember { surpriseTemplate(context) }
-    val reportEditorRegistry = rememberReportEditorRegistry(db, reportTemplate)
+    val reportEditorRegistry = rememberReportEditorRegistry(db) { type -> templateForType(context, type) }
 
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()

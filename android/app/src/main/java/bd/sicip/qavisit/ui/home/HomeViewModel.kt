@@ -25,7 +25,7 @@ import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportProgress
 import bd.sicip.qavisit.domain.report.ReportTemplate
 import bd.sicip.qavisit.domain.report.computeProgress
-import bd.sicip.qavisit.ui.reports.surpriseTemplate
+import bd.sicip.qavisit.ui.reports.templateForType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -82,9 +82,24 @@ class HomeViewModel(
     private val currentVersion: String = BuildConfig.VERSION_NAME,
     context: Context? = null,
 ) {
-    // used only to read the packaged report template for the ongoing-visit progress line below;
-    // null (e.g. a future non-UI test harness) just means that line never appears, home still works.
-    private val reportTemplate: ReportTemplate? = context?.let { runCatching { surpriseTemplate(it) }.getOrNull() }
+    // used only to read the packaged report template(s) for the ongoing-visit progress line
+    // below; null (e.g. a future non-UI test harness, or a report of a type whose template asset
+    // isn't packaged yet) just means that report's line never appears, home still works. loaded
+    // lazily per report type so a surprise-only build never has to eagerly load qa-v1.json.
+    private val context = context
+    // a plain map, not ConcurrentHashMap: that class rejects null VALUES, and "this type's
+    // template asset doesn't exist" (qa-v1.json, until the other agent's shared/ commit lands)
+    // is exactly the null case this cache must be able to hold without throwing.
+    private val templateCache = mutableMapOf<String, ReportTemplate?>()
+    private fun templateFor(type: String): ReportTemplate? {
+        val ctx = context ?: return null
+        synchronized(templateCache) {
+            if (templateCache.containsKey(type)) return templateCache.getValue(type)
+            val loaded = runCatching { templateForType(ctx, type) }.getOrNull()
+            templateCache[type] = loaded
+            return loaded
+        }
+    }
 
     // not an androidx ViewModel (see file header), so it owns its own scope for the
     // fire-and-forget update check below. no cancellation needed -- one cheap single-row
@@ -151,17 +166,15 @@ class HomeViewModel(
                 YearMonth.now().toString(),
             )
 
-            // B1: "Surprise report · x of N" + flag chip on each ONGOING visit row. only the
+            // B1: "Surprise/QA report · x of N" + flag chip on each ONGOING visit row. only the
             // active tour's own visits need this (upcoming/other rows don't show a report line).
-            val template = reportTemplate
-            val activeTripReports = if (template != null) {
-                visits.mapNotNull { v ->
-                    val report = reports.firstOrNull { it.visitId == v.id } ?: return@mapNotNull null
-                    v.id to VisitReportInfo(report, computeProgress(template, ReportData.parse(report.data)))
-                }.toMap()
-            } else {
-                emptyMap()
-            }
+            // each report reads ITS OWN type's template -- a section screen still open on a qa
+            // report and a surprise report on the same active tour render side by side correctly.
+            val activeTripReports = visits.mapNotNull { v ->
+                val report = reports.firstOrNull { it.visitId == v.id } ?: return@mapNotNull null
+                val template = templateFor(report.type) ?: return@mapNotNull null
+                v.id to VisitReportInfo(report, computeProgress(template, ReportData.parse(report.data)))
+            }.toMap()
 
             HomeUiState(
                 loading = false,

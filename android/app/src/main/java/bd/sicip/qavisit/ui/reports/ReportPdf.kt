@@ -11,6 +11,7 @@ import bd.sicip.qavisit.data.db.Report
 import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportTemplate
 import bd.sicip.qavisit.pdf.ReportMeta
+import bd.sicip.qavisit.pdf.buildQaReportHtml
 import bd.sicip.qavisit.pdf.buildReportHtml
 import bd.sicip.qavisit.pdf.renderBillPdf
 
@@ -18,10 +19,17 @@ import bd.sicip.qavisit.pdf.renderBillPdf
 private const val FILE_PROVIDER_AUTHORITY = "bd.sicip.qavisit.fileprovider"
 
 suspend fun shareReportPdf(context: Context, template: ReportTemplate, report: Report, officerName: String) {
-    val meta = ReportMeta(officerName = officerName, status = report.status, submittedAt = report.submittedAt)
     val data = ReportData.parse(report.data)
-    val html = buildReportHtml(template, data, meta)
-    val file = renderBillPdf(context, html, filePrefix = pdfFilePrefix(data))
+    // QA report spec §7: Annex-3's own layout, a different builder from the surprise report's --
+    // picked by template id, never by report.type string (the two are kept equal in practice,
+    // but the template is the actual source of which output shape applies).
+    val html = if (template.id == "qa") {
+        buildQaReportHtml(template, data)
+    } else {
+        val meta = ReportMeta(officerName = officerName, status = report.status, submittedAt = report.submittedAt)
+        buildReportHtml(template, data, meta)
+    }
+    val file = renderBillPdf(context, html, filePrefix = pdfFilePrefix(template, data))
     val uri = FileProvider.getUriForFile(context, FILE_PROVIDER_AUTHORITY, file)
     // open in the phone's pdf viewer (it has its own share button); share sheet only when
     // no viewer app is installed
@@ -41,10 +49,12 @@ suspend fun shareReportPdf(context: Context, template: ReportTemplate, report: R
     }
 }
 
-// "Surprise-visit-UCAST-2026-09-23" -- readable when the file lands in whatsapp/email.
-// renderBillPdf appends a timestamp, so repeated exports never collide.
-private fun pdfFilePrefix(data: ReportData): String {
+// "Surprise-visit-UCAST-2026-09-23" / "QA-visit-UCAST-2026-09-25" -- readable when the file
+// lands in whatsapp/email. renderBillPdf appends a timestamp, so repeated exports never collide.
+// "ti_name"/"date_from" (qa) vs "visit_date" (surprise) are each template's own field keys.
+private fun pdfFilePrefix(template: ReportTemplate, data: ReportData): String {
     val institute = data.field("ti_name").replace(Regex("[^A-Za-z0-9]+"), "-").trim('-').take(40)
-    val date = data.field("visit_date")
-    return listOf("Surprise-visit", institute, date).filter { it.isNotBlank() }.joinToString("-")
+    val date = if (template.id == "qa") data.field("date_from") else data.field("visit_date")
+    val label = template.short?.replace(" ", "-") ?: "Surprise-visit"
+    return listOf(label, institute, date).filter { it.isNotBlank() }.joinToString("-")
 }

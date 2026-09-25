@@ -16,14 +16,38 @@ import kotlinx.coroutines.flow.first
 import java.time.Instant
 import java.util.UUID
 
-// the only type shipped so far -- Monitoring/QA stays disabled in the UI (spec: "coming in a
-// later version") until its own template exists.
 const val REPORT_TYPE_SURPRISE = "surprise"
+const val REPORT_TYPE_QA = "qa"
 
 fun surpriseTemplate(context: Context): ReportTemplate = loadReportTemplate(context, "surprise-v1.json")
+fun qaTemplate(context: Context): ReportTemplate = loadReportTemplate(context, "qa-v1.json")
+
+// the one place a report `type` string picks its template -- every screen that opens a report
+// (hub/section/review/PDF) calls this instead of hardcoding which loader to use, so adding a
+// third report type later is a one-line change here, not a find-and-replace across the UI.
+fun templateForType(context: Context, type: String): ReportTemplate = when (type) {
+    REPORT_TYPE_QA -> qaTemplate(context)
+    else -> surpriseTemplate(context)
+}
+
+// visits.visit_type -> report type (QA report spec §1). null means either a non-Monitoring-Visit
+// purpose (no report at all, callers must not reach here) or an old Monitoring Visit row from
+// before visit_type existed -- the officer must be asked which report to start (see
+// ReportsScreen.kt's NewReportSheet and NoReportVisitRow).
+fun reportTypeForVisit(visit: Visit): String? = when (visit.visitType) {
+    "qa" -> REPORT_TYPE_QA
+    "surprise" -> REPORT_TYPE_SURPRISE
+    else -> null
+}
+
+// spec §1: "Only Monitoring Visit visits get reports" -- both templates' own `purposes` list is
+// ["Monitoring Visit"] too, but call sites that only need this yes/no check (never touch a
+// template instance) use this instead, so they don't have to load one just to ask it.
+fun visitEligibleForReport(visit: Visit): Boolean = visit.purpose == "Monitoring Visit"
 
 fun reportTypeLabel(type: String): String = when (type) {
     REPORT_TYPE_SURPRISE -> "Surprise visit"
+    REPORT_TYPE_QA -> "QA visit"
     else -> type.replaceFirstChar { it.uppercase() }
 }
 
@@ -69,4 +93,13 @@ suspend fun findOrCreateReport(
     )
     db.reportDao().upsert(report)
     return report
+}
+
+// convenience wrapper for the two call sites (HomeScreen.kt's ongoing-visit report line,
+// ReportsScreen.kt's New-report sheet + "Start report" row) that already know exactly which
+// type to start -- resolves the type's template and hands off to findOrCreateReport in one call,
+// so neither call site repeats "load the template, then find-or-create" itself.
+suspend fun startReportForVisit(db: AppDb, context: Context, visit: Visit, officerId: String, officerName: String, type: String): Report {
+    val template = templateForType(context, type)
+    return findOrCreateReport(db, template, visit, officerId, officerName, type = type)
 }

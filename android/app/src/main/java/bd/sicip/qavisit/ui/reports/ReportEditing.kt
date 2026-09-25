@@ -123,7 +123,10 @@ class ReportEditor(initialReport: Report, private val db: AppDb, private val tem
     }
 }
 
-class ReportEditorRegistry(private val db: AppDb, private val template: ReportTemplate) {
+// templateFor resolves a report's own `type` ("surprise"/"qa") to its template -- there is no
+// single shared template anymore (ui/reports/ReportStart.kt's templateForType), so each editor
+// is built against whichever one its own report row actually needs.
+class ReportEditorRegistry(private val db: AppDb, private val templateFor: (String) -> ReportTemplate) {
     private val editors = mutableMapOf<String, ReportEditor>()
 
     // reuse the open editor (one in-memory copy per report), but take the room row instead
@@ -131,10 +134,10 @@ class ReportEditorRegistry(private val db: AppDb, private val template: ReportTe
     fun forReport(report: Report): ReportEditor {
         val existing = editors[report.id]
         if (existing != null && (!existing.isIdle || existing.report.updatedAt == report.updatedAt)) return existing
-        return ReportEditor(report, db, template).also { editors[report.id] = it }
+        return ReportEditor(report, db, templateFor(report.type)).also { editors[report.id] = it }
     }
 }
 
 @Composable
-fun rememberReportEditorRegistry(db: AppDb, template: ReportTemplate): ReportEditorRegistry =
-    remember(db, template) { ReportEditorRegistry(db, template) }
+fun rememberReportEditorRegistry(db: AppDb, templateFor: (String) -> ReportTemplate): ReportEditorRegistry =
+    remember(db) { ReportEditorRegistry(db, templateFor) }

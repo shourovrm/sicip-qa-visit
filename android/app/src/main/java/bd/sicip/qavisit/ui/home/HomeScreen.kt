@@ -67,9 +67,11 @@ import bd.sicip.qavisit.domain.primaryVisit
 import bd.sicip.qavisit.ui.common.StatusPill
 import bd.sicip.qavisit.ui.theme.LocalStatusColors
 import bd.sicip.qavisit.ui.theme.StatusPair
-import bd.sicip.qavisit.ui.reports.findOrCreateReport
+import bd.sicip.qavisit.ui.reports.ReportTypePickerDialog
+import bd.sicip.qavisit.ui.reports.reportTypeForVisit
 import bd.sicip.qavisit.ui.reports.reportTypeLabel
-import bd.sicip.qavisit.ui.reports.surpriseTemplate
+import bd.sicip.qavisit.ui.reports.startReportForVisit
+import bd.sicip.qavisit.ui.reports.visitEligibleForReport
 import bd.sicip.qavisit.ui.visits.VisitForm
 import bd.sicip.qavisit.update.downloadAndInstall
 import kotlinx.coroutines.launch
@@ -97,12 +99,14 @@ fun HomeScreen(
     client: SupabaseClient = SupabaseClient(),
 ) {
     val context = LocalContext.current
-    // parsed once: decides which ongoing visits may carry a report (by visit purpose)
-    val reportTemplate = remember(context) { surpriseTemplate(context) }
     val vm = remember(officerId, db) { HomeViewModel(officerId, db, sessionStore, client, context = context) }
     val state by vm.state.collectAsState(initial = HomeUiState())
     val updateNotice by vm.updateNotice.collectAsState()
     val scope = rememberCoroutineScope()
+    // set only for a legacy Monitoring Visit row with no visit_type yet (QA report spec §1) --
+    // reportTypeForVisit(visit) returns null for those, so "Start report" must ask which report
+    // instead of guessing.
+    var pendingReportVisit by remember { mutableStateOf<Visit?>(null) }
 
     var addVisitRequest by remember { mutableStateOf<AddVisitRequest?>(null) }
     var showAddTravel by remember { mutableStateOf(false) }
@@ -206,15 +210,19 @@ fun HomeScreen(
                     OngoingVisitCard(
                         visit,
                         reportInfo = state.activeTripReports[visit.id],
-                        reportable = reportTemplate.allowsPurpose(visit.purpose),
+                        reportable = visitEligibleForReport(visit),
                         onClick = { onEditVisit(visit.id) },
                         onOpenReport = { reportId -> onOpenReport(reportId) },
                         onStartReport = {
-                            scope.launch {
-                                val template = surpriseTemplate(context)
-                                val officerName = db.officerDao().byId(officerId)?.name ?: ""
-                                val report = findOrCreateReport(db, template, visit, officerId, officerName)
-                                onOpenReport(report.id)
+                            val forcedType = reportTypeForVisit(visit)
+                            if (forcedType != null) {
+                                scope.launch {
+                                    val officerName = db.officerDao().byId(officerId)?.name ?: ""
+                                    val report = startReportForVisit(db, context, visit, officerId, officerName, forcedType)
+                                    onOpenReport(report.id)
+                                }
+                            } else {
+                                pendingReportVisit = visit
                             }
                         },
                     )
@@ -281,6 +289,21 @@ fun HomeScreen(
                 legs = state.activeTripLegs,
                 db = db,
                 onDismiss = { showTravels = false },
+            )
+        }
+
+        pendingReportVisit?.let { visit ->
+            ReportTypePickerDialog(
+                institute = visit.institute,
+                onPick = { type ->
+                    pendingReportVisit = null
+                    scope.launch {
+                        val officerName = db.officerDao().byId(officerId)?.name ?: ""
+                        val report = startReportForVisit(db, context, visit, officerId, officerName, type)
+                        onOpenReport(report.id)
+                    }
+                },
+                onDismiss = { pendingReportVisit = null },
             )
         }
     }

@@ -77,7 +77,6 @@ fun ReportHub(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val template = remember { surpriseTemplate(context) }
 
     // first thing that touches this report id creates its shared editor (see
     // ReportEditorRegistry's own comment) -- every section/review screen opened from here reuses
@@ -96,6 +95,7 @@ fun ReportHub(
     }
 
     val current = report ?: return
+    val template = remember(current.type) { templateForType(context, current.type) }
     val editor = registry.forReport(current)
     // read from the editor, not from `current` -- the editor may already be ahead of the last
     // Room row this Flow delivered (a debounced write from a section screen still in flight).
@@ -172,14 +172,32 @@ fun ReportHub(
                     )
                 }
             }
-            items(template.sections) { section ->
-                val sectionProgress = progress.sections[section.key]
-                SectionRow(
-                    section = section,
-                    progress = sectionProgress,
-                    subtitle = sectionSubtitle(section, sectionProgress, data, progress.flagsTicked.size),
-                    onClick = { onOpenSection(section.key) },
-                )
+            // QA report spec §8: sections grouped by `group` under a labelled header ("Centre
+            // profile"/"Quality criteria"/"Feedback & conclusions"); the surprise template has no
+            // `group` on any section, so this collapses back to one flat un-headered list there,
+            // same as before this field existed.
+            var lastGroup: String? = null
+            template.sections.forEach { section ->
+                if (section.group != null && section.group != lastGroup) {
+                    lastGroup = section.group
+                    item(key = "group-${section.group}") {
+                        Text(
+                            sectionGroupLabel(section.group),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                    }
+                }
+                item(key = section.key) {
+                    val sectionProgress = progress.sections[section.key]
+                    SectionRow(
+                        section = section,
+                        progress = sectionProgress,
+                        subtitle = sectionSubtitle(section, sectionProgress, data, progress.flagsTicked.size),
+                        onClick = { onOpenSection(section.key) },
+                    )
+                }
             }
         }
     }
@@ -217,7 +235,7 @@ private fun SectionRow(section: ReportSection, progress: SectionProgress?, subti
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            LetterBadge(section.letter, progress)
+            LetterBadge(section.badge, progress)
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(section.title, style = MaterialTheme.typography.bodyLarge)
@@ -233,6 +251,13 @@ private fun SectionRow(section: ReportSection, progress: SectionProgress?, subti
             )
         }
     }
+}
+
+private fun sectionGroupLabel(group: String): String = when (group) {
+    "profile" -> "Centre profile"
+    "criteria" -> "Quality criteria"
+    "conclusions" -> "Feedback & conclusions"
+    else -> group.replaceFirstChar { it.uppercase() }
 }
 
 @Composable
@@ -254,6 +279,12 @@ private fun LetterBadge(letter: String, progress: SectionProgress?) {
 // block shape, never hardcodes a section's own copy.
 private fun sectionSubtitle(section: ReportSection, progress: SectionProgress?, data: ReportData, flagsTickedCount: Int): String {
     if (progress != null && progress.total > 0) {
+        // QA report spec §5: "N of M options marked" + " · K not seen" when K > 0, instead of
+        // the generic "N of M" wording every other block type uses.
+        if (section.blocks.any { it is ReportBlock.Criteria }) {
+            val base = "${progress.answered} of ${progress.total} options marked"
+            return if (progress.notSeenCount > 0) "$base · ${progress.notSeenCount} not seen" else base
+        }
         return if (progress.flagged) "${progress.answered} of ${progress.total} · flagged" else "${progress.answered} of ${progress.total}"
     }
     if (section.blocks.any { it is ReportBlock.Flags }) {

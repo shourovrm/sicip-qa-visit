@@ -21,9 +21,12 @@ class SeedsTest {
         assertTrue(ASSOCIATIONS.contains("BGMEA"))
     }
 
-    @Test fun purposes_are_seven() {
-        assertEquals(7, PURPOSES.size)
-        assertTrue(PURPOSES.contains("Surprise Visit"))
+    // "Surprise Visit" removed (QA report spec §1) -- it's visit_type "surprise" under purpose
+    // "Monitoring Visit" now, not its own purpose.
+    @Test fun purposes_are_six() {
+        assertEquals(6, PURPOSES.size)
+        assertTrue(!PURPOSES.contains("Surprise Visit"))
+        assertTrue(PURPOSES.contains("Monitoring Visit"))
         assertTrue(PURPOSES.contains("Capacity Assessment"))
         assertTrue(PURPOSES.contains("Others"))
     }

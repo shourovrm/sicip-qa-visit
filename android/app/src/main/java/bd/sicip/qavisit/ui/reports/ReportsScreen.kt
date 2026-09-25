@@ -6,7 +6,7 @@
 // today's + upcoming 7 days, own) + Start.
 package bd.sicip.qavisit.ui.reports
 
-import bd.sicip.qavisit.domain.report.allowsPurpose
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.verticalScroll
@@ -39,6 +39,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -74,12 +75,23 @@ private data class ReportsUiState(
     val officerName: String = "",
 )
 
+// every template this build's assets actually have -- keyed by report/visit type. Loaded once
+// with runCatching per entry (not the whole map) so a missing qa-v1.json (before the other
+// agent's shared/ commit lands) only means QA reports/visits are quietly left out of this
+// screen, never a crash for the surprise-report officer using the app meanwhile.
+private fun loadTemplates(context: android.content.Context): Map<String, ReportTemplate> =
+    buildMap {
+        listOf(REPORT_TYPE_SURPRISE, REPORT_TYPE_QA).forEach { type ->
+            runCatching { templateForType(context, type) }.getOrNull()?.let { put(type, it) }
+        }
+    }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportsScreen(officerId: String, db: AppDb, onOpenReport: (String) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val template = remember { surpriseTemplate(context) }
+    val templates = remember { loadTemplates(context) }
 
     // same reasoning as VisitsScreen/TeamScreen: kick a pull on entry so a colleague's sync
     // isn't the only thing that refreshes this list.
@@ -98,6 +110,9 @@ fun ReportsScreen(officerId: String, db: AppDb, onOpenReport: (String) -> Unit) 
 
     var showSubmitted by remember { mutableStateOf(false) }
     var showNewReportSheet by remember { mutableStateOf(false) }
+    // set only for a legacy Monitoring Visit row with no visit_type yet (spec §1) -- "Start
+    // report" on its row must ask which report instead of guessing.
+    var pendingReportVisit by remember { mutableStateOf<Visit?>(null) }
 
     val activeTrip = state.activeTrip
     val visitById = state.myVisits.associateBy { it.id }
@@ -106,8 +121,15 @@ fun ReportsScreen(officerId: String, db: AppDb, onOpenReport: (String) -> Unit) 
     val today = LocalDate.now().toString() // local date: the utc one is yesterday before 06:00 in dhaka
     val reportedVisitIds = state.reports.map { it.visitId }.toSet()
     val noReportVisits = state.myVisits.filter { v ->
-        v.id !in reportedVisitIds && template.allowsPurpose(v.purpose) &&
+        v.id !in reportedVisitIds && visitEligibleForReport(v) &&
             ((activeTrip != null && v.tripId == activeTrip.id) || v.startDate == today)
+    }
+
+    fun startReport(visit: Visit, type: String) {
+        scope.launch {
+            val report = startReportForVisit(db, context, visit, officerId, state.officerName, type)
+            onOpenReport(report.id)
+        }
     }
 
     Scaffold(
@@ -149,7 +171,7 @@ fun ReportsScreen(officerId: String, db: AppDb, onOpenReport: (String) -> Unit) 
                 }
                 items(shown) { report ->
                     val visit = visitById[report.visitId]
-                    ReportCard(report, visit, template, onClick = { onOpenReport(report.id) })
+                    ReportCard(report, visit, templates[report.type], onClick = { onOpenReport(report.id) })
                 }
                 if (!showSubmitted && noReportVisits.isNotEmpty()) {
                     item {
@@ -163,10 +185,8 @@ fun ReportsScreen(officerId: String, db: AppDb, onOpenReport: (String) -> Unit) 
                         NoReportVisitRow(
                             visit,
                             onStart = {
-                                scope.launch {
-                                    val report = findOrCreateReport(db, template, visit, officerId, state.officerName)
-                                    onOpenReport(report.id)
-                                }
+                                val forcedType = reportTypeForVisit(visit)
+                                if (forcedType != null) startReport(visit, forcedType) else pendingReportVisit = visit
                             },
                         )
                     }
@@ -177,15 +197,39 @@ fun ReportsScreen(officerId: String, db: AppDb, onOpenReport: (String) -> Unit) 
 
     if (showNewReportSheet) {
         NewReportSheet(
-            officerId = officerId,
-            officerName = state.officerName,
-            visits = candidateVisits(state.myVisits.filter { template.allowsPurpose(it.purpose) }, activeTrip, today),
-            template = template,
-            db = db,
+            visits = candidateVisits(state.myVisits.filter { visitEligibleForReport(it) }, activeTrip, today),
+            templates = templates,
             onDismiss = { showNewReportSheet = false },
-            onStarted = { reportId -> showNewReportSheet = false; onOpenReport(reportId) },
+            onStart = { visit, type -> showNewReportSheet = false; startReport(visit, type) },
         )
     }
+
+    pendingReportVisit?.let { visit ->
+        ReportTypePickerDialog(
+            institute = visit.institute,
+            onPick = { type -> pendingReportVisit = null; startReport(visit, type) },
+            onDismiss = { pendingReportVisit = null },
+        )
+    }
+}
+
+// legacy Monitoring Visit rows with no visit_type (spec §1) can't pick a template on their own --
+// this small dialog is the officer's fallback, shared by ReportsScreen.kt's own two entry points
+// (New-report sheet, "Start report" row) and HomeScreen.kt's ongoing-visit report line.
+@Composable
+fun ReportTypePickerDialog(institute: String, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Which report?") },
+        text = { Text("\"$institute\" was scheduled before the monitoring type existed. Pick which report to start.") },
+        confirmButton = {
+            Column(horizontalAlignment = Alignment.End) {
+                TextButton(onClick = { onPick(REPORT_TYPE_SURPRISE) }) { Text("Surprise visit") }
+                TextButton(onClick = { onPick(REPORT_TYPE_QA) }) { Text("QA visit") }
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 // active tour visits + last 30 days + next 7 days, own. reports get written during AND after
@@ -202,10 +246,13 @@ private fun candidateVisits(myVisits: List<Visit>, activeTrip: Trip?, today: Str
 }
 
 @Composable
-private fun ReportCard(report: Report, visit: Visit?, template: ReportTemplate, onClick: () -> Unit) {
+private fun ReportCard(report: Report, visit: Visit?, template: ReportTemplate?, onClick: () -> Unit) {
     val data = remember(report.data) { ReportData.parse(report.data) }
-    val progress = remember(data) { computeProgress(template, data) }
-    val flaggedSections = progress.sections.values.count { it.flagged }
+    // template can only be null when this build's assets don't have this report's type yet
+    // (qa-v1.json missing) -- the card still opens (registry loads it lazily where it's actually
+    // needed), it just can't show a progress bar for something it can't compute.
+    val progress = remember(data, template) { template?.let { computeProgress(it, data) } }
+    val flaggedSections = progress?.sections?.values?.count { it.flagged } ?: 0
 
     Card(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
         Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -231,16 +278,18 @@ private fun ReportCard(report: Report, visit: Visit?, template: ReportTemplate, 
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                LinearProgressIndicator(
-                    progress = { if (progress.sectionsCounted == 0) 0f else progress.sectionsDone.toFloat() / progress.sectionsCounted },
-                    modifier = Modifier.weight(1f).height(6.dp),
-                )
-                Text(
-                    "${progress.sectionsDone} of ${progress.sectionsCounted} sections",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            if (progress != null) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LinearProgressIndicator(
+                        progress = { if (progress.sectionsCounted == 0) 0f else progress.sectionsDone.toFloat() / progress.sectionsCounted },
+                        modifier = Modifier.weight(1f).height(6.dp),
+                    )
+                    Text(
+                        "${progress.sectionsDone} of ${progress.sectionsCounted} sections",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
@@ -274,20 +323,23 @@ private fun NoReportVisitRow(visit: Visit, onStart: () -> Unit) {
     }
 }
 
+// mockup: the visit is picked FIRST, then the "Report" section shows ONE row -- the type the
+// visit's own monitoring type already decided, label = that template's own `short` (spec: "No
+// 'Annex-3' text in UI", never hardcoded here). Only a legacy visit with no visit_type falls
+// back to letting the officer choose between the two (radio rows, same as before this feature).
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NewReportSheet(
-    officerId: String,
-    officerName: String,
     visits: List<Visit>,
-    template: ReportTemplate,
-    db: AppDb,
+    templates: Map<String, ReportTemplate>,
     onDismiss: () -> Unit,
-    onStarted: (String) -> Unit,
+    onStart: (Visit, String) -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
     var selectedVisitId by remember(visits) { mutableStateOf(visits.firstOrNull()?.id) }
-    var starting by remember { mutableStateOf(false) }
+    val selectedVisit = visits.firstOrNull { it.id == selectedVisitId }
+    val forcedType = selectedVisit?.let { reportTypeForVisit(it) }
+    var chosenType by remember { mutableStateOf(forcedType) }
+    LaunchedEffect(selectedVisitId) { chosenType = forcedType }
 
     // open fully: half-open hides the pinned Start button under the visit list
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -295,11 +347,7 @@ private fun NewReportSheet(
         Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("New report", style = MaterialTheme.typography.titleLarge)
 
-            Text("TYPE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            TypeOptionRow(label = "Surprise visit", subtitle = templateSummary(template), selected = true, enabled = true, onClick = {})
-            TypeOptionRow(label = "Monitoring / QA visit", subtitle = "Coming in a later version", selected = false, enabled = false, onClick = {})
-
-            Text("FOR VISIT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("VISIT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (visits.isEmpty()) {
                 Text(
                     "No matching visits in the last 30 days or the next 7.",
@@ -321,24 +369,44 @@ private fun NewReportSheet(
                 }
             }
 
+            Text("REPORT", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (selectedVisit == null) {
+                Text("Pick a visit first.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else if (forcedType != null) {
+                val template = templates[forcedType]
+                TypeOptionRow(
+                    label = template?.short ?: reportTypeLabel(forcedType),
+                    subtitle = template?.let { "${templateSummary(it)} · set by the visit's monitoring type" } ?: "Set by the visit's monitoring type",
+                    selected = true,
+                    enabled = template != null,
+                    onClick = {},
+                )
+            } else {
+                listOf(REPORT_TYPE_SURPRISE, REPORT_TYPE_QA).forEach { type ->
+                    val template = templates[type]
+                    TypeOptionRow(
+                        label = template?.short ?: reportTypeLabel(type),
+                        subtitle = template?.let { templateSummary(it) } ?: "Not available in this app version",
+                        selected = chosenType == type,
+                        enabled = template != null,
+                        onClick = { chosenType = type },
+                    )
+                }
+            }
+
             Button(
                 onClick = {
-                    val visit = visits.firstOrNull { it.id == selectedVisitId } ?: return@Button
-                    if (starting) return@Button
-                    starting = true
-                    scope.launch {
-                        val report = findOrCreateReport(db, template, visit, officerId, officerName)
-                        starting = false
-                        onStarted(report.id)
-                    }
+                    val visit = selectedVisit ?: return@Button
+                    val type = chosenType ?: return@Button
+                    onStart(visit, type)
                 },
-                enabled = !starting && selectedVisitId != null,
+                enabled = selectedVisit != null && chosenType != null && templates.containsKey(chosenType),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.tertiary,
                     contentColor = MaterialTheme.colorScheme.onTertiary,
                 ),
                 modifier = Modifier.fillMaxWidth().height(48.dp),
-            ) { Text(if (starting) "Starting…" else "Start report") }
+            ) { Text("Start") }
         }
     }
 }

@@ -94,8 +94,6 @@ fun ReportReview(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val template = remember { surpriseTemplate(context) }
-    val itemLocations = remember(template) { checklistItemLocations(template) }
 
     val report by remember(reportId) { db.reportDao().byIdFlow(reportId).filterNotNull() }.collectAsState(initial = null)
     var visit by remember { mutableStateOf<Visit?>(null) }
@@ -111,6 +109,8 @@ fun ReportReview(
     }
 
     val current = report ?: return
+    val template = remember(current.type) { templateForType(context, current.type) }
+    val itemLocations = remember(template) { checklistItemLocations(template) }
     // reuses the SAME editor any section screen already opened for this report id -- see
     // ReportEditorRegistry's comment. Submit (below) then flushes+writes the truly-latest data,
     // never a copy this screen's own first composition happened to see.
@@ -125,6 +125,18 @@ fun ReportReview(
     val rewritableLocations = remember(editor.data) {
         collectRewritableLocations(template, editor.data).filter { it.currentText(editor.data).isNotBlank() }
     }
+    // QA report spec §8: "AI remarks button per criteria section (... + Review)" -- one row per
+    // criteria section that still has something eligible to send (domain/report/Remarks.kt's
+    // criteriaNeedsAiRun), so Review doubles as a "what's left to polish" checklist instead of
+    // making the officer hunt back through 9 section screens one at a time.
+    val criteriaSectionsPending = remember(editor.data) {
+        template.sections.filter { section ->
+            section.blocks.filterIsInstance<ReportBlock.Criteria>()
+                .flatMap { it.items }
+                .any { !it.heading && bd.sicip.qavisit.domain.report.criteriaNeedsAiRun(it, editor.data) }
+        }
+    }
+    var aiRemarksSection by remember { mutableStateOf<ReportSection?>(null) }
 
     // insets already applied by AppShell's scaffold
     Scaffold(
@@ -226,6 +238,19 @@ fun ReportReview(
                 }
             }
 
+            if (criteriaSectionsPending.isNotEmpty() && !editor.readOnly) {
+                item { Text("AI remarks", style = MaterialTheme.typography.labelLarge) }
+                items(criteriaSectionsPending) { section ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("${section.badge}. ${section.title}", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                        TextButton(onClick = { aiRemarksSection = section }) { Text("Run") }
+                    }
+                }
+            }
+
             if (progress.flagsTicked.isNotEmpty()) {
                 item { Text("Flags ticked", style = MaterialTheme.typography.labelLarge) }
                 items(progress.flagsTicked) { flagId ->
@@ -315,6 +340,15 @@ fun ReportReview(
                 ) { Text(if (submitting) "Submitting…" else "Submit") }
             },
             dismissButton = { TextButton(onClick = { if (!submitting) showSubmitConfirm = false }) { Text("Cancel") } },
+        )
+    }
+
+    aiRemarksSection?.let { section ->
+        CriteriaAiRemarksDialog(
+            sectionTitle = "${section.badge}. ${section.title}",
+            section = section,
+            editor = editor,
+            onDismiss = { aiRemarksSection = null },
         )
     }
 }

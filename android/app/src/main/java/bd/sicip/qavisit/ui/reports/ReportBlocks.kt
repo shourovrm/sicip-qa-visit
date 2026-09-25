@@ -245,6 +245,7 @@ fun FieldEditor(
 @Composable
 fun FieldsBlockView(block: ReportBlock.Fields, data: ReportData, readOnly: Boolean, editor: ReportEditor, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        block.heading?.let { Text(it, style = MaterialTheme.typography.titleSmall) }
         block.fields.forEach { field ->
             FieldEditor(
                 field = field,

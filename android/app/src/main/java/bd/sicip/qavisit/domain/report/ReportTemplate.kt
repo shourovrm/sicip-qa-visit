@@ -24,8 +24,14 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
+// tone defaults to "" (not a required column in every choice field) -- qa-v1.json's plain
+// informational choice fields (e.g. section 1's "Signed with other organizations?" yes/na) carry
+// no tone at all, unlike surprise-v1.json's checklist-style yes/no/partial/na answers which
+// always do. ui/theme/Color.kt's forToneId and pdf/*.kt's TONE_COLOR both already fall back to a
+// neutral colour for "" or any other unrecognised id, so this never renders as a crash or as a
+// stray flagged-red.
 @Serializable
-data class AnswerOption(val id: String, val label: String, val tone: String)
+data class AnswerOption(val id: String, val label: String, val tone: String = "")
 
 // perCourse: with 2+ non-blank courses in section A, this item renders/answers ONE ROW PER
 // COURSE instead of a single answer row (spec CHANGE SET 3) -- see ReportLinks.kt's
@@ -114,8 +120,11 @@ data class Field(
 
 @Serializable
 sealed class ReportBlock {
+    // `heading` (qa-v1.json's section 1 only, e.g. "1.20 Contract/MoU Information") labels one
+    // fields block as its own numbered sub-section, same idea as Cards/Checklist's own `heading` --
+    // surprise-v1.json's fields blocks never set it, so it stays null there.
     @Serializable
-    data class Fields(val fields: List<Field>) : ReportBlock()
+    data class Fields(val fields: List<Field>, val heading: String? = null) : ReportBlock()
 
     @Serializable
     data class Checklist(val key: String, val heading: String? = null, val items: List<ChecklistItem>) : ReportBlock()

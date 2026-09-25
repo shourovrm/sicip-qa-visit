@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -35,12 +36,15 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.AppDb
+import bd.sicip.qavisit.domain.report.ReportBlock
 import bd.sicip.qavisit.domain.report.computeProgress
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -58,10 +62,10 @@ fun ReportSectionScreen(
     onBack: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    val template = remember { surpriseTemplate(context) }
     val reportFlow = remember(reportId) { db.reportDao().byIdFlow(reportId).filterNotNull() }
     val report by reportFlow.collectAsState(initial = null)
     val current = report ?: return
+    val template = remember(current.type) { templateForType(context, current.type) }
 
     // reuses the SAME editor the hub (and any other section already visited) is using for this
     // report id -- see ReportEditorRegistry's comment for why that matters.
@@ -70,6 +74,9 @@ fun ReportSectionScreen(
     val sectionIndex = template.sections.indexOf(section)
     val prevSection = template.sections.getOrNull(sectionIndex - 1)
     val nextSection = template.sections.getOrNull(sectionIndex + 1)
+    // "AI remarks" (spec §6/§8) only makes sense on a section with at least one criteria block.
+    val hasCriteria = section.blocks.any { it is ReportBlock.Criteria }
+    var showAiRemarks by remember { mutableStateOf(false) }
 
     val progress = remember(editor.data) { computeProgress(template, editor.data) }
     val sectionProgress = progress.sections[section.key]
@@ -97,7 +104,7 @@ fun ReportSectionScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Text("${section.letter}. ${section.title}")
+                            Text("${section.badge}. ${section.title}")
                             if (section.optional) OptionalTag()
                         }
                         if (sectionProgress != null && sectionProgress.total > 0) {
@@ -110,6 +117,15 @@ fun ReportSectionScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { leave(onBack) }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                },
+                actions = {
+                    // spec §6/§8: "AI remarks" section screen top-bar action, only where there's
+                    // a criteria block to run it against.
+                    if (hasCriteria && !editor.readOnly) {
+                        IconButton(onClick = { showAiRemarks = true }) {
+                            Icon(Icons.Filled.AutoAwesome, contentDescription = "AI remarks")
+                        }
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -134,7 +150,7 @@ fun ReportSectionScreen(
                     colors = actionButtonColors(),
                     modifier = Modifier.weight(1f).height(48.dp),
                 ) {
-                    Text(if (nextSection != null) "Next: ${nextSection.letter}. ${nextSection.short}" else "Review")
+                    Text(if (nextSection != null) "Next: ${nextSection.badge}. ${nextSection.short}" else "Review")
                 }
             }
         },
@@ -161,5 +177,14 @@ fun ReportSectionScreen(
                 )
             }
         }
+    }
+
+    if (showAiRemarks) {
+        CriteriaAiRemarksDialog(
+            sectionTitle = "${section.badge}. ${section.title}",
+            section = section,
+            editor = editor,
+            onDismiss = { showAiRemarks = false },
+        )
     }
 }
