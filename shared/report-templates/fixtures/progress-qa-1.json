@@ -1,0 +1,168 @@
+{
+ "template": "qa-v1.json",
+ "data": {
+  "fields": {
+   "ti_name": "Dhaka Skills Institute"
+  },
+  "cards": {},
+  "criteria": {
+   "s2_1": {
+    "opts": {
+     "qms_process": {
+      "v": "seen"
+     },
+     "qms_assessment": {
+      "v": "seen"
+     },
+     "self_assessment_team": {
+      "v": "seen"
+     },
+     "self_appraisal": {
+      "v": "seen"
+     },
+     "feedback_plan": {
+      "v": "seen"
+     },
+     "visit_log": {
+      "v": "seen"
+     }
+    }
+   },
+   "s4_2": {
+    "opts": {
+     "applicants_list": {
+      "v": "seen"
+     },
+     "admission_forms": {
+      "v": "not"
+     }
+    }
+   },
+   "s8_1c": {
+    "opts": {
+     "extinguisher": {
+      "v": "seen"
+     },
+     "first_aid": {
+      "v": "seen"
+     },
+     "ppe_list": {
+      "v": "not"
+     },
+     "ppe_symbols": {
+      "v": "na"
+     },
+     "ppe_use": {
+      "v": "not"
+     }
+    }
+   }
+  }
+ },
+ "expected": {
+  "sections": {
+   "s1": {
+    "answered": 1,
+    "total": 4,
+    "done": false,
+    "flagged": false
+   },
+   "s2": {
+    "answered": 6,
+    "total": 6,
+    "done": true,
+    "flagged": false
+   },
+   "s3": {
+    "answered": 0,
+    "total": 12,
+    "done": false,
+    "flagged": false
+   },
+   "s4": {
+    "answered": 2,
+    "total": 19,
+    "done": false,
+    "flagged": true,
+    "notSeen": 1
+   },
+   "s5": {
+    "answered": 0,
+    "total": 15,
+    "done": false,
+    "flagged": false
+   },
+   "s6": {
+    "answered": 0,
+    "total": 9,
+    "done": false,
+    "flagged": false
+   },
+   "s7": {
+    "answered": 0,
+    "total": 12,
+    "done": false,
+    "flagged": false
+   },
+   "s8": {
+    "answered": 5,
+    "total": 24,
+    "done": false,
+    "flagged": true,
+    "notSeen": 2
+   },
+   "s9": {
+    "answered": 0,
+    "total": 11,
+    "done": false,
+    "flagged": false
+   },
+   "s10": {
+    "answered": 0,
+    "total": 10,
+    "done": false,
+    "flagged": false
+   },
+   "s11": {
+    "answered": 0,
+    "total": 0,
+    "done": false,
+    "flagged": false
+   },
+   "s12": {
+    "answered": 0,
+    "total": 0,
+    "done": false,
+    "flagged": false
+   },
+   "s13": {
+    "answered": 0,
+    "total": 0,
+    "done": false,
+    "flagged": false
+   },
+   "s14": {
+    "answered": 0,
+    "total": 0,
+    "done": false,
+    "flagged": false
+   },
+   "s15": {
+    "answered": 0,
+    "total": 0,
+    "done": false,
+    "flagged": false
+   }
+  },
+  "sectionsDone": 1,
+  "sectionsCounted": 10,
+  "answerCounts": {},
+  "unansweredCount": 0,
+  "firstUnanswered": null,
+  "flagsTicked": [],
+  "customFlags": [],
+  "sectionsWithContent": [
+   "s1"
+  ]
+ }
+}

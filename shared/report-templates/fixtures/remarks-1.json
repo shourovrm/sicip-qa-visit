@@ -1,0 +1,930 @@
+[
+ {
+  "case": "marked seen + detail, plain seen, unmarked remark (short fallback), evidence + note",
+  "item": {
+   "id": "s8_1c",
+   "no": "c)",
+   "text": "Safety and fire prevention equipment available and in working conditions",
+   "evidence": "- fire extinguishers, date of last examination, first aid kits are available with centre. (state date of last examination)\n- List of available Personal Protective Equipment (or enumerate available PPE) is attached\n- PPE symbols are displayed in the class room/workshop (photos)\n- Safety & PPE symbols are displayed in the class room/workshop",
+   "options": [
+    {
+     "id": "extinguisher",
+     "label": "Fire extinguishers",
+     "src": [
+      "A3"
+     ],
+     "detail": "Date of last examination",
+     "seen": "Fire extinguishers are available and in working condition{, last examined on $}.",
+     "not": "No working fire extinguisher was found.",
+     "na": ""
+    },
+    {
+     "id": "first_aid",
+     "label": "First aid kit",
+     "src": [
+      "A3"
+     ],
+     "seen": "First aid kit is available.",
+     "not": "No first aid kit was found.",
+     "na": ""
+    },
+    {
+     "id": "ppe_list",
+     "label": "List of available PPE",
+     "src": [
+      "CL",
+      "FC"
+     ],
+     "detail": "PPE listed (optional)",
+     "seen": "A list of available PPE is kept{: $}.",
+     "not": "No list of available PPE was found.",
+     "na": ""
+    },
+    {
+     "id": "ppe_symbols",
+     "label": "Safety and PPE symbols displayed",
+     "short": "Safety and PPE symbols",
+     "src": [
+      "A3"
+     ],
+     "seen": "Safety and PPE symbols are displayed in the classroom and workshop.",
+     "not": "Safety and PPE symbols are not displayed in the classroom or workshop.",
+     "na": ""
+    },
+    {
+     "id": "ppe_use",
+     "label": "PPE used during practice",
+     "short": "PPE use",
+     "src": [
+      "CL"
+     ],
+     "seen": "Trainees were using the required PPE during practice.",
+     "not": "Trainees were not using the required PPE during practice.",
+     "na": ""
+    }
+   ]
+  },
+  "entry": {
+   "opts": {
+    "extinguisher": {
+     "v": "seen",
+     "detail": "12/02/2026",
+     "remark": ""
+    },
+    "first_aid": {
+     "v": "seen",
+     "detail": "",
+     "remark": ""
+    },
+    "ppe_list": {
+     "v": "not",
+     "detail": "",
+     "remark": "Office says the list is kept at head office"
+    },
+    "ppe_symbols": {
+     "v": "",
+     "detail": "",
+     "remark": "Workshop 2 was locked"
+    },
+    "ppe_use": {
+     "v": "not",
+     "detail": "",
+     "remark": ""
+    }
+   },
+   "evidence": "Extinguisher inspection tag, first aid kit in workshop 2",
+   "note": "Principal promised a PPE list by 30/09/2026",
+   "ai": {
+    "source": "",
+    "text": ""
+   }
+  },
+  "bullets": [
+   "Fire extinguishers are available and in working condition, last examined on 12/02/2026.",
+   "First aid kit is available.",
+   "No list of available PPE was found. Office says the list is kept at head office.",
+   "Safety and PPE symbols: Workshop 2 was locked.",
+   "Trainees were not using the required PPE during practice.",
+   "Evidence seen: Extinguisher inspection tag, first aid kit in workshop 2.",
+   "Principal promised a PPE list by 30/09/2026."
+  ],
+  "printed": [
+   "Fire extinguishers are available and in working condition, last examined on 12/02/2026.",
+   "First aid kit is available.",
+   "No list of available PPE was found. Office says the list is kept at head office.",
+   "Safety and PPE symbols: Workshop 2 was locked.",
+   "Trainees were not using the required PPE during practice.",
+   "Evidence seen: Extinguisher inspection tag, first aid kit in workshop 2.",
+   "Principal promised a PPE list by 30/09/2026."
+  ]
+ },
+ {
+  "case": "fresh ai -- source matches current bullets, printed uses ai.text",
+  "item": {
+   "id": "s8_1c",
+   "no": "c)",
+   "text": "Safety and fire prevention equipment available and in working conditions",
+   "evidence": "- fire extinguishers, date of last examination, first aid kits are available with centre. (state date of last examination)\n- List of available Personal Protective Equipment (or enumerate available PPE) is attached\n- PPE symbols are displayed in the class room/workshop (photos)\n- Safety & PPE symbols are displayed in the class room/workshop",
+   "options": [
+    {
+     "id": "extinguisher",
+     "label": "Fire extinguishers",
+     "src": [
+      "A3"
+     ],
+     "detail": "Date of last examination",
+     "seen": "Fire extinguishers are available and in working condition{, last examined on $}.",
+     "not": "No working fire extinguisher was found.",
+     "na": ""
+    },
+    {
+     "id": "first_aid",
+     "label": "First aid kit",
+     "src": [
+      "A3"
+     ],
+     "seen": "First aid kit is available.",
+     "not": "No first aid kit was found.",
+     "na": ""
+    },
+    {
+     "id": "ppe_list",
+     "label": "List of available PPE",
+     "src": [
+      "CL",
+      "FC"
+     ],
+     "detail": "PPE listed (optional)",
+     "seen": "A list of available PPE is kept{: $}.",
+     "not": "No list of available PPE was found.",
+     "na": ""
+    },
+    {
+     "id": "ppe_symbols",
+     "label": "Safety and PPE symbols displayed",
+     "short": "Safety and PPE symbols",
+     "src": [
+      "A3"
+     ],
+     "seen": "Safety and PPE symbols are displayed in the classroom and workshop.",
+     "not": "Safety and PPE symbols are not displayed in the classroom or workshop.",
+     "na": ""
+    },
+    {
+     "id": "ppe_use",
+     "label": "PPE used during practice",
+     "short": "PPE use",
+     "src": [
+      "CL"
+     ],
+     "seen": "Trainees were using the required PPE during practice.",
+     "not": "Trainees were not using the required PPE during practice.",
+     "na": ""
+    }
+   ]
+  },
+  "entry": {
+   "opts": {
+    "extinguisher": {
+     "v": "seen",
+     "detail": "12/02/2026",
+     "remark": ""
+    },
+    "first_aid": {
+     "v": "seen",
+     "detail": "",
+     "remark": ""
+    },
+    "ppe_list": {
+     "v": "not",
+     "detail": "",
+     "remark": ""
+    },
+    "ppe_symbols": {
+     "v": "",
+     "detail": "",
+     "remark": "Workshop 2 was locked"
+    },
+    "ppe_use": {
+     "v": "not",
+     "detail": "",
+     "remark": ""
+    }
+   },
+   "evidence": "Extinguisher inspection tag, first aid kit in workshop 2",
+   "note": "",
+   "ai": {
+    "source": "Fire extinguishers are available and in working condition, last examined on 12/02/2026.\nFirst aid kit is available.\nNo list of available PPE was found.\nSafety and PPE symbols: Workshop 2 was locked.\nTrainees were not using the required PPE during practice.\nEvidence seen: Extinguisher inspection tag, first aid kit in workshop 2.",
+    "text": "Fire extinguishers work; last examined 12/02/2026 (tag seen).\nFirst aid kit kept in workshop 2.\nNo PPE list on site.\nSafety and PPE symbols not checked: workshop 2 was locked."
+   }
+  },
+  "bullets": [
+   "Fire extinguishers are available and in working condition, last examined on 12/02/2026.",
+   "First aid kit is available.",
+   "No list of available PPE was found.",
+   "Safety and PPE symbols: Workshop 2 was locked.",
+   "Trainees were not using the required PPE during practice.",
+   "Evidence seen: Extinguisher inspection tag, first aid kit in workshop 2."
+  ],
+  "printed": [
+   "Fire extinguishers work; last examined 12/02/2026 (tag seen).",
+   "First aid kit kept in workshop 2.",
+   "No PPE list on site.",
+   "Safety and PPE symbols not checked: workshop 2 was locked."
+  ]
+ },
+ {
+  "case": "stale ai -- source no longer matches, printed falls back to bullets",
+  "item": {
+   "id": "s8_1c",
+   "no": "c)",
+   "text": "Safety and fire prevention equipment available and in working conditions",
+   "evidence": "- fire extinguishers, date of last examination, first aid kits are available with centre. (state date of last examination)\n- List of available Personal Protective Equipment (or enumerate available PPE) is attached\n- PPE symbols are displayed in the class room/workshop (photos)\n- Safety & PPE symbols are displayed in the class room/workshop",
+   "options": [
+    {
+     "id": "extinguisher",
+     "label": "Fire extinguishers",
+     "src": [
+      "A3"
+     ],
+     "detail": "Date of last examination",
+     "seen": "Fire extinguishers are available and in working condition{, last examined on $}.",
+     "not": "No working fire extinguisher was found.",
+     "na": ""
+    },
+    {
+     "id": "first_aid",
+     "label": "First aid kit",
+     "src": [
+      "A3"
+     ],
+     "seen": "First aid kit is available.",
+     "not": "No first aid kit was found.",
+     "na": ""
+    },
+    {
+     "id": "ppe_list",
+     "label": "List of available PPE",
+     "src": [
+      "CL",
+      "FC"
+     ],
+     "detail": "PPE listed (optional)",
+     "seen": "A list of available PPE is kept{: $}.",
+     "not": "No list of available PPE was found.",
+     "na": ""
+    },
+    {
+     "id": "ppe_symbols",
+     "label": "Safety and PPE symbols displayed",
+     "short": "Safety and PPE symbols",
+     "src": [
+      "A3"
+     ],
+     "seen": "Safety and PPE symbols are displayed in the classroom and workshop.",
+     "not": "Safety and PPE symbols are not displayed in the classroom or workshop.",
+     "na": ""
+    },
+    {
+     "id": "ppe_use",
+     "label": "PPE used during practice",
+     "short": "PPE use",
+     "src": [
+      "CL"
+     ],
+     "seen": "Trainees were using the required PPE during practice.",
+     "not": "Trainees were not using the required PPE during practice.",
+     "na": ""
+    }
+   ]
+  },
+  "entry": {
+   "opts": {
+    "extinguisher": {
+     "v": "seen",
+     "detail": "12/02/2026",
+     "remark": ""
+    },
+    "first_aid": {
+     "v": "seen",
+     "detail": "",
+     "remark": ""
+    },
+    "ppe_list": {
+     "v": "not",
+     "detail": "",
+     "remark": ""
+    },
+    "ppe_symbols": {
+     "v": "",
+     "detail": "",
+     "remark": "Workshop 2 was locked"
+    },
+    "ppe_use": {
+     "v": "not",
+     "detail": "",
+     "remark": ""
+    }
+   },
+   "evidence": "Extinguisher inspection tag, first aid kit in workshop 2",
+   "note": "",
+   "ai": {
+    "source": "something that no longer matches",
+    "text": "An old AI rewrite that must not print."
+   }
+  },
+  "bullets": [
+   "Fire extinguishers are available and in working condition, last examined on 12/02/2026.",
+   "First aid kit is available.",
+   "No list of available PPE was found.",
+   "Safety and PPE symbols: Workshop 2 was locked.",
+   "Trainees were not using the required PPE during practice.",
+   "Evidence seen: Extinguisher inspection tag, first aid kit in workshop 2."
+  ],
+  "printed": [
+   "Fire extinguishers are available and in working condition, last examined on 12/02/2026.",
+   "First aid kit is available.",
+   "No list of available PPE was found.",
+   "Safety and PPE symbols: Workshop 2 was locked.",
+   "Trainees were not using the required PPE during practice.",
+   "Evidence seen: Extinguisher inspection tag, first aid kit in workshop 2."
+  ]
+ },
+ {
+  "case": "na \"\" prints nothing, na with a real sentence still prints",
+  "item": {
+   "id": "s4_2",
+   "no": "2.",
+   "text": "Selection and enrolment are properly done (list of applicants and trainees admitted, waiting lists, interview protocols, admission test results)",
+   "evidence": "List of applicants and trainees admitted, waiting lists are recorded and maintained and available with the centre (trainees list)",
+   "options": [
+    {
+     "id": "applicants_list",
+     "label": "List of applicants",
+     "src": [
+      "CL"
+     ],
+     "detail": "Number of applicants (optional)",
+     "seen": "A list of applicants is available{ ($ applicants)}.",
+     "not": "No list of applicants was found.",
+     "na": ""
+    },
+    {
+     "id": "admission_forms",
+     "label": "Admission form and supporting documents",
+     "src": [
+      "CL"
+     ],
+     "seen": "Admission forms with supporting documents are kept.",
+     "not": "Admission forms or supporting documents are missing.",
+     "na": ""
+    },
+    {
+     "id": "test_participant_list",
+     "label": "Participant list at selection tests",
+     "src": [
+      "CL"
+     ],
+     "seen": "A participant list of the selection tests is available.",
+     "not": "No participant list of the selection tests was found.",
+     "na": ""
+    },
+    {
+     "id": "selection_criteria",
+     "label": "Criteria of selection",
+     "src": [
+      "CL"
+     ],
+     "seen": "Selection criteria (age, education, aptitude test, interview) are documented.",
+     "not": "Selection criteria are not documented.",
+     "na": ""
+    },
+    {
+     "id": "test_results_summary",
+     "label": "Results summary of aptitude tests / interviews",
+     "short": "Test / interview results summary",
+     "src": [
+      "CL"
+     ],
+     "seen": "A results summary of aptitude tests and interviews is available.",
+     "not": "No results summary of aptitude tests or interviews was found.",
+     "na": ""
+    },
+    {
+     "id": "final_list",
+     "label": "Final list of trainees",
+     "src": [
+      "CL"
+     ],
+     "seen": "A final list of trainees is available.",
+     "not": "No final list of trainees was found.",
+     "na": ""
+    },
+    {
+     "id": "waiting_list",
+     "label": "Waiting list of trainees",
+     "src": [
+      "CL"
+     ],
+     "seen": "A waiting list of trainees is maintained.",
+     "not": "No waiting list of trainees is maintained.",
+     "na": "No waiting list was needed."
+    },
+    {
+     "id": "tms_upload",
+     "label": "Enrolment information uploaded in TMS",
+     "short": "TMS upload",
+     "src": [
+      "CL"
+     ],
+     "seen": "Trainees' enrolment information is uploaded in TMS.",
+     "not": "Trainees' enrolment information is not uploaded in TMS.",
+     "na": ""
+    }
+   ]
+  },
+  "entry": {
+   "opts": {
+    "applicants_list": {
+     "v": "na",
+     "detail": "",
+     "remark": ""
+    },
+    "waiting_list": {
+     "v": "na",
+     "detail": "",
+     "remark": ""
+    }
+   },
+   "evidence": "",
+   "note": ""
+  },
+  "bullets": [
+   "No waiting list was needed."
+  ],
+  "printed": [
+   "No waiting list was needed."
+  ]
+ },
+ {
+  "case": "detail group dropped when the detail box is blank",
+  "item": {
+   "id": "s4_2",
+   "no": "2.",
+   "text": "Selection and enrolment are properly done (list of applicants and trainees admitted, waiting lists, interview protocols, admission test results)",
+   "evidence": "List of applicants and trainees admitted, waiting lists are recorded and maintained and available with the centre (trainees list)",
+   "options": [
+    {
+     "id": "applicants_list",
+     "label": "List of applicants",
+     "src": [
+      "CL"
+     ],
+     "detail": "Number of applicants (optional)",
+     "seen": "A list of applicants is available{ ($ applicants)}.",
+     "not": "No list of applicants was found.",
+     "na": ""
+    },
+    {
+     "id": "admission_forms",
+     "label": "Admission form and supporting documents",
+     "src": [
+      "CL"
+     ],
+     "seen": "Admission forms with supporting documents are kept.",
+     "not": "Admission forms or supporting documents are missing.",
+     "na": ""
+    },
+    {
+     "id": "test_participant_list",
+     "label": "Participant list at selection tests",
+     "src": [
+      "CL"
+     ],
+     "seen": "A participant list of the selection tests is available.",
+     "not": "No participant list of the selection tests was found.",
+     "na": ""
+    },
+    {
+     "id": "selection_criteria",
+     "label": "Criteria of selection",
+     "src": [
+      "CL"
+     ],
+     "seen": "Selection criteria (age, education, aptitude test, interview) are documented.",
+     "not": "Selection criteria are not documented.",
+     "na": ""
+    },
+    {
+     "id": "test_results_summary",
+     "label": "Results summary of aptitude tests / interviews",
+     "short": "Test / interview results summary",
+     "src": [
+      "CL"
+     ],
+     "seen": "A results summary of aptitude tests and interviews is available.",
+     "not": "No results summary of aptitude tests or interviews was found.",
+     "na": ""
+    },
+    {
+     "id": "final_list",
+     "label": "Final list of trainees",
+     "src": [
+      "CL"
+     ],
+     "seen": "A final list of trainees is available.",
+     "not": "No final list of trainees was found.",
+     "na": ""
+    },
+    {
+     "id": "waiting_list",
+     "label": "Waiting list of trainees",
+     "src": [
+      "CL"
+     ],
+     "seen": "A waiting list of trainees is maintained.",
+     "not": "No waiting list of trainees is maintained.",
+     "na": "No waiting list was needed."
+    },
+    {
+     "id": "tms_upload",
+     "label": "Enrolment information uploaded in TMS",
+     "short": "TMS upload",
+     "src": [
+      "CL"
+     ],
+     "seen": "Trainees' enrolment information is uploaded in TMS.",
+     "not": "Trainees' enrolment information is not uploaded in TMS.",
+     "na": ""
+    }
+   ]
+  },
+  "entry": {
+   "opts": {
+    "applicants_list": {
+     "v": "seen",
+     "detail": "",
+     "remark": ""
+    }
+   },
+   "evidence": "",
+   "note": ""
+  },
+  "bullets": [
+   "A list of applicants is available."
+  ],
+  "printed": [
+   "A list of applicants is available."
+  ]
+ },
+ {
+  "case": "detail group filled in",
+  "item": {
+   "id": "s4_2",
+   "no": "2.",
+   "text": "Selection and enrolment are properly done (list of applicants and trainees admitted, waiting lists, interview protocols, admission test results)",
+   "evidence": "List of applicants and trainees admitted, waiting lists are recorded and maintained and available with the centre (trainees list)",
+   "options": [
+    {
+     "id": "applicants_list",
+     "label": "List of applicants",
+     "src": [
+      "CL"
+     ],
+     "detail": "Number of applicants (optional)",
+     "seen": "A list of applicants is available{ ($ applicants)}.",
+     "not": "No list of applicants was found.",
+     "na": ""
+    },
+    {
+     "id": "admission_forms",
+     "label": "Admission form and supporting documents",
+     "src": [
+      "CL"
+     ],
+     "seen": "Admission forms with supporting documents are kept.",
+     "not": "Admission forms or supporting documents are missing.",
+     "na": ""
+    },
+    {
+     "id": "test_participant_list",
+     "label": "Participant list at selection tests",
+     "src": [
+      "CL"
+     ],
+     "seen": "A participant list of the selection tests is available.",
+     "not": "No participant list of the selection tests was found.",
+     "na": ""
+    },
+    {
+     "id": "selection_criteria",
+     "label": "Criteria of selection",
+     "src": [
+      "CL"
+     ],
+     "seen": "Selection criteria (age, education, aptitude test, interview) are documented.",
+     "not": "Selection criteria are not documented.",
+     "na": ""
+    },
+    {
+     "id": "test_results_summary",
+     "label": "Results summary of aptitude tests / interviews",
+     "short": "Test / interview results summary",
+     "src": [
+      "CL"
+     ],
+     "seen": "A results summary of aptitude tests and interviews is available.",
+     "not": "No results summary of aptitude tests or interviews was found.",
+     "na": ""
+    },
+    {
+     "id": "final_list",
+     "label": "Final list of trainees",
+     "src": [
+      "CL"
+     ],
+     "seen": "A final list of trainees is available.",
+     "not": "No final list of trainees was found.",
+     "na": ""
+    },
+    {
+     "id": "waiting_list",
+     "label": "Waiting list of trainees",
+     "src": [
+      "CL"
+     ],
+     "seen": "A waiting list of trainees is maintained.",
+     "not": "No waiting list of trainees is maintained.",
+     "na": "No waiting list was needed."
+    },
+    {
+     "id": "tms_upload",
+     "label": "Enrolment information uploaded in TMS",
+     "short": "TMS upload",
+     "src": [
+      "CL"
+     ],
+     "seen": "Trainees' enrolment information is uploaded in TMS.",
+     "not": "Trainees' enrolment information is not uploaded in TMS.",
+     "na": ""
+    }
+   ]
+  },
+  "entry": {
+   "opts": {
+    "applicants_list": {
+     "v": "seen",
+     "detail": "184",
+     "remark": ""
+    }
+   },
+   "evidence": "",
+   "note": ""
+  },
+  "bullets": [
+   "A list of applicants is available (184 applicants)."
+  ],
+  "printed": [
+   "A list of applicants is available (184 applicants)."
+  ]
+ },
+ {
+  "case": "unmarked-option remark falls back to the option's label (no short)",
+  "item": {
+   "id": "s8_1c",
+   "no": "c)",
+   "text": "Safety and fire prevention equipment available and in working conditions",
+   "evidence": "- fire extinguishers, date of last examination, first aid kits are available with centre. (state date of last examination)\n- List of available Personal Protective Equipment (or enumerate available PPE) is attached\n- PPE symbols are displayed in the class room/workshop (photos)\n- Safety & PPE symbols are displayed in the class room/workshop",
+   "options": [
+    {
+     "id": "extinguisher",
+     "label": "Fire extinguishers",
+     "src": [
+      "A3"
+     ],
+     "detail": "Date of last examination",
+     "seen": "Fire extinguishers are available and in working condition{, last examined on $}.",
+     "not": "No working fire extinguisher was found.",
+     "na": ""
+    },
+    {
+     "id": "first_aid",
+     "label": "First aid kit",
+     "src": [
+      "A3"
+     ],
+     "seen": "First aid kit is available.",
+     "not": "No first aid kit was found.",
+     "na": ""
+    },
+    {
+     "id": "ppe_list",
+     "label": "List of available PPE",
+     "src": [
+      "CL",
+      "FC"
+     ],
+     "detail": "PPE listed (optional)",
+     "seen": "A list of available PPE is kept{: $}.",
+     "not": "No list of available PPE was found.",
+     "na": ""
+    },
+    {
+     "id": "ppe_symbols",
+     "label": "Safety and PPE symbols displayed",
+     "short": "Safety and PPE symbols",
+     "src": [
+      "A3"
+     ],
+     "seen": "Safety and PPE symbols are displayed in the classroom and workshop.",
+     "not": "Safety and PPE symbols are not displayed in the classroom or workshop.",
+     "na": ""
+    },
+    {
+     "id": "ppe_use",
+     "label": "PPE used during practice",
+     "short": "PPE use",
+     "src": [
+      "CL"
+     ],
+     "seen": "Trainees were using the required PPE during practice.",
+     "not": "Trainees were not using the required PPE during practice.",
+     "na": ""
+    }
+   ]
+  },
+  "entry": {
+   "opts": {
+    "first_aid": {
+     "v": "",
+     "detail": "",
+     "remark": "Kit expired"
+    }
+   },
+   "evidence": "",
+   "note": ""
+  },
+  "bullets": [
+   "First aid kit: Kit expired."
+  ],
+  "printed": [
+   "First aid kit: Kit expired."
+  ]
+ },
+ {
+  "case": "ensureStop leaves an existing ? alone",
+  "item": {
+   "id": "s8_1c",
+   "no": "c)",
+   "text": "Safety and fire prevention equipment available and in working conditions",
+   "evidence": "- fire extinguishers, date of last examination, first aid kits are available with centre. (state date of last examination)\n- List of available Personal Protective Equipment (or enumerate available PPE) is attached\n- PPE symbols are displayed in the class room/workshop (photos)\n- Safety & PPE symbols are displayed in the class room/workshop",
+   "options": [
+    {
+     "id": "extinguisher",
+     "label": "Fire extinguishers",
+     "src": [
+      "A3"
+     ],
+     "detail": "Date of last examination",
+     "seen": "Fire extinguishers are available and in working condition{, last examined on $}.",
+     "not": "No working fire extinguisher was found.",
+     "na": ""
+    },
+    {
+     "id": "first_aid",
+     "label": "First aid kit",
+     "src": [
+      "A3"
+     ],
+     "seen": "First aid kit is available.",
+     "not": "No first aid kit was found.",
+     "na": ""
+    },
+    {
+     "id": "ppe_list",
+     "label": "List of available PPE",
+     "src": [
+      "CL",
+      "FC"
+     ],
+     "detail": "PPE listed (optional)",
+     "seen": "A list of available PPE is kept{: $}.",
+     "not": "No list of available PPE was found.",
+     "na": ""
+    },
+    {
+     "id": "ppe_symbols",
+     "label": "Safety and PPE symbols displayed",
+     "short": "Safety and PPE symbols",
+     "src": [
+      "A3"
+     ],
+     "seen": "Safety and PPE symbols are displayed in the classroom and workshop.",
+     "not": "Safety and PPE symbols are not displayed in the classroom or workshop.",
+     "na": ""
+    },
+    {
+     "id": "ppe_use",
+     "label": "PPE used during practice",
+     "short": "PPE use",
+     "src": [
+      "CL"
+     ],
+     "seen": "Trainees were using the required PPE during practice.",
+     "not": "Trainees were not using the required PPE during practice.",
+     "na": ""
+    }
+   ]
+  },
+  "entry": {
+   "opts": {
+    "ppe_symbols": {
+     "v": "",
+     "detail": "",
+     "remark": "Is this correct?"
+    }
+   },
+   "evidence": "",
+   "note": ""
+  },
+  "bullets": [
+   "Safety and PPE symbols: Is this correct?"
+  ],
+  "printed": [
+   "Safety and PPE symbols: Is this correct?"
+  ]
+ },
+ {
+  "case": "nothing entered -- empty bullets",
+  "item": {
+   "id": "s8_1c",
+   "no": "c)",
+   "text": "Safety and fire prevention equipment available and in working conditions",
+   "evidence": "- fire extinguishers, date of last examination, first aid kits are available with centre. (state date of last examination)\n- List of available Personal Protective Equipment (or enumerate available PPE) is attached\n- PPE symbols are displayed in the class room/workshop (photos)\n- Safety & PPE symbols are displayed in the class room/workshop",
+   "options": [
+    {
+     "id": "extinguisher",
+     "label": "Fire extinguishers",
+     "src": [
+      "A3"
+     ],
+     "detail": "Date of last examination",
+     "seen": "Fire extinguishers are available and in working condition{, last examined on $}.",
+     "not": "No working fire extinguisher was found.",
+     "na": ""
+    },
+    {
+     "id": "first_aid",
+     "label": "First aid kit",
+     "src": [
+      "A3"
+     ],
+     "seen": "First aid kit is available.",
+     "not": "No first aid kit was found.",
+     "na": ""
+    },
+    {
+     "id": "ppe_list",
+     "label": "List of available PPE",
+     "src": [
+      "CL",
+      "FC"
+     ],
+     "detail": "PPE listed (optional)",
+     "seen": "A list of available PPE is kept{: $}.",
+     "not": "No list of available PPE was found.",
+     "na": ""
+    },
+    {
+     "id": "ppe_symbols",
+     "label": "Safety and PPE symbols displayed",
+     "short": "Safety and PPE symbols",
+     "src": [
+      "A3"
+     ],
+     "seen": "Safety and PPE symbols are displayed in the classroom and workshop.",
+     "not": "Safety and PPE symbols are not displayed in the classroom or workshop.",
+     "na": ""
+    },
+    {
+     "id": "ppe_use",
+     "label": "PPE used during practice",
+     "short": "PPE use",
+     "src": [
+      "CL"
+     ],
+     "seen": "Trainees were using the required PPE during practice.",
+     "not": "Trainees were not using the required PPE during practice.",
+     "na": ""
+    }
+   ]
+  },
+  "entry": {
+   "opts": {},
+   "evidence": "",
+   "note": ""
+  },
+  "bullets": [],
+  "printed": []
+ }
+]
