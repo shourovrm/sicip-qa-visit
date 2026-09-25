@@ -27,6 +27,18 @@ class RewriteClientTest {
         assertEquals("""{"text":"Attendance was low today.","label":"remarks"}""", body)
     }
 
+    @Test fun request_body_carries_draft_mode() {
+        val body = buildRewriteRequestBody("1. No PPE.", "", mode = "plan")
+        assertEquals("""{"text":"1. No PPE.","label":"","mode":"plan"}""", body)
+    }
+
+    @Test fun draft_modes_get_bigger_length_cap() {
+        assertEquals(DRAFT_MAX_CHARS, maxCharsFor("strengths"))
+        assertEquals(DRAFT_MAX_CHARS, maxCharsFor("findings"))
+        assertEquals(REWRITE_MAX_CHARS, maxCharsFor("remarks"))
+        assertEquals(REWRITE_MAX_CHARS, maxCharsFor(null))
+    }
+
     @Test fun response_text_parsed_out_of_200_body() {
         assertEquals("Attendance was low today.", parseRewriteResponseText("""{"text":"Attendance was low today."}"""))
     }

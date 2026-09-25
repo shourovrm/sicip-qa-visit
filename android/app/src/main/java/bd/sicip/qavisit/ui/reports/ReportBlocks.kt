@@ -243,10 +243,16 @@ fun FieldEditor(
 }
 
 @Composable
-fun FieldsBlockView(block: ReportBlock.Fields, data: ReportData, readOnly: Boolean, editor: ReportEditor, modifier: Modifier = Modifier) {
+fun FieldsBlockView(block: ReportBlock.Fields, data: ReportData, readOnly: Boolean, editor: ReportEditor, template: ReportTemplate, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         block.heading?.let { Text(it, style = MaterialTheme.typography.titleSmall) }
         block.fields.forEach { field ->
+            // QA s14/s15 draft buttons sit above their box (QaDraftFields.kt)
+            when (field.draftFrom) {
+                null -> Unit
+                "weaknesses" -> FindingsDraftButton(field, template, data, readOnly, editor)
+                else -> RecommendationsFromPlan(field, data, readOnly, editor)
+            }
             FieldEditor(
                 field = field,
                 value = data.field(field.key),
@@ -443,6 +449,8 @@ fun CardsBlockView(
         // a section can hold several card blocks (A: persons + courses) -- the heading says which
         block.heading?.let { Text(it, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp)) }
         block.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        // QA s16 plan: rebuilt from s13 weaknesses (QaDraftFields.kt)
+        if (block.draftFrom != null) PlanDraftButton(block, template, data, readOnly, editor)
         if (block.display == "tabs") {
             // section I's interviews: one course tab at a time instead of a stacked list --
             // spec CHANGE SET 3.
@@ -610,6 +618,13 @@ private fun linkedCardHeader(block: ReportBlock.Cards, entry: JsonObject): Strin
         .ifBlank { block.itemLabel }
 }
 
+// QA feedback cards: "Trainee 2 · Welding" (titleField = trade), never a name
+private fun anonymousCardHeader(block: ReportBlock.Cards, entry: JsonObject, index: Int): String {
+    val title = entry[block.titleField]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+    val number = "${block.itemLabel} ${index + 1}"
+    return if (title.isBlank()) number else "$number · $title"
+}
+
 @Composable
 private fun CardEntryView(
     block: ReportBlock.Cards,
@@ -634,7 +649,11 @@ private fun CardEntryView(
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    if (isLinked) linkedCardHeader(block, entry) else "${block.itemLabel} ${index + 1}",
+                    when {
+                        isLinked -> linkedCardHeader(block, entry)
+                        block.anonymous -> anonymousCardHeader(block, entry, index)
+                        else -> "${block.itemLabel} ${index + 1}"
+                    },
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.weight(1f),
                 )
@@ -725,7 +744,12 @@ fun ReportBlockView(
     onOpenSection: (String) -> Unit,
 ) {
     when (block) {
-        is ReportBlock.Fields -> FieldsBlockView(block, data, readOnly, editor)
+        // QA s13: component pairs get their own grouped editor (QaStrengthsBlock.kt)
+        is ReportBlock.Fields -> if (block.pairs.isNotEmpty()) {
+            StrengthsPairsBlockView(block, template, data, readOnly, editor)
+        } else {
+            FieldsBlockView(block, data, readOnly, editor, template)
+        }
         is ReportBlock.Checklist -> ChecklistBlockView(block, answers, data, readOnly, editor)
         is ReportBlock.Cards -> CardsBlockView(block, data, readOnly, editor, template, onOpenSection)
         is ReportBlock.Flags -> FlagsBlockView(block, data, readOnly, editor)

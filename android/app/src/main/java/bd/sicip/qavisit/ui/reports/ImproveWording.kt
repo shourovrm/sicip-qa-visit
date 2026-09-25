@@ -45,7 +45,7 @@ import kotlinx.coroutines.launch
 // plain framework check -- this build ships no-GMS, so no play-services connectivity helper.
 // NET_CAPABILITY_VALIDATED means the network actually reaches the internet, not just "connected"
 // to e.g. a captive-portal wifi with no route out.
-private fun isOnline(context: Context): Boolean {
+internal fun isOnline(context: Context): Boolean {
     val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
     val caps = manager.getNetworkCapabilities(manager.activeNetwork) ?: return false
     return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&

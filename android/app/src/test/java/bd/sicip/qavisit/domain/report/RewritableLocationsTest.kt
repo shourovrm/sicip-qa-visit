@@ -114,4 +114,22 @@ class RewritableLocationsTest {
         // original (pre-apply) copy is unaffected -- ReportData is immutable
         assertEquals("original attendance remarks", data.cardField("attendance", 0, "remarks"))
     }
+
+    @Test
+    fun `qa feedback and plan action are rewritable, choice questions are not`() {
+        val template = parseReportTemplate(File("../../shared/report-templates/qa-v1.json").readText())
+        val data = ReportData.EMPTY
+            .withCardAdded("trainee_feedback", buildJsonObject { put("_id", "t1"); put("trade", "Welding"); put("tq1", "no") })
+            .withCardAdded("plan", buildJsonObject { put("_id", "p1"); put("weakness", "PPE list missing."); put("action", "Make a list.") })
+
+        val cardKeys = collectRewritableLocations(template, data).filterIsInstance<RewritableLocation.CardField>()
+        val feedback = cardKeys.single { it.cardsKey == "trainee_feedback" }
+        assertEquals("feedback", feedback.fieldKey)
+        assertEquals("Welding · Any problem or suggestion", feedback.label)
+        val plan = cardKeys.single { it.cardsKey == "plan" }
+        assertEquals("action", plan.fieldKey)
+        // longtext title (weakness) is prose, not a name
+        assertEquals("Action 1 · Improvement action", plan.label)
+        assertTrue(cardKeys.none { it.fieldKey.startsWith("tq") || it.fieldKey == "weakness" })
+    }
 }

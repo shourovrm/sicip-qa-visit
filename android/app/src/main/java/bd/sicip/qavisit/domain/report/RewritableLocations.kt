@@ -59,7 +59,9 @@ private fun cardDisplayName(block: ReportBlock.Cards, card: JsonObject, excludeF
         val batch = card["batch"]?.jsonPrimitive?.contentOrNull
         if (!course.isNullOrBlank()) return if (batch.isNullOrBlank()) course else "$course · Batch $batch"
     }
-    if (block.titleField != excludeFieldKey) {
+    // a longtext title (QA s16 plan's `weakness`) is prose, not a name -> "Action N" fallback
+    val titleIsProse = block.fields.firstOrNull { it.key == block.titleField }?.kind == "longtext"
+    if (block.titleField != excludeFieldKey && !titleIsProse) {
         val title = card[block.titleField]?.jsonPrimitive?.contentOrNull
         if (!title.isNullOrBlank()) return title
     }

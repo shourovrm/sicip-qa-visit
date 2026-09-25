@@ -25,6 +25,12 @@ private const val TIMEOUT_MS = 20_000
 // remark never makes a round trip just to be told no.
 const val REWRITE_MAX_CHARS = 1500
 
+// QA conclusions draft modes (spec 2026-09-26 §3): whole component / weakness list, bigger cap
+val DRAFT_MODES = setOf("strengths", "plan", "findings")
+const val DRAFT_MAX_CHARS = 6000
+
+internal fun maxCharsFor(mode: String?): Int = if (mode in DRAFT_MODES) DRAFT_MAX_CHARS else REWRITE_MAX_CHARS
+
 const val REWRITE_TOO_LONG_MESSAGE = "Too long to improve (max 1500 characters)"
 const val REWRITE_OFFLINE_MESSAGE = "You are offline"
 
@@ -51,7 +57,7 @@ data class RewriteModelsResponse(val default: String, val models: List<RewriteMo
 
 // pure: builds the fixed {"text","label"[,"model"][,"mode"]} request body the worker expects.
 // modelKey null means "let the server use its own default" -- the key is simply omitted, never
-// sent blank. mode "remarks" (QA report spec §6) asks the worker's /api/rewrite for its
+// sent blank. mode "remarks"/"strengths"/"plan"/"findings" asks the worker's /api/rewrite for its
 // bullet-list rewrite prompt instead of the default single-field one; null (every other caller,
 // e.g. ImproveWordingButton) omits the field entirely, same as today.
 internal fun buildRewriteRequestBody(text: String, label: String, modelKey: String? = null, mode: String? = null): String =
@@ -93,7 +99,7 @@ class RewriteClient {
     // fall back on, per the API contract -- android never validates it against the model list).
     suspend fun rewrite(text: String, label: String, accessToken: String, modelKey: String? = null, mode: String? = null): RewriteResult =
         withContext(Dispatchers.IO) {
-            if (text.length > REWRITE_MAX_CHARS) return@withContext RewriteResult.Err(REWRITE_TOO_LONG_MESSAGE)
+            if (text.length > maxCharsFor(mode)) return@withContext RewriteResult.Err(REWRITE_TOO_LONG_MESSAGE)
             try {
                 val conn = URL(REWRITE_URL).openConnection() as HttpsURLConnection
                 try {
