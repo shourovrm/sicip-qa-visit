@@ -90,7 +90,7 @@ fun TripScreen(
                 Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     // weighted + ellipsized so a long institute name can never squeeze the pill offscreen.
                     Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                        Text(visit.institute, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(visit.institute, style = MaterialTheme.typography.titleMedium)
                         Text(
                             "${visit.purpose} · ${visit.district}",
                             style = MaterialTheme.typography.bodySmall,

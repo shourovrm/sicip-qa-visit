@@ -272,7 +272,7 @@ private fun ReportCard(report: Report, visit: Visit?, template: ReportTemplate?,
                     textAlign = TextAlign.End,
                 )
             }
-            Text(visit?.institute ?: "", style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(visit?.institute ?: "", style = MaterialTheme.typography.titleMedium)
             Text(
                 "${visit?.startDate ?: ""}${data.field("arrival_time").let { if (it.isNotBlank()) " · arrived $it" else "" }}",
                 style = MaterialTheme.typography.bodySmall,
@@ -315,7 +315,7 @@ private fun NoReportVisitRow(visit: Visit, onStart: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(visit.institute, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(visit.institute, style = MaterialTheme.typography.bodyLarge)
                 Text(visit.purpose, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Button(onClick = onStart, modifier = Modifier.height(40.dp)) { Text("Start report") }

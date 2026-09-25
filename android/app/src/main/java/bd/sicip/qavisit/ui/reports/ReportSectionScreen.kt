@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -74,9 +73,9 @@ fun ReportSectionScreen(
     val sectionIndex = template.sections.indexOf(section)
     val prevSection = template.sections.getOrNull(sectionIndex - 1)
     val nextSection = template.sections.getOrNull(sectionIndex + 1)
-    // "AI remarks" (spec §6/§8) only makes sense on a section with at least one criteria block.
+    // section remarks review only makes sense on a section with a criteria block
     val hasCriteria = section.blocks.any { it is ReportBlock.Criteria }
-    var showAiRemarks by remember { mutableStateOf(false) }
+    var showSectionRemarks by remember { mutableStateOf(false) }
 
     val progress = remember(editor.data) { computeProgress(template, editor.data) }
     val sectionProgress = progress.sections[section.key]
@@ -118,15 +117,6 @@ fun ReportSectionScreen(
                 navigationIcon = {
                     IconButton(onClick = { leave(onBack) }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
                 },
-                actions = {
-                    // spec §6/§8: "AI remarks" section screen top-bar action, only where there's
-                    // a criteria block to run it against.
-                    if (hasCriteria && !editor.readOnly) {
-                        IconButton(onClick = { showAiRemarks = true }) {
-                            Icon(Icons.Filled.AutoAwesome, contentDescription = "AI remarks")
-                        }
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
@@ -142,7 +132,7 @@ fun ReportSectionScreen(
             ) {
                 if (prevSection != null) {
                     OutlinedButton(onClick = { leave { onOpenSection(prevSection.key) } }, modifier = Modifier.height(48.dp)) {
-                        Text(prevSection.letter)
+                        Text(prevSection.badge)
                     }
                 }
                 Button(
@@ -176,15 +166,22 @@ fun ReportSectionScreen(
                     onOpenSection = { key -> leave { onOpenSection(key) } },
                 )
             }
+            if (hasCriteria) {
+                item {
+                    OutlinedButton(onClick = { showSectionRemarks = true }, modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                        Text("Review section remarks")
+                    }
+                }
+            }
         }
     }
 
-    if (showAiRemarks) {
-        CriteriaAiRemarksDialog(
+    if (showSectionRemarks) {
+        SectionRemarksDialog(
             sectionTitle = "${section.badge}. ${section.title}",
             section = section,
             editor = editor,
-            onDismiss = { showAiRemarks = false },
+            onDismiss = { showSectionRemarks = false },
         )
     }
 }

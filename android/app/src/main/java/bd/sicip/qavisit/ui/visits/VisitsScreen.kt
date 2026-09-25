@@ -301,7 +301,7 @@ private fun VisitRow(visit: Visit, officerName: String?, onClick: () -> Unit, pi
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Text(visit.institute, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(visit.institute, style = MaterialTheme.typography.titleMedium)
                 Text(
                     "${visit.purpose} · ${visit.district} · ${visit.startDate} – ${visit.endDate}",
                     style = MaterialTheme.typography.bodySmall,

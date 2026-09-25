@@ -125,18 +125,11 @@ fun ReportReview(
     val rewritableLocations = remember(editor.data) {
         collectRewritableLocations(template, editor.data).filter { it.currentText(editor.data).isNotBlank() }
     }
-    // QA report spec §8: "AI remarks button per criteria section (... + Review)" -- one row per
-    // criteria section that still has something eligible to send (domain/report/Remarks.kt's
-    // criteriaNeedsAiRun), so Review doubles as a "what's left to polish" checklist instead of
-    // making the officer hunt back through 9 section screens one at a time.
-    val criteriaSectionsPending = remember(editor.data) {
-        template.sections.filter { section ->
-            section.blocks.filterIsInstance<ReportBlock.Criteria>()
-                .flatMap { it.items }
-                .any { !it.heading && bd.sicip.qavisit.domain.report.criteriaNeedsAiRun(it, editor.data) }
-        }
+    // every section with a criteria block gets a "Review" row: its remarks, each with Edit
+    val criteriaSectionsPending = remember(template) {
+        template.sections.filter { section -> section.blocks.any { it is ReportBlock.Criteria } }
     }
-    var aiRemarksSection by remember { mutableStateOf<ReportSection?>(null) }
+    var remarksSection by remember { mutableStateOf<ReportSection?>(null) }
 
     // insets already applied by AppShell's scaffold
     Scaffold(
@@ -239,14 +232,14 @@ fun ReportReview(
             }
 
             if (criteriaSectionsPending.isNotEmpty() && !editor.readOnly) {
-                item { Text("AI remarks", style = MaterialTheme.typography.labelLarge) }
+                item { Text("Section remarks", style = MaterialTheme.typography.labelLarge) }
                 items(criteriaSectionsPending) { section ->
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text("${section.badge}. ${section.title}", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { aiRemarksSection = section }) { Text("Run") }
+                        TextButton(onClick = { remarksSection = section }) { Text("Review") }
                     }
                 }
             }
@@ -343,12 +336,12 @@ fun ReportReview(
         )
     }
 
-    aiRemarksSection?.let { section ->
-        CriteriaAiRemarksDialog(
+    remarksSection?.let { section ->
+        SectionRemarksDialog(
             sectionTitle = "${section.badge}. ${section.title}",
             section = section,
             editor = editor,
-            onDismiss = { aiRemarksSection = null },
+            onDismiss = { remarksSection = null },
         )
     }
 }

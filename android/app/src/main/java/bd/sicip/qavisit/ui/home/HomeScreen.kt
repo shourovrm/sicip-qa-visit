@@ -513,7 +513,7 @@ private fun OngoingVisitCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                    Text(visit.institute, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(visit.institute, style = MaterialTheme.typography.titleMedium)
                     Text(
                         "${visit.purpose} · ${visit.district} · ${visit.startDate}",
                         style = MaterialTheme.typography.bodySmall,
@@ -579,7 +579,7 @@ private fun UpcomingVisitCard(visit: Visit, onClick: () -> Unit, onAddAnother: (
         ) {
             // weighted + ellipsized so a long institute name can never squeeze the pill offscreen.
             Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                Text(visit.institute, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(visit.institute, style = MaterialTheme.typography.titleMedium)
                 Text(
                     "${visit.purpose} · ${visit.district} · ${visit.startDate}",
                     style = MaterialTheme.typography.bodySmall,

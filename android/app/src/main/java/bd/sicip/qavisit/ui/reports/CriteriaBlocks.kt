@@ -10,11 +10,11 @@
 // (pdf/QaReportHtml.kt) prints from, so what the officer sees here is never out of sync with the
 // output.
 //
-// "AI remarks" (spec §6) is CriteriaAiRemarksDialog below -- a full-screen Dialog (no new nav
-// route needed) that runs domain/report/Remarks.kt's criteriaNeedsAiRun-eligible items of ONE
-// section sequentially, one Cloudflare Worker request at a time, showing before/after per item
-// and letting the officer accept or keep the original; a 429 waits data/remote/RewriteClient.kt's
-// parsed (or default 10s) retry_after and resumes the SAME item instead of giving up on it.
+// Every text box has an Improve wording button (same as the surprise report). The Remarks
+// preview has Edit: the officer rewrites the final remarks by hand (with Improve wording too);
+// the edit is stored as the item's `ai` entry (source = the bullets it replaced), so changing an
+// answer later makes it stale and the preview says so. SectionRemarksDialog lists one section's
+// remarks with Edit on each -- opened from the end of the section and from Review.
 package bd.sicip.qavisit.ui.reports
 
 import androidx.compose.foundation.background
@@ -25,28 +25,23 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -54,39 +49,26 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import bd.sicip.qavisit.data.auth.SessionStore
-import bd.sicip.qavisit.data.remote.RewriteClient
-import bd.sicip.qavisit.data.remote.RewriteResult
-import bd.sicip.qavisit.data.remote.SupabaseClient
 import bd.sicip.qavisit.domain.report.CriteriaItem
 import bd.sicip.qavisit.domain.report.CriteriaOption
 import bd.sicip.qavisit.domain.report.ReportBlock
 import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportSection
 import bd.sicip.qavisit.domain.report.buildRemarks
-import bd.sicip.qavisit.domain.report.criteriaNeedsAiRun
-import bd.sicip.qavisit.domain.report.numbersPreserved
 import bd.sicip.qavisit.domain.report.printedRemarks
-import bd.sicip.qavisit.settings.RewriteModelPrefs
 import bd.sicip.qavisit.ui.theme.LocalToneColors
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @Composable
 fun CriteriaBlockView(block: ReportBlock.Criteria, data: ReportData, readOnly: Boolean, editor: ReportEditor, modifier: Modifier = Modifier) {
@@ -121,13 +103,18 @@ private fun CriteriaItemCard(item: CriteriaItem, data: ReportData, readOnly: Boo
             item.options.forEach { option ->
                 OptionRow(item.id, option, data, readOnly, editor)
             }
-            var evidenceOpen by remember(item.id) { mutableStateOf(data.criteriaEvidence(item.id).isNotBlank()) }
             OutlinedTextField(
                 value = data.criteriaEvidence(item.id),
                 onValueChange = { v -> editor.editDebounced(data.withCriteriaEvidence(item.id, v)) },
                 label = { Text("Evidence seen (documents, photos)") },
                 readOnly = readOnly,
                 modifier = Modifier.fillMaxWidth(),
+            )
+            ImproveWordingButton(
+                text = data.criteriaEvidence(item.id),
+                label = "Evidence seen: ${item.text}",
+                readOnly = readOnly,
+                onApply = { v -> editor.editNow(editor.data.withCriteriaEvidence(item.id, v)) },
             )
             OutlinedTextField(
                 value = data.criteriaNote(item.id),
@@ -136,7 +123,13 @@ private fun CriteriaItemCard(item: CriteriaItem, data: ReportData, readOnly: Boo
                 readOnly = readOnly,
                 modifier = Modifier.fillMaxWidth(),
             )
-            RemarksPreview(item, data)
+            ImproveWordingButton(
+                text = data.criteriaNote(item.id),
+                label = item.text,
+                readOnly = readOnly,
+                onApply = { v -> editor.editNow(editor.data.withCriteriaNote(item.id, v)) },
+            )
+            RemarksPreview(item, data, readOnly, editor)
         }
     }
 }
@@ -177,8 +170,13 @@ private fun OptionRow(itemId: String, option: CriteriaOption, data: ReportData, 
                 onValueChange = { v -> editor.editDebounced(data.withCriteriaOpt(itemId, option.id, remark = v)) },
                 label = { Text("Remark on this point") },
                 readOnly = readOnly,
-                singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
+            )
+            ImproveWordingButton(
+                text = remark,
+                label = option.label,
+                readOnly = readOnly,
+                onApply = { v -> editor.editNow(editor.data.withCriteriaOpt(itemId, option.id, remark = v)) },
             )
         } else if (!readOnly) {
             TextButton(onClick = { remarkOpen = true }) { Text("Add remark") }
@@ -229,148 +227,112 @@ private fun ThreeWayButtons(selected: String, readOnly: Boolean, onSelect: (Stri
 }
 
 @Composable
-private fun RemarksPreview(item: CriteriaItem, data: ReportData) {
-    val bullets = printedRemarks(item, data)
+private fun RemarksPreview(item: CriteriaItem, data: ReportData, readOnly: Boolean, editor: ReportEditor) {
+    var editing by remember(item.id) { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(
-            "Remarks preview",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        if (bullets.isEmpty()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "Nothing yet. Mark an option to add a sentence.",
-                style = MaterialTheme.typography.bodySmall,
+                "Remarks preview",
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
             )
-        } else {
-            bullets.forEach { bullet ->
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("•", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(bullet, style = MaterialTheme.typography.bodySmall)
-                }
+            if (!readOnly && printedRemarks(item, data).isNotEmpty()) {
+                TextButton(onClick = { editing = true }) { Text("Edit") }
             }
         }
+        RemarksBullets(item, data)
+    }
+    if (editing) RemarksEditDialog(item, editor, onDismiss = { editing = false })
+}
+
+// printed bullets + a note when a hand edit no longer matches the answers
+@Composable
+private fun RemarksBullets(item: CriteriaItem, data: ReportData) {
+    val bullets = printedRemarks(item, data)
+    if (bullets.isEmpty()) {
+        Text(
+            "Nothing yet. Mark an option to add a sentence.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+    bullets.forEach { bullet ->
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("•", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(bullet, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+    val edited = data.criteriaAiText(item.id)
+    val stale = edited.isNotBlank() && data.criteriaAiSource(item.id) != buildRemarks(item, data).joinToString("\n")
+    if (stale) {
+        Text(
+            "Answers changed after your edit, so the remarks were rebuilt. Tap Edit to write them again.",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.error,
+        )
     }
 }
 
-// ============================== AI remarks (spec §6) ==============================
 
-private enum class AiItemStatus { PENDING, RUNNING, WAITING_RETRY, READY, ACCEPTED, KEPT, SKIPPED }
+// hand edit of one criterion's final remarks, one point per line. Save stores it against the
+// bullets it replaces (withCriteriaAi); Reset drops it and prints the built bullets again.
+@Composable
+private fun RemarksEditDialog(item: CriteriaItem, editor: ReportEditor, onDismiss: () -> Unit) {
+    var text by remember(item.id) { mutableStateOf(printedRemarks(item, editor.data).joinToString("\n")) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit remarks") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("${item.no.orEmpty()} ${item.text}".trim(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("One point per line") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                ImproveWordingButton(text = text, label = item.text, readOnly = false, onApply = { text = it })
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val source = buildRemarks(item, editor.data).joinToString("\n")
+                    editor.editNow(editor.data.withCriteriaAi(item.id, source, text.trim()))
+                    onDismiss()
+                },
+                colors = actionButtonColors(),
+            ) { Text("Save") }
+        },
+        dismissButton = {
+            Row {
+                if (editor.data.criteriaAiText(item.id).isNotBlank()) {
+                    TextButton(onClick = {
+                        editor.editNow(editor.data.withCriteriaAiCleared(item.id))
+                        onDismiss()
+                    }) { Text("Reset") }
+                }
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+            }
+        },
+    )
+}
 
-private data class AiItemState(
-    val item: CriteriaItem,
-    val status: AiItemStatus,
-    val before: List<String> = emptyList(),
-    val after: String = "",
-    val note: String = "",
-)
-
-// eligible items across every `criteria` block of one section, in template order -- computed
-// once when the dialog opens, not re-derived as items are accepted/kept (an item accepted a
-// moment ago must not vanish off the list mid-run just because its own ai.source now matches).
-private fun eligibleCriteriaItems(section: ReportSection, data: ReportData): List<CriteriaItem> =
-    section.blocks.filterIsInstance<ReportBlock.Criteria>()
-        .flatMap { it.items }
-        .filter { !it.heading && criteriaNeedsAiRun(it, data) }
-
+// one section's remarks, criterion by criterion, each with Edit (end of section + Review)
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
-fun CriteriaAiRemarksDialog(
-    sectionTitle: String,
-    section: ReportSection,
-    editor: ReportEditor,
-    onDismiss: () -> Unit,
-) {
-    val context = LocalContext.current
-    // cancelled automatically when this composable leaves composition (onDismiss's caller stops
-    // rendering it) -- spec §6: "stop on leaving" the AI remarks screen.
-    val scope = rememberCoroutineScope()
-    val sessionStore = remember { SessionStore(context) }
-    val supabaseClient = remember { SupabaseClient() }
-    val rewriteClient = remember { RewriteClient() }
-    val rewriteModelPrefs = remember { RewriteModelPrefs(context) }
-    val modelKey by rewriteModelPrefs.selectedKey.collectAsState(initial = null)
-
-    // snapshot at open time (see eligibleCriteriaItems's own comment) -- editor.data still drives
-    // every actual read/write below, this list only decides WHICH items this run covers.
-    val items = remember { eligibleCriteriaItems(section, editor.data) }
-    var states by remember { mutableStateOf(items.map { AiItemState(it, AiItemStatus.PENDING) }) }
-    var running by remember { mutableStateOf(false) }
-
-    fun updateState(index: Int, transform: (AiItemState) -> AiItemState) {
-        states = states.toMutableList().also { it[index] = transform(it[index]) }
-    }
-
-    // runs items[startIndex..] one request at a time, pausing (not stopping) at the first item
-    // that needs the officer's accept/keep tap -- resumeFrom lets "Use AI version"/"Keep
-    // original" continue the queue instead of restarting it.
-    fun runFrom(startIndex: Int) {
-        if (running) return
-        running = true
-        scope.launch {
-            var index = startIndex
-            while (index < states.size) {
-                val current = states[index]
-                if (current.status != AiItemStatus.PENDING && current.status != AiItemStatus.WAITING_RETRY) {
-                    index++
-                    continue
-                }
-                updateState(index) { it.copy(status = AiItemStatus.RUNNING) }
-                val bullets = buildRemarks(current.item, editor.data)
-                val joined = bullets.joinToString("\n")
-                val session = sessionStore.ensureFresh(supabaseClient)
-                if (session == null) {
-                    updateState(index) { it.copy(status = AiItemStatus.SKIPPED, note = "Session expired") }
-                    index++
-                    continue
-                }
-                var attempts = 0
-                var resolved = false
-                while (!resolved && attempts < 5) {
-                    attempts++
-                    when (val result = rewriteClient.rewrite(joined, current.item.text, session.accessToken, modelKey, mode = "remarks")) {
-                        is RewriteResult.Ok -> {
-                            if (numbersPreserved(joined, result.text)) {
-                                updateState(index) { it.copy(status = AiItemStatus.READY, before = bullets, after = result.text) }
-                            } else {
-                                updateState(index) { it.copy(status = AiItemStatus.SKIPPED, note = "Kept original: numbers changed") }
-                            }
-                            resolved = true
-                        }
-                        is RewriteResult.Err -> {
-                            val retryAfter = result.retryAfterSeconds
-                            if (retryAfter != null) {
-                                updateState(index) { it.copy(status = AiItemStatus.WAITING_RETRY, note = "Waiting ${retryAfter}s") }
-                                delay(retryAfter * 1000L)
-                            } else {
-                                updateState(index) { it.copy(status = AiItemStatus.SKIPPED, note = result.message) }
-                                resolved = true
-                            }
-                        }
-                    }
-                }
-                if (!resolved) updateState(index) { it.copy(status = AiItemStatus.SKIPPED, note = "Gave up after repeated 429s") }
-                // READY items pause the queue here -- the officer's tap on Use AI version/Keep
-                // original (below) calls runFrom(index + 1) itself.
-                if (states[index].status == AiItemStatus.READY) break
-                index++
-            }
-            running = false
-        }
-    }
-
-    LaunchedEffect(Unit) { runFrom(0) }
-
-    val readyIndex = states.indexOfFirst { it.status == AiItemStatus.READY }
-
+fun SectionRemarksDialog(sectionTitle: String, section: ReportSection, editor: ReportEditor, onDismiss: () -> Unit) {
+    val items = section.blocks.filterIsInstance<ReportBlock.Criteria>().flatMap { it.items }.filter { !it.heading }
+    var editingItem by remember { mutableStateOf<CriteriaItem?>(null) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Scaffold(
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 TopAppBar(
                     windowInsets = WindowInsets(0, 0, 0, 0),
-                    title = { Column { Text("AI remarks"); Text(sectionTitle, style = MaterialTheme.typography.labelMedium) } },
+                    title = { Column { Text("Section remarks"); Text(sectionTitle, style = MaterialTheme.typography.labelMedium) } },
                     navigationIcon = { IconButton(onClick = onDismiss) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.primary,
@@ -380,90 +342,26 @@ fun CriteriaAiRemarksDialog(
                 )
             },
         ) { innerPadding ->
-            if (items.isEmpty()) {
-                Column(Modifier.fillMaxSize().padding(innerPadding).padding(24.dp)) {
-                    Text(
-                        "Nothing to rewrite here -- every criterion is either empty or fixed sentences only.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                return@Scaffold
-            }
             LazyColumn(
                 contentPadding = PaddingValues(16.dp, innerPadding.calculateTopPadding() + 8.dp, 16.dp, innerPadding.calculateBottomPadding() + 16.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
-                item {
+                items(items, key = { it.id }) { item ->
                     Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(vertical = 4.dp)) {
-                            states.forEach { s -> AiRow(s) }
-                        }
-                    }
-                }
-                if (readyIndex >= 0) {
-                    val ready = states[readyIndex]
-                    item {
-                        Card(Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Text("${ready.item.no.orEmpty()} ${ready.item.text}".trim(), style = MaterialTheme.typography.titleSmall)
-                                Text("FROM OPTIONS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                ready.before.forEach { Text("• $it", style = MaterialTheme.typography.bodySmall) }
-                                Text("AI VERSION", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                ready.after.split("\n").filter { it.isNotBlank() }.forEach { Text("• ${it.trim()}", style = MaterialTheme.typography.bodySmall) }
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                    OutlinedButton(
-                                        onClick = {
-                                            updateState(readyIndex) { it.copy(status = AiItemStatus.KEPT) }
-                                            runFrom(readyIndex + 1)
-                                        },
-                                        modifier = Modifier.weight(1f).height(48.dp),
-                                    ) { Text("Keep original") }
-                                    Button(
-                                        onClick = {
-                                            editor.editNow(editor.data.withCriteriaAi(ready.item.id, ready.before.joinToString("\n"), ready.after))
-                                            updateState(readyIndex) { it.copy(status = AiItemStatus.ACCEPTED) }
-                                            runFrom(readyIndex + 1)
-                                        },
-                                        colors = actionButtonColors(),
-                                        modifier = Modifier.weight(1f).height(48.dp),
-                                    ) { Text("Use AI version") }
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("${item.no.orEmpty()} ${item.text}".trim(), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                                if (!editor.readOnly && printedRemarks(item, editor.data).isNotEmpty()) {
+                                    TextButton(onClick = { editingItem = item }) { Text("Edit") }
                                 }
                             }
+                            RemarksBullets(item, editor.data)
                         }
                     }
                 }
             }
         }
     }
-}
-
-@Composable
-private fun AiRow(state: AiItemState) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        when (state.status) {
-            AiItemStatus.ACCEPTED -> Icon(Icons.Filled.Check, contentDescription = null, tint = LocalToneColors.current.yes)
-            AiItemStatus.RUNNING -> CircularProgressIndicator(modifier = Modifier.width(18.dp).height(18.dp), strokeWidth = 2.dp)
-            AiItemStatus.READY -> Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
-            else -> Spacer(Modifier.width(18.dp))
-        }
-        Column(Modifier.weight(1f)) {
-            Text("${state.item.no.orEmpty()} ${state.item.text}".trim(), style = MaterialTheme.typography.bodyMedium, maxLines = 1)
-            val subtitle = when (state.status) {
-                AiItemStatus.PENDING -> "Waiting"
-                AiItemStatus.RUNNING -> "Writing…"
-                AiItemStatus.WAITING_RETRY -> state.note
-                AiItemStatus.READY -> "Ready to check"
-                AiItemStatus.ACCEPTED -> "Accepted"
-                AiItemStatus.KEPT -> "Kept original"
-                AiItemStatus.SKIPPED -> state.note.ifBlank { "Skipped" }
-            }
-            Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
+    editingItem?.let { item -> RemarksEditDialog(item, editor, onDismiss = { editingItem = null }) }
 }
