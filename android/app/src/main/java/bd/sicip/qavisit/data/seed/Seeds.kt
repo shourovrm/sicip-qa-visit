@@ -22,8 +22,10 @@ val ASSOCIATIONS: List<String> = listOf(
     "EDC-IBA", "IDCOL", "Kumudini", "FLAXA", "PKSF", "REHAB", "ISC-TH", "WEAB", "BPI", "BSIA", "Others",
 )
 
+// "Surprise Visit" removed (QA report spec §1) -- it is now visit_type "surprise" under purpose
+// "Monitoring Visit" (see data/db/AppDb.kt's MIGRATION_5_6 for the one-time row conversion).
 val PURPOSES: List<String> = listOf(
-    "Capacity Assessment", "Monitoring Visit", "Surprise Visit", "Summative Assessment Monitoring",
+    "Capacity Assessment", "Monitoring Visit", "Summative Assessment Monitoring",
     "ToT Monitoring", "Trainer Engagement", "Others",
 )
 

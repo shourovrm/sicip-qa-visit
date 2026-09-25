@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [Officer::class, Trip::class, Visit::class, TravelLeg::class, Activity::class, Bill::class, Report::class],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class AppDb : RoomDatabase() {
@@ -72,13 +72,30 @@ abstract class AppDb : RoomDatabase() {
             }
         }
 
+        // mirrors supabase/migrations/011_visit_type.sql -- QA report spec §1's new nullable
+        // visits.visit_type column ("surprise"/"qa", CHECK omitted here the same way earlier
+        // migrations omit them: Room's schema identity hash is computed from the entity
+        // annotations, not from an ALTER TABLE's constraints, so a CHECK here would just be
+        // unenforced decoration). Old "Surprise Visit" purpose rows are migrated in place, same
+        // UPDATE the server migration runs, so local drafts written before this app update still
+        // resolve to the same (purpose, visit_type) shape the rest of the code now expects.
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE visits ADD COLUMN visit_type TEXT")
+                db.execSQL(
+                    "UPDATE visits SET purpose = 'Monitoring Visit', visit_type = 'surprise' " +
+                        "WHERE purpose = 'Surprise Visit'",
+                )
+            }
+        }
+
         // single instance per process (room recommends this); double-checked lock avoids
         // two screens racing to open the db file at once.
         @Volatile private var instance: AppDb? = null
 
         fun get(context: Context): AppDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, AppDb::class.java, "app.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .build()
                 .also { instance = it }
         }

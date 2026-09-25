@@ -7,6 +7,7 @@ package bd.sicip.qavisit.ui.visits
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -80,6 +81,10 @@ fun VisitForm(
     var district by remember { mutableStateOf(initialDistrict ?: DISTRICTS.first()) }
     var dhakaMetro by remember { mutableStateOf(false) }
     var purpose by remember { mutableStateOf(PURPOSES.first()) }
+    // "surprise" | "qa" | null; only meaningful when purpose == "Monitoring Visit" (QA report
+    // spec §1) -- cleared below whenever the purpose changes away from Monitoring Visit so a
+    // stale pick from a previous purpose can never silently persist.
+    var visitType by remember { mutableStateOf<String?>(null) }
     var refNo by remember { mutableStateOf("") }
     var refDate by remember { mutableStateOf<String?>(null) }
     var startDate by remember { mutableStateOf(initialStartDate ?: Instant.now().toString().take(10)) }
@@ -104,6 +109,7 @@ fun VisitForm(
                 district = it.district
                 dhakaMetro = it.dhakaMetro ?: false
                 purpose = it.purpose
+                visitType = it.visitType
                 refNo = it.refNo ?: ""
                 refDate = it.refDate
                 startDate = it.startDate
@@ -128,6 +134,9 @@ fun VisitForm(
     }
 
     val datesOk = startDate <= endDate
+    // required for a brand-new Monitoring Visit only (spec §1) -- editing an existing visit that
+    // predates this column can still be saved with visit_type left null.
+    val visitTypeOk = purpose != "Monitoring Visit" || visitType != null || existing != null
 
     Column(
         modifier = Modifier
@@ -170,7 +179,34 @@ fun VisitForm(
             }
         }
 
-        PickerDropdown("Purpose", PURPOSES, purpose, { purpose = it })
+        PickerDropdown(
+            "Purpose",
+            PURPOSES,
+            purpose,
+            { picked -> purpose = picked; if (picked != "Monitoring Visit") visitType = null },
+        )
+
+        // QA report spec §1: a 2-way choice, only for Monitoring Visit, required to save a NEW
+        // visit (an existing legacy row can still be edited/saved with it left blank -- retroactively
+        // forcing a pick on every old Monitoring Visit row isn't this form's job).
+        if (purpose == "Monitoring Visit") {
+            Column {
+                Text("Monitoring type", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(4.dp))
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    SegmentedButton(
+                        selected = visitType == "surprise",
+                        onClick = { visitType = "surprise" },
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                    ) { Text("Surprise visit") }
+                    SegmentedButton(
+                        selected = visitType == "qa",
+                        onClick = { visitType = "qa" },
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                    ) { Text("QA visit") }
+                }
+            }
+        }
 
         // ref no: type-to-filter over every ref_no ever used (distinctRefs), free typing still
         // commits (onTextChange), tapping a suggestion also pulls in its last ref_date.
@@ -248,6 +284,7 @@ fun VisitForm(
                         district = district,
                         dhakaMetro = if (district == "Dhaka") dhakaMetro else null,
                         purpose = purpose,
+                        visitType = if (purpose == "Monitoring Visit") visitType else null,
                         refNo = refNo.ifBlank { null },
                         refDate = refDate,
                         startDate = startDate,
@@ -259,7 +296,7 @@ fun VisitForm(
                     onDone()
                 }
             },
-            enabled = institute.isNotBlank() && datesOk,
+            enabled = institute.isNotBlank() && datesOk && visitTypeOk,
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.tertiary,
                 contentColor = MaterialTheme.colorScheme.onTertiary,
@@ -326,6 +363,7 @@ suspend fun saveVisit(
     district: String,
     dhakaMetro: Boolean?,
     purpose: String,
+    visitType: String?,
     refNo: String?,
     refDate: String?,
     startDate: String,
@@ -346,6 +384,7 @@ suspend fun saveVisit(
             district = district,
             dhakaMetro = dhakaMetro,
             purpose = purpose,
+            visitType = visitType,
             refNo = refNo,
             refDate = refDate,
             startDate = startDate,

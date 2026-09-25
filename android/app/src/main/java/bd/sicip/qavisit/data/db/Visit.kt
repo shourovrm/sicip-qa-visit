@@ -20,6 +20,12 @@ data class Visit(
     val district: String,
     @ColumnInfo(name = "dhaka_metro") val dhakaMetro: Boolean? = null,
     val purpose: String,
+    // only meaningful when purpose == "Monitoring Visit": "surprise" | "qa" | null. null means
+    // either a non-Monitoring-Visit purpose, or an old row from before this column existed (spec
+    // §1 -- the visit form offers a 2-way choice, required for NEW Monitoring Visit rows).
+    // decides which report template a visit's report uses (ui/reports/ReportStart.kt's
+    // reportTypeForVisit).
+    @ColumnInfo(name = "visit_type") val visitType: String? = null,
     @ColumnInfo(name = "ref_no") val refNo: String? = null,
     @ColumnInfo(name = "ref_date") val refDate: String? = null,
     @ColumnInfo(name = "start_date") val startDate: String,

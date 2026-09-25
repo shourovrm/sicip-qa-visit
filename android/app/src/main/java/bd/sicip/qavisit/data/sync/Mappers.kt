@@ -75,6 +75,7 @@ fun Visit.toJson(): JsonObject = buildJsonObject {
     put("district", district)
     put("dhaka_metro", dhakaMetro)
     put("purpose", purpose)
+    put("visit_type", visitType)
     put("ref_no", refNo)
     put("ref_date", refDate)
     put("start_date", startDate)
@@ -97,6 +98,7 @@ fun JsonObject.toVisit(): Visit = Visit(
     district = str("district"),
     dhakaMetro = boolOrNull("dhaka_metro"),
     purpose = str("purpose"),
+    visitType = strOrNull("visit_type"),
     refNo = strOrNull("ref_no"),
     refDate = strOrNull("ref_date"),
     startDate = str("start_date"),
