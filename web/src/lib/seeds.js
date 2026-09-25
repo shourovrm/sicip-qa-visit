@@ -20,8 +20,16 @@ export const ASSOCIATIONS = [
 ]
 
 export const PURPOSES = [
-  'Capacity Assessment', 'Monitoring Visit', 'Surprise Visit', 'Summative Assessment Monitoring',
+  'Capacity Assessment', 'Monitoring Visit', 'Summative Assessment Monitoring',
   'ToT Monitoring', 'Trainer Engagement', 'Others',
+]
+
+// visit.visit_type: only set when purpose is Monitoring Visit (visit form shows a 2-way segmented
+// control); every other purpose stores null. Decides which report template the visit's report
+// uses (see web/src/lib/reporttemplate.js templateFor) -- see supabase/migrations/011_visit_type.sql.
+export const VISIT_TYPES = [
+  { id: 'surprise', label: 'Surprise visit' },
+  { id: 'qa', label: 'QA visit' },
 ]
 
 // mode -> its valid classes; empty list = free-text class ("Other")

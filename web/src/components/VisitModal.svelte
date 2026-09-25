@@ -4,7 +4,7 @@
      (createVisit/updateVisit). -->
 <script>
   import { createEventDispatcher } from 'svelte'
-  import { DISTRICTS, ASSOCIATIONS, PURPOSES } from '../lib/seeds.js'
+  import { DISTRICTS, ASSOCIATIONS, PURPOSES, VISIT_TYPES } from '../lib/seeds.js'
   import { CATEGORY_LABELS } from '../lib/scoring.js'
   import { officers, officerName } from '../lib/officers.js'
   import Dropdown from './Dropdown.svelte'
@@ -53,6 +53,16 @@
       </div>
     {/if}
     <div class="field"><label for="purp">Purpose</label><Dropdown bind:value={editing.purpose} options={PURPOSES} /></div>
+    {#if editing.purpose === 'Monitoring Visit'}
+      <div class="field">
+        <label for="vtype">Monitoring type</label>
+        <div class="seg" id="vtype" role="radiogroup">
+          {#each VISIT_TYPES as vt}
+            <button type="button" class:active={editing.visit_type === vt.id} disabled={readonly} on:click={() => (editing.visit_type = vt.id)}>{vt.label}</button>
+          {/each}
+        </div>
+      </div>
+    {/if}
     <div class="field">
       <label for="ref">Ref no</label>
       <input id="ref" type="text" list="visit-ref-list" bind:value={editing.ref_no} on:input={refNoChanged} />
@@ -84,4 +94,8 @@
   .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 10; }
   .modal { width: 420px; max-height: 90vh; overflow: auto; }
   fieldset { border: none; padding: 0; margin: 0; min-width: 0; }
+  .seg { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-pill); padding: 3px; }
+  .seg button { flex: 1; border: none; background: none; padding: 6px 10px; border-radius: var(--radius-pill); cursor: pointer; font-weight: 700; color: var(--muted); }
+  .seg button.active { background: var(--primary); color: var(--on-primary); }
+  .seg button:disabled { opacity: 0.6; cursor: not-allowed; }
 </style>

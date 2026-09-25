@@ -43,13 +43,14 @@
     newVisitDraft = {
       id: null, institute: '', association: ASSOCIATIONS[0], district: DISTRICTS[0], dhaka_metro: null,
       purpose: PURPOSES[0], ref_no: '', ref_date: '', start_date: startDate, end_date: startDate,
-      category: 'N/A', status: 'scheduled', remarks: '', trip_id: null, is_additional: false,
+      category: 'N/A', status: 'scheduled', remarks: '', trip_id: null, is_additional: false, visit_type: null,
     }
     err = ''
   }
   async function saveNewVisit() {
     err = ''
     if (newVisitDraft.end_date < newVisitDraft.start_date) { err = 'End date must be on/after start date'; return }
+    if (newVisitDraft.purpose === 'Monitoring Visit' && !newVisitDraft.visit_type) { err = 'Pick Surprise visit or QA visit'; return }
     try {
       const d = newVisitDraft
       const patch = {
@@ -57,7 +58,7 @@
         dhaka_metro: d.district === 'Dhaka' ? d.dhaka_metro : null,
         purpose: d.purpose, ref_no: d.ref_no || null, ref_date: d.ref_date || null,
         start_date: d.start_date, end_date: d.end_date, remarks: d.remarks || null,
-        trip_id: null, is_additional: false,
+        trip_id: null, is_additional: false, visit_type: d.purpose === 'Monitoring Visit' ? d.visit_type : null,
       }
       const created = await createVisit({ ...patch, officer_id: officerId, status: 'scheduled', category: 'N/A', category_override: false })
       extraVisits = [...extraVisits, created]

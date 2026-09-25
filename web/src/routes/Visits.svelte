@@ -71,7 +71,7 @@
     editing = {
       id: null, institute: '', association: ASSOCIATIONS[0], district: DISTRICTS[0], dhaka_metro: null,
       purpose: PURPOSES[0], ref_no: '', ref_date: '', start_date: todayIso, end_date: todayIso,
-      category: 'N/A', status: 'scheduled', remarks: '',
+      category: 'N/A', status: 'scheduled', remarks: '', visit_type: null,
     }
     viewing = false
     saveErr = ''
@@ -80,12 +80,19 @@
   async function save() {
     saveErr = ''
     if (editing.end_date < editing.start_date) { saveErr = 'End date must be on/after start date'; return }
+    // a new Monitoring Visit visit picks Surprise or QA up front -- it decides which report
+    // template the visit gets (reporttemplate.js templateFor), so it can't be left blank.
+    if (!editing.id && editing.purpose === 'Monitoring Visit' && !editing.visit_type) {
+      saveErr = 'Pick Surprise visit or QA visit'
+      return
+    }
     try {
       const patch = {
         institute: editing.institute, association: editing.association, district: editing.district,
         dhaka_metro: editing.district === 'Dhaka' ? editing.dhaka_metro : null,
         purpose: editing.purpose, ref_no: editing.ref_no || null, ref_date: editing.ref_date || null,
         start_date: editing.start_date, end_date: editing.end_date, remarks: editing.remarks || null,
+        visit_type: editing.purpose === 'Monitoring Visit' ? editing.visit_type : null,
       }
       // category only editable once the visit is done, matching android
       if (editing.status === 'done') {

@@ -158,7 +158,7 @@
       purpose: PURPOSES[0], ref_no: '', ref_date: '', start_date: todayIso, end_date: todayIso,
       category: 'N/A', status: 'scheduled', remarks: '', trip_id: activeTrip.id,
       // first visit on an ad-hoc tour becomes primary (mirrors android forceAdditional)
-      is_additional: ongoing.some((v) => !v.is_additional),
+      is_additional: ongoing.some((v) => !v.is_additional), visit_type: null,
     }
     saveErr = ''
   }
@@ -166,7 +166,7 @@
     editing = {
       id: null, institute: '', association: ASSOCIATIONS[0], district: v.district, dhaka_metro: null,
       purpose: PURPOSES[0], ref_no: '', ref_date: '', start_date: v.start_date, end_date: v.start_date,
-      category: 'N/A', status: 'scheduled', remarks: '', trip_id: null, is_additional: false,
+      category: 'N/A', status: 'scheduled', remarks: '', trip_id: null, is_additional: false, visit_type: null,
     }
     saveErr = ''
   }
@@ -174,6 +174,7 @@
   async function saveVisit() {
     saveErr = ''
     if (editing.end_date < editing.start_date) { saveErr = 'End date must be on/after start date'; return }
+    if (editing.purpose === 'Monitoring Visit' && !editing.visit_type) { saveErr = 'Pick Surprise visit or QA visit'; return }
     try {
       const patch = {
         institute: editing.institute, association: editing.association, district: editing.district,
@@ -181,6 +182,7 @@
         purpose: editing.purpose, ref_no: editing.ref_no || null, ref_date: editing.ref_date || null,
         start_date: editing.start_date, end_date: editing.end_date, remarks: editing.remarks || null,
         trip_id: editing.trip_id ?? null, is_additional: editing.is_additional ?? false,
+        visit_type: editing.purpose === 'Monitoring Visit' ? editing.visit_type : null,
       }
       const created = await createVisit({ ...patch, officer_id: mine, status: 'scheduled', category: 'N/A', category_override: false })
       visits = [created, ...visits]
