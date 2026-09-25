@@ -76,3 +76,18 @@ it('sections 14/15 render one bullet per non-blank line', () => {
   const section14 = html.slice(html.indexOf('14. MAJOR FINDINGS'), html.indexOf('15. RECOMMENDATIONS'))
   expect((section14.match(/<li>/g) || []).length).toBe(2)
 })
+
+it('feedback prints anonymously as Yes/No columns, and the improvement plan as a table', () => {
+  const data = {
+    ...EMPTY_DATA,
+    cards: {
+      trainee_feedback: [{ _id: 't1', name: 'Rakib Hasan', trade: 'Welding', tq1: 'no', feedback: 'More practice please' }],
+      plan: [{ _id: 'p1', weakness: 'No PPE list.', action: 'Prepare a PPE list.', responsible: 'Principal', timeline: '1 month' }],
+    },
+  }
+  const html = qaReportHtml(template, data, meta)
+  expect(html).not.toContain('Rakib Hasan')
+  expect(html).toContain('<th>Trainee 1</th><th>Trainee 2</th>')
+  expect(html).toContain('Trainee 1: More practice please')
+  expect(html).toContain('<td>Prepare a PPE list.</td><td>Principal</td><td>1 month</td>')
+})

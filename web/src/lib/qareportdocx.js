@@ -11,6 +11,7 @@ import {
   MARGIN_TOP_TWIPS, PAGE_HEIGHT_TWIPS, PAGE_WIDTH_TWIPS, weightedWidths,
 } from './reportlayout.js'
 import { printedRemarks } from './remarks.js'
+import { feedbackGrid } from './feedbackgrid.js'
 import * as reportTemplateModule from './reporttemplate.js'
 
 const FONT = 'Times New Roman'
@@ -258,37 +259,58 @@ function criteriaBlockDocx(block, data) {
   return out
 }
 
-// ---- sections 11/12 ----
+// ---- sections 11/12: anonymous feedback, questions down, respondents across ----
 
 function feedbackDocx(block, data) {
   const entries = (data.cards && data.cards[block.key]) || []
-  return [cardsTableDocx(block.fields, entries, block.start || 3)]
+  const { tables, comments } = feedbackGrid(block, entries)
+  const out = tables.map((table) => {
+    const respondentWeights = table.headers.slice(1).map(() => 13)
+    const widths = weightedWidths(CONTENT_WIDTH_TWIPS, [100 - 13 * respondentWeights.length, ...respondentWeights])
+    const headerRow = new TableRow({ children: table.headers.map((h, i) => headerCell(h, widths[i])) })
+    const rows = table.rows.map((row) => new TableRow({
+      children: row.map((value, i) => bodyCell(widths[i], [new Paragraph({ alignment: i === 0 ? AlignmentType.LEFT : AlignmentType.CENTER, children: [run(value)] })])),
+    }))
+    return fixedTable(widths, [headerRow, ...rows])
+  })
+  if (comments.length) {
+    out.push(subheadParagraph('Comments'))
+    out.push(...comments.map((comment) => new Paragraph({ bullet: { level: 0 }, children: [run(comment)] })))
+  }
+  return out
 }
 
-// ---- section 13 ----
+// ---- section 13: one row per template pair ----
 
-const COMPONENTS = [
-  'Quality Management System', 'Budgeting', 'Selection and Enrolment of Trainees',
-  'Job Placement or Employment Support', 'Standards, Learning Material and Assessment Tools',
-  'Trainers', 'Physical Resources', 'Training & Learning Approach', 'Assessment and Certification',
-]
-
-function strengthsWeaknessesDocx(data) {
+function strengthsWeaknessesDocx(block, data) {
   const f = fieldsMap(data)
   const widths = weightedWidths(CONTENT_WIDTH_TWIPS, [6, 24, 35, 35])
   const headerRow = new TableRow({ children: ['S.N.', 'Component', 'Strengths', 'Weakness'].map((t, i) => headerCell(t, widths[i])) })
-  const rows = COMPONENTS.map((name, i) => {
-    const n = i + 1
-    return new TableRow({
-      children: [
-        bodyCell(widths[0], [new Paragraph({ children: [run(`${n}.`)] })]),
-        bodyCell(widths[1], [new Paragraph({ children: [run(name)] })]),
-        bodyCell(widths[2], [multilineParagraph(f[`str_${n}`])]),
-        bodyCell(widths[3], [multilineParagraph(f[`weak_${n}`])]),
-      ],
-    })
-  })
+  const rows = block.pairs.map((pair, i) => new TableRow({
+    children: [
+      bodyCell(widths[0], [new Paragraph({ children: [run(`${i + 1}.`)] })]),
+      bodyCell(widths[1], [new Paragraph({ children: [run(pair.component)] })]),
+      bodyCell(widths[2], [multilineParagraph(f[pair.strength])]),
+      bodyCell(widths[3], [multilineParagraph(f[pair.weakness])]),
+    ],
+  }))
   return [fixedTable(widths, [headerRow, ...rows])]
+}
+
+// ---- section 16: improvement plan, minimum 3 rows ----
+
+function planDocx(block, data) {
+  const entries = (data.cards && data.cards[block.key]) || []
+  const rows = entries.length >= 3 ? entries : entries.concat(Array.from({ length: 3 - entries.length }, () => ({})))
+  const widths = weightedWidths(CONTENT_WIDTH_TWIPS, [6, 30, 34, 15, 15])
+  const headerRow = new TableRow({ children: ['S.N.', ...block.fields.map((field) => field.label)].map((t, i) => headerCell(t, widths[i])) })
+  const bodyRows = rows.map((entry, i) => new TableRow({
+    children: [
+      bodyCell(widths[0], [new Paragraph({ children: [run(`${i + 1}.`)] })]),
+      ...block.fields.map((field, j) => bodyCell(widths[j + 1], [multilineParagraph(entry[field.key])])),
+    ],
+  }))
+  return [fixedTable(widths, [headerRow, ...bodyRows])]
 }
 
 // ---- sections 14/15 ----
@@ -308,11 +330,13 @@ function sectionDocx(section, data) {
   } else if (section.key === 's11' || section.key === 's12') {
     out.push(...feedbackDocx(section.blocks[0], data))
   } else if (section.key === 's13') {
-    out.push(...strengthsWeaknessesDocx(data))
+    out.push(...strengthsWeaknessesDocx(section.blocks[0], data))
   } else if (section.key === 's14') {
     out.push(...bulletParagraphs(fieldsMap(data).findings))
   } else if (section.key === 's15') {
     out.push(...bulletParagraphs(fieldsMap(data).recommendations))
+  } else if (section.key === 's16') {
+    out.push(...planDocx(section.blocks[0], data))
   }
   return out
 }

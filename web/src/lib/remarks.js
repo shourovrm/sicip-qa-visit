@@ -15,6 +15,18 @@ export function ensureStop(text) {
 // (only) such group.
 const DETAIL_GROUP_RE = /\{([^}]*)\}/
 
+// one MARKED option -> its fixed sentence for the marked answer (detail group substituted) +
+// the officer's remark, e.g. "Fire extinguishers are available, last examined on 12/02. Refilled."
+export function optionText(option, state) {
+  const remark = ensureStop(String(state.remark ?? '').trim())
+  let sentence = option[state.v] ?? ''
+  const detail = String(state.detail ?? '').trim()
+  // the `{...}` group is kept (with $ substituted) only when its detail box has text; blank
+  // detail drops the WHOLE group, including its own leading punctuation/spacing.
+  sentence = sentence.replace(DETAIL_GROUP_RE, (_match, part) => (detail ? part.replace('$', detail) : ''))
+  return [sentence, remark].filter(Boolean).join(' ')
+}
+
 // one criteria item ({id, text, options:[{id,label,short?,seen,not,na}]}) + its
 // data.criteria[item.id] entry ({opts:{optId:{v,detail,remark}}, evidence, note, ai}) -> the
 // ordered list of Remarks bullets built from fixed sentences + officer text, before any AI
@@ -32,12 +44,7 @@ export function buildRemarks(item, entry) {
       if (remark) bullets.push(`${option.short ?? option.label}: ${remark}`)
       continue
     }
-    let sentence = option[v] ?? ''
-    const detail = String(state.detail ?? '').trim()
-    // the `{...}` group is kept (with $ substituted) only when its detail box has text; blank
-    // detail drops the WHOLE group, including its own leading punctuation/spacing.
-    sentence = sentence.replace(DETAIL_GROUP_RE, (_match, part) => (detail ? part.replace('$', detail) : ''))
-    const joined = [sentence, remark].filter(Boolean).join(' ')
+    const joined = optionText(option, state)
     if (joined) bullets.push(joined)
   }
   const evidence = String(entry.evidence ?? '').trim()

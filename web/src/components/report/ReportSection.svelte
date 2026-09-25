@@ -11,6 +11,9 @@
   import FlagsBlock from './FlagsBlock.svelte'
   import CriteriaBlock from './CriteriaBlock.svelte'
   import RemarksEditor from './RemarksEditor.svelte'
+  import StrengthsPairs from './StrengthsPairs.svelte'
+  import FieldDraft from './FieldDraft.svelte'
+  import PlanDraft from './PlanDraft.svelte'
   import { isBlank } from '../../lib/reporttemplate.js'
 
   export let section // template section
@@ -55,9 +58,14 @@
   <div class="body">
     {#if section.note}<p class="note">{section.note}</p>{/if}
     {#each section.blocks as block, blockIndex (blockIndex)}
-      {#if block.type === 'fields'}
+      {#if block.type === 'fields' && block.pairs}
+        <div class="block">
+          <StrengthsPairs {block} {template} {data} {disabled} {onChange} />
+        </div>
+      {:else if block.type === 'fields'}
         <div class="block">
           {#each block.fields as field (field.key)}
+            {#if field.draftFrom}<FieldDraft {field} {template} {data} {disabled} {onChange} />{/if}
             <FieldInput {field} value={data.fields[field.key] ?? ''} {disabled}
               on:change={(e) => { data.fields[field.key] = e.detail; onChange() }} />
           {/each}
@@ -74,6 +82,7 @@
         <div class="block">
           {#if block.heading}<h4 class="subheading">{block.heading}</h4>{/if}
           {#if block.note}<p class="note">{block.note}</p>{/if}
+          {#if block.draftFrom}<PlanDraft {block} {template} {data} {disabled} {onChange} />{/if}
           <CardsBlock {block} {template} cards={data.cards[block.key] ?? []} {disabled}
             courseOptions={courseRefOptionsFor(block)}
             on:change={(e) => { data.cards[block.key] = e.detail; onChange() }} />

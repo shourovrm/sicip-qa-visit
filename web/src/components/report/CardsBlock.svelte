@@ -51,6 +51,11 @@
   }
 
   function cardTitle(card, index) {
+    // anonymous feedback cards: always "Trainee 2", the trade only as context
+    if (block.anonymous) {
+      const trade = String(card[block.titleField] ?? '').trim()
+      return trade ? `${block.itemLabel} ${index + 1} · ${trade}` : `${block.itemLabel} ${index + 1}`
+    }
     const named = block.titleField ? String(card[block.titleField] ?? '').trim() : ''
     return named || `${block.itemLabel} ${index + 1}`
   }

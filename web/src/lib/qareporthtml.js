@@ -5,6 +5,7 @@
 // window + window.print(), same pattern as reporthtml.js/billhtml.js.
 import { buildRemarks, printedRemarks } from './remarks.js'
 import * as reportTemplateModule from './reporttemplate.js'
+import { feedbackGrid } from './feedbackgrid.js'
 
 function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -192,25 +193,34 @@ function criteriaBlockHtml(block, data) {
   </table>`
 }
 
-// ---- sections 11/12: trainee/trainer feedback cards, minimum 3 rows ----
+// ---- sections 11/12: anonymous feedback, questions down, respondents across ----
 function feedbackTableHtml(block, data) {
   const entries = (data.cards && data.cards[block.key]) || []
-  return cardsTableHtml(block.fields, entries, block.start || 3)
+  const { tables, comments } = feedbackGrid(block, entries)
+  const tablesHtml = tables.map((table) => {
+    const header = `<tr>${table.headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>`
+    const body = table.rows.map((row) => `<tr><td>${esc(row[0])}</td>${row.slice(1).map((v) => `<td class="c">${esc(v)}</td>`).join('')}</tr>`).join('')
+    return `<table class="grid">${header}${body}</table>`
+  }).join('')
+  const commentsHtml = comments.length ? `<div class="sub-h">Comments</div><ul>${comments.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : ''
+  return `${tablesHtml}${commentsHtml}`
 }
 
-// ---- section 13: component-wise strengths & weaknesses, 9 fixed rows ----
-const COMPONENTS = [
-  'Quality Management System', 'Budgeting', 'Selection and Enrolment of Trainees',
-  'Job Placement or Employment Support', 'Standards, Learning Material and Assessment Tools',
-  'Trainers', 'Physical Resources', 'Training & Learning Approach', 'Assessment and Certification',
-]
-function strengthsWeaknessesHtml(data) {
+// ---- section 13: component-wise strengths & weaknesses, one row per template pair ----
+function strengthsWeaknessesHtml(block, data) {
   const f = fieldsMap(data)
-  const rows = COMPONENTS.map((name, i) => {
-    const n = i + 1
-    return `<tr><td>${n}.</td><td>${esc(name)}</td><td>${escMultiline(f[`str_${n}`])}</td><td>${escMultiline(f[`weak_${n}`])}</td></tr>`
-  }).join('')
+  const rows = block.pairs.map((pair, i) =>
+    `<tr><td>${i + 1}.</td><td>${esc(pair.component)}</td><td>${escMultiline(f[pair.strength])}</td><td>${escMultiline(f[pair.weakness])}</td></tr>`,
+  ).join('')
   return `<table class="grid"><tr><th>S.N.</th><th>Component</th><th>Strengths</th><th>Weakness</th></tr>${rows}</table>`
+}
+
+// ---- section 16: improvement plan, minimum 3 rows ----
+function planTableHtml(block, data) {
+  const entries = (data.cards && data.cards[block.key]) || []
+  const rows = entries.length >= 3 ? entries : entries.concat(Array.from({ length: 3 - entries.length }, () => ({})))
+  const body = rows.map((entry, i) => `<tr><td>${i + 1}.</td>${block.fields.map((field) => `<td>${escMultiline(entry[field.key])}</td>`).join('')}</tr>`).join('')
+  return `<table class="grid"><tr><th>S.N.</th>${block.fields.map((field) => `<th>${esc(field.label)}</th>`).join('')}</tr>${body}</table>`
 }
 
 // ---- sections 14/15: bullet lists from lines ----
@@ -235,11 +245,13 @@ function sectionHtml(section, data) {
   } else if (section.key === 's11' || section.key === 's12') {
     body = feedbackTableHtml(section.blocks[0], data)
   } else if (section.key === 's13') {
-    body = strengthsWeaknessesHtml(data)
+    body = strengthsWeaknessesHtml(section.blocks[0], data)
   } else if (section.key === 's14') {
     body = bulletListHtml(fieldsMap(data).findings)
   } else if (section.key === 's15') {
     body = bulletListHtml(fieldsMap(data).recommendations)
+  } else if (section.key === 's16') {
+    body = planTableHtml(section.blocks[0], data)
   }
   return `${heading}${body}`
 }
@@ -282,6 +294,7 @@ const CSS = `
   table.grid { width: 100%; border-collapse: collapse; margin: 4pt 0 8pt; }
   table.grid th, table.grid td { border: 0.75pt solid #000; padding: 2pt 4pt; vertical-align: top; font-size: 10pt; }
   table.grid th { font-weight: 700; text-align: center; background: #eee; }
+  table.grid td.c { text-align: center; width: 13%; }
   table.criteria th { text-align: left; }
   table.criteria .heading-row td { font-weight: 700; background: #f4f4f4; }
   table.criteria td.rm ul { margin: 0; padding-left: 14pt; }

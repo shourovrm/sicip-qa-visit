@@ -70,3 +70,9 @@ export async function rewriteText(text, label) {
 export async function rewriteRemarks(text, label) {
   return callRewrite(text, label, 'remarks')
 }
+
+// QA conclusions drafts -- mode strengths | plan | findings (see lib/draftrun.js). No label: the
+// text already carries its own headings/numbering.
+export async function draftText(text, mode) {
+  return callRewrite(text, '', mode)
+}
