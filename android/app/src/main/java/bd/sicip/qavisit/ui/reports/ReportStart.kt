@@ -17,7 +17,12 @@ import java.time.Instant
 import java.util.UUID
 
 const val REPORT_TYPE_SURPRISE = "surprise"
-const val REPORT_TYPE_QA = "qa"
+// reports.type's DB check constraint (supabase/migrations/010_reports.sql, predates this
+// feature) only allows ('surprise', 'monitoring') -- a QA report's `type` column value is
+// "monitoring", NOT the template's own id "qa". Every report-row-level lookup (findOrCreateReport,
+// ReportEditorRegistry, templateForType, sync push/pull) goes through this constant, so the one
+// place the two ids ("monitoring" the stored type vs "qa" the template file/id) meet is right here.
+const val REPORT_TYPE_QA = "monitoring"
 
 fun surpriseTemplate(context: Context): ReportTemplate = loadReportTemplate(context, "surprise-v1.json")
 fun qaTemplate(context: Context): ReportTemplate = loadReportTemplate(context, "qa-v1.json")
@@ -30,10 +35,11 @@ fun templateForType(context: Context, type: String): ReportTemplate = when (type
     else -> surpriseTemplate(context)
 }
 
-// visits.visit_type -> report type (QA report spec §1). null means either a non-Monitoring-Visit
-// purpose (no report at all, callers must not reach here) or an old Monitoring Visit row from
-// before visit_type existed -- the officer must be asked which report to start (see
-// ReportsScreen.kt's NewReportSheet and NoReportVisitRow).
+// visits.visit_type ("surprise"/"qa", spec §1's own migration) -> reports.type (REPORT_TYPE_QA =
+// "monitoring", see that constant's own comment for why the two strings differ). null means
+// either a non-Monitoring-Visit purpose (no report at all, callers must not reach here) or an old
+// Monitoring Visit row from before visit_type existed -- the officer must be asked which report
+// to start (see ReportsScreen.kt's NewReportSheet and NoReportVisitRow).
 fun reportTypeForVisit(visit: Visit): String? = when (visit.visitType) {
     "qa" -> REPORT_TYPE_QA
     "surprise" -> REPORT_TYPE_SURPRISE
