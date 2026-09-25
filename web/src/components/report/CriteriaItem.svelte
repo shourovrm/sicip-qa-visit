@@ -9,7 +9,8 @@
 <script>
   import { createEventDispatcher } from 'svelte'
   import AnswerSegmented from './AnswerSegmented.svelte'
-  import { printedRemarks } from '../../lib/remarks.js'
+  import ImproveWording from './ImproveWording.svelte'
+  import RemarksEditor from './RemarksEditor.svelte'
 
   export let item // {id, no, text, evidence?, options:[{id,label,short?,src?,detail?,seen,not,na}]}
   export let entry = undefined // data.criteria[item.id] or undefined (nothing touched yet)
@@ -26,7 +27,6 @@
   $: opts = entry?.opts ?? {}
   $: evidence = entry?.evidence ?? ''
   $: note = entry?.note ?? ''
-  $: bullets = printedRemarks(item, entry ?? {})
 
   // "Add remark" reveal state per option, local only (not persisted) -- same idea as
   // ChecklistItem's remarksOpen, one flag per option instead of one for the whole item.
@@ -73,8 +73,9 @@
           on:input={(e) => setOptDetail(option.id, e.target.value)} />
       {/if}
       {#if state.remark || openRemarks[option.id]}
-        <input class="remark-in" type="text" placeholder="Remark on this point" value={state.remark ?? ''} {disabled}
-          on:input={(e) => setOptRemark(option.id, e.target.value)} />
+        <textarea class="remark-in" rows="1" placeholder="Remark on this point" value={state.remark ?? ''} {disabled}
+          on:input={(e) => setOptRemark(option.id, e.target.value)}></textarea>
+        <ImproveWording text={state.remark ?? ''} label={option.label} {disabled} on:change={(e) => setOptRemark(option.id, e.detail)} />
       {:else}
         <button type="button" class="btn-link add-remark" {disabled} on:click={() => (openRemarks = { ...openRemarks, [option.id]: true })}>+ Add remark</button>
       {/if}
@@ -83,20 +84,18 @@
 
   <div class="item-box">
     <label class="item-box-label" for="ev-{item.id}">Evidence seen</label>
-    <input id="ev-{item.id}" type="text" placeholder="Documents, photos seen" value={evidence} {disabled} on:input={(e) => setEvidence(e.target.value)} />
+    <textarea id="ev-{item.id}" rows="1" placeholder="Documents, photos seen" value={evidence} {disabled} on:input={(e) => setEvidence(e.target.value)}></textarea>
+    <ImproveWording text={evidence} label={'Evidence seen: ' + item.text} {disabled} on:change={(e) => setEvidence(e.detail)} />
   </div>
   <div class="item-box">
     <label class="item-box-label" for="note-{item.id}">Other remarks</label>
-    <input id="note-{item.id}" type="text" placeholder="Anything else about this point" value={note} {disabled} on:input={(e) => setNote(e.target.value)} />
+    <textarea id="note-{item.id}" rows="1" placeholder="Anything else about this point" value={note} {disabled} on:input={(e) => setNote(e.target.value)}></textarea>
+    <ImproveWording text={note} label={item.text} {disabled} on:change={(e) => setNote(e.detail)} />
   </div>
 
   <div class="preview">
     <div class="preview-h">Remarks preview</div>
-    {#if bullets.length === 0}
-      <p class="preview-empty">Nothing yet. Mark an option to add a sentence.</p>
-    {:else}
-      <ul>{#each bullets as b}<li>{b}</li>{/each}</ul>
-    {/if}
+    <RemarksEditor {item} {entry} {disabled} on:change={(e) => emit(e.detail)} />
   </div>
 </div>
 
@@ -115,10 +114,7 @@
   .add-remark { margin-top: 6px; font-size: 12px; }
   .item-box { margin-top: 10px; }
   .item-box-label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 3px; }
-  .item-box input { width: 100%; font-size: 13px; }
+  .item-box textarea { width: 100%; font-size: 13px; }
   .preview { margin-top: 12px; padding: 10px; border: 1px solid var(--outline); border-radius: var(--radius-card); background: var(--canvas); }
   .preview-h { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
-  .preview-empty { margin: 0; font-size: 12px; color: var(--muted); font-style: italic; }
-  .preview ul { margin: 0; padding-left: 16px; font-size: 13px; }
-  .preview li { margin: 2px 0; }
 </style>

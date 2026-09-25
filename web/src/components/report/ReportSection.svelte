@@ -10,6 +10,7 @@
   import CardsBlock from './CardsBlock.svelte'
   import FlagsBlock from './FlagsBlock.svelte'
   import CriteriaBlock from './CriteriaBlock.svelte'
+  import RemarksEditor from './RemarksEditor.svelte'
   import { isBlank } from '../../lib/reporttemplate.js'
 
   export let section // template section
@@ -20,6 +21,10 @@
   export let disabled = false
   export let defaultOpen = false
   export let onChange = () => {}
+
+  // end-of-section review: every criterion's remarks, each with Edit
+  $: criteriaItems = section.blocks.filter((b) => b.type === 'criteria').flatMap((b) => b.items).filter((i) => !i.heading)
+  let reviewOpen = false
 
   let open = defaultOpen
 
@@ -84,10 +89,30 @@
         </div>
       {/if}
     {/each}
+    {#if criteriaItems.length}
+      <div class="block">
+        <button type="button" class="btn" on:click={() => (reviewOpen = !reviewOpen)}>{reviewOpen ? 'Hide section remarks' : 'Review section remarks'}</button>
+        {#if reviewOpen}
+          <ol class="review">
+            {#each criteriaItems as item (item.id)}
+              <li>
+                <div class="review-q"><span class="review-no">{item.no}</span>{item.text}</div>
+                <RemarksEditor {item} entry={data.criteria?.[item.id]} {disabled}
+                  on:change={(e) => { (data.criteria ?? (data.criteria = {}))[item.id] = e.detail; onChange() }} />
+              </li>
+            {/each}
+          </ol>
+        {/if}
+      </div>
+    {/if}
   </div>
 </details>
 
 <style>
+  .review { list-style: none; margin: 10px 0 0; padding: 0; }
+  .review li { padding: 10px 0; border-top: 1px solid var(--outline); }
+  .review-q { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .review-no { color: var(--muted); margin-right: 6px; }
   .section { background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-card); margin-bottom: 10px; }
   summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 14px 16px; }
   summary::-webkit-details-marker { display: none; }

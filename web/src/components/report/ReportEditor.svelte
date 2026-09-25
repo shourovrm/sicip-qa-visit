@@ -15,7 +15,6 @@
   import ReportSection from './ReportSection.svelte'
   import SectionChips from './SectionChips.svelte'
   import SectionIndex from './SectionIndex.svelte'
-  import AiRemarks from './AiRemarks.svelte'
 
   export let report // reports row (id, type, template_version, data, status, visit_id, ...)
   export let template // template JSON for report.type
@@ -142,9 +141,7 @@
   // (spec section 8: "web: editor head"). A template with more sections than a chip strip fits
   // comfortably (today only qa-v1's 15) gets the grouped vertical SectionIndex instead of
   // SectionChips (spec section 8: "> 13 sections").
-  $: hasCriteria = template.sections.some((s) => s.blocks.some((b) => b.type === 'criteria'))
   $: useSectionIndex = template.sections.length > 13
-  let showAiRemarks = false
 </script>
 
 <svelte:window on:beforeunload={beforeUnload} />
@@ -157,7 +154,6 @@
         <p class="subtitle">{meta.institute || template.subtitle || template.short}</p>
       </div>
       <div class="head-actions">
-        {#if hasCriteria && !disabled}<button type="button" class="btn" on:click={() => (showAiRemarks = true)}>AI remarks</button>{/if}
         <button type="button" class="btn" on:click={close}>Close</button>
       </div>
     </div>
@@ -177,9 +173,6 @@
     {/if}
   </header>
 
-  {#if showAiRemarks}
-    <AiRemarks {template} {data} {disabled} {onChange} on:close={() => (showAiRemarks = false)} />
-  {/if}
 
   <main class="sections">
     {#each template.sections as section, index (section.key)}
