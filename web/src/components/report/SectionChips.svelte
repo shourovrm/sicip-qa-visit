@@ -18,9 +18,9 @@
   {#each sections as section (section.key)}
     {@const p = progressSections[section.key]}
     <button type="button" class="chip" class:done={p.done} class:flagged={p.flagged} on:click={() => jump(section.key)}>
-      <span class="letter">{section.letter}</span>{section.short}
+      <span class="letter">{section.letter ?? section.number}</span>{section.short}
       {#if section.optional}<span class="optional">Optional</span>{/if}
-      {#if p.total > 0}<span class="count">{p.answered}/{p.total}</span>{/if}
+      {#if p.total > 0}<span class="count">{p.answered}/{p.total}{#if p.notSeen} &middot; {p.notSeen} not seen{/if}</span>{/if}
     </button>
   {/each}
 </nav>

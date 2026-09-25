@@ -9,6 +9,7 @@
   import FieldInput from './FieldInput.svelte'
   import CardsBlock from './CardsBlock.svelte'
   import FlagsBlock from './FlagsBlock.svelte'
+  import CriteriaBlock from './CriteriaBlock.svelte'
   import { isBlank } from '../../lib/reporttemplate.js'
 
   export let section // template section
@@ -40,10 +41,10 @@
 
 <details class="section" id="section-{section.key}" class:done={progress.done} class:flagged={progress.flagged} bind:open>
   <summary>
-    <span class="letter" class:done={progress.done} class:flagged={progress.flagged}>{section.letter}</span>
+    <span class="letter" class:done={progress.done} class:flagged={progress.flagged}>{section.letter ?? section.number}</span>
     <span class="title">{section.title}</span>
     {#if section.optional}<span class="optional-tag">Optional</span>{/if}
-    {#if progress.total > 0}<span class="count">{progress.answered}/{progress.total}</span>{/if}
+    {#if progress.total > 0}<span class="count">{progress.answered}/{progress.total}{#if progress.notSeen} &middot; {progress.notSeen} not seen{/if}</span>{/if}
     <span class="chevron">▾</span>
   </summary>
   <div class="body">
@@ -76,6 +77,10 @@
         <div class="block">
           <FlagsBlock {block} ticked={data.flags ?? []} {disabled}
             on:change={(e) => { data.flags = e.detail; onChange() }} />
+        </div>
+      {:else if block.type === 'criteria'}
+        <div class="block">
+          <CriteriaBlock {block} criteriaData={data.criteria ?? (data.criteria = {})} {disabled} {onChange} />
         </div>
       {/if}
     {/each}

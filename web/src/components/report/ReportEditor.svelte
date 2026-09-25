@@ -14,6 +14,8 @@
   import { updateReportData, submitReport, softDeleteReport } from '../../lib/db.js'
   import ReportSection from './ReportSection.svelte'
   import SectionChips from './SectionChips.svelte'
+  import SectionIndex from './SectionIndex.svelte'
+  import AiRemarks from './AiRemarks.svelte'
 
   export let report // reports row (id, type, template_version, data, status, visit_id, ...)
   export let template // template JSON for report.type
@@ -36,6 +38,10 @@
       checks: Object.fromEntries(Object.entries(raw?.checks ?? {}).map(([id, check]) => [id, { ...check }])),
       cards: { ...(raw?.cards ?? {}) },
       flags: [...(raw?.flags ?? [])],
+      // criteria (QA report): one level deeper than checks -- opts is its own nested object, so
+      // it needs its own clone too, or normalize()'s mutations could corrupt report.data the
+      // same way an unshared `checks[id]` would.
+      criteria: Object.fromEntries(Object.entries(raw?.criteria ?? {}).map(([id, entry]) => [id, { ...entry, opts: { ...(entry?.opts ?? {}) } }])),
     }
   }
 
@@ -131,6 +137,14 @@
     status: report.status,
     submittedAt: report.submitted_at,
   }
+
+  // QA report only: template.sections has any `criteria` block -- gates the "AI remarks" button
+  // (spec section 8: "web: editor head"). A template with more sections than a chip strip fits
+  // comfortably (today only qa-v1's 15) gets the grouped vertical SectionIndex instead of
+  // SectionChips (spec section 8: "> 13 sections").
+  $: hasCriteria = template.sections.some((s) => s.blocks.some((b) => b.type === 'criteria'))
+  $: useSectionIndex = template.sections.length > 13
+  let showAiRemarks = false
 </script>
 
 <svelte:window on:beforeunload={beforeUnload} />
@@ -140,9 +154,12 @@
     <div class="head-row">
       <div class="head-title">
         <h1>{template.title}</h1>
-        <p class="subtitle">{meta.institute || template.subtitle}</p>
+        <p class="subtitle">{meta.institute || template.subtitle || template.short}</p>
       </div>
-      <button type="button" class="btn" on:click={close}>Close</button>
+      <div class="head-actions">
+        {#if hasCriteria && !disabled}<button type="button" class="btn" on:click={() => (showAiRemarks = true)}>AI remarks</button>{/if}
+        <button type="button" class="btn" on:click={close}>Close</button>
+      </div>
     </div>
     <div class="progress-row">
       <div class="progress-track"><div class="progress-fill" style="width:{progress.sectionsCounted ? (100 * progress.sectionsDone) / progress.sectionsCounted : 0}%"></div></div>
@@ -153,8 +170,16 @@
     {#if progress.customFlags.length > 0}
       <ul class="custom-flags">{#each progress.customFlags as text}<li>{text}</li>{/each}</ul>
     {/if}
-    <SectionChips sections={template.sections} progressSections={progress.sections} />
+    {#if useSectionIndex}
+      <SectionIndex sections={template.sections} progressSections={progress.sections} />
+    {:else}
+      <SectionChips sections={template.sections} progressSections={progress.sections} />
+    {/if}
   </header>
+
+  {#if showAiRemarks}
+    <AiRemarks {template} {data} {disabled} {onChange} on:close={() => (showAiRemarks = false)} />
+  {/if}
 
   <main class="sections">
     {#each template.sections as section, index (section.key)}
@@ -183,6 +208,7 @@
   .editor { padding-bottom: 72px; } /* clears the fixed action bar */
   .head { position: sticky; top: 0; z-index: 5; background: var(--canvas); padding: 8px 0; margin: -8px 0 12px; }
   .head-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .head-actions { display: flex; gap: 8px; flex: none; }
   .head-title h1 { margin: 0; font-size: 18px; color: var(--primary); }
   .subtitle { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
   .progress-row { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; flex-wrap: wrap; }
