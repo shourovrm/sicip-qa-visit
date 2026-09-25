@@ -268,6 +268,17 @@ def section_has_content(section, data):
                     return True
         if kind == "flags" and any(i["id"] in data.get("flags", []) for i in block["items"]):
             return True
+        if kind == "criteria":
+            criteria_data = data.get("criteria", {})
+            for item in criteria_items(block):
+                entry = criteria_data.get(item["id"])
+                if not entry:
+                    continue
+                opts = entry.get("opts", {})
+                if any(not blank((o or {}).get("v")) or not blank((o or {}).get("remark")) or not blank((o or {}).get("detail")) for o in opts.values()):
+                    return True
+                if not blank(entry.get("evidence")) or not blank(entry.get("note")):
+                    return True
     return False
 
 

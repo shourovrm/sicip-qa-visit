@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { templateFor, computeProgress, normalize, newReportData } from './reporttemplate.js'
+import { templateFor, dbTypeFor, computeProgress, normalize, newReportData } from './reporttemplate.js'
 import fixture from '../../../shared/report-templates/fixtures/progress-1.json'
+import qaProgressFixture from '../../../shared/report-templates/fixtures/progress-qa-1.json'
 
 // deep clone -- normalize mutates in place, and every test needs its own untouched copy of the
 // fixture's before/expected objects.
@@ -108,5 +109,37 @@ describe('newReportData', () => {
     const data = newReportData(template, { institute: 'X', start_date: '2026-01-01' }, 'Officer')
     expect(data.cards.attendance).toEqual([])
     expect(data.cards.interviews).toEqual([])
+  })
+})
+
+describe('qa template', () => {
+  it('templateFor resolves both "qa" (template id) and "monitoring" (DB type)', () => {
+    const byId = templateFor('qa')
+    expect(byId.id).toBe('qa')
+    expect(templateFor('monitoring')).toBe(byId)
+  })
+
+  it('dbTypeFor maps the qa template id to the DB "monitoring" type, everything else passes through', () => {
+    expect(dbTypeFor('qa')).toBe('monitoring')
+    expect(dbTypeFor('surprise')).toBe('surprise')
+  })
+
+  it('computeProgress on criteria sections matches the shared fixture exactly (android parity)', () => {
+    const template = templateFor('qa')
+    expect(computeProgress(template, qaProgressFixture.data)).toEqual(qaProgressFixture.expected)
+  })
+
+  it('an untouched criteria section has total > 0 and done: false', () => {
+    const template = templateFor('qa')
+    const progress = computeProgress(template, { fields: {}, checks: {}, cards: {}, flags: [], criteria: {} })
+    expect(progress.sections.s5.total).toBeGreaterThan(0)
+    expect(progress.sections.s5.done).toBe(false)
+    expect(progress.sections.s5.notSeen).toBeUndefined()
+  })
+
+  it('section 8 sums options across both its criteria blocks (main table + 8.1 sub-table)', () => {
+    const template = templateFor('qa')
+    const s8 = template.sections.find((s) => s.key === 's8')
+    expect(s8.blocks.filter((b) => b.type === 'criteria')).toHaveLength(2)
   })
 })

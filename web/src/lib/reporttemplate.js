@@ -1,13 +1,24 @@
-// visit report template: loads shared/report-templates/surprise-v1.json (the ONLY source of
+// visit report template: loads shared/report-templates/{surprise,qa}-v1.json (the ONLY source of
 // questions -- never hardcode them here), plus card-link syncing, progress rules and new-report
 // prefill logic ported 1:1 from shared/report-templates/fixtures/reference.py (the source of
-// truth for these rules -- android matches it too, see fixture progress-1.json).
+// truth for these rules -- android matches it too, see fixtures/progress-1.json,
+// fixtures/remarks-1.json, fixtures/progress-qa-1.json).
 import surpriseV1 from '../../../shared/report-templates/surprise-v1.json'
+import qaV1 from '../../../shared/report-templates/qa-v1.json'
 
-export const TEMPLATES = { surprise: surpriseV1 }
+// the `reports.type` DB column predates the QA template (check constraint 'surprise'|'monitoring'
+// -- see supabase/migrations/010_reports.sql) -- 'monitoring' is qa-v1's DB-side type, so a QA
+// report's row keeps type:'monitoring' while its template id/short/visitType are 'qa'. templateFor
+// accepts either name so callers can pass a DB row's `type` directly.
+export const TEMPLATES = { surprise: surpriseV1, qa: qaV1, monitoring: qaV1 }
 
 export function templateFor(type) {
   return TEMPLATES[type] ?? null
+}
+
+// the DB `type` column value for a template id (inverse of templateFor's 'monitoring' alias).
+export function dbTypeFor(templateId) {
+  return templateId === 'qa' ? 'monitoring' : templateId
 }
 
 // blank = null or trimmed empty string (numbers are stored as strings too, so this is the one
@@ -123,9 +134,43 @@ function compareMismatch(compare, card) {
   return values.length >= 2 && new Set(values).size > 1
 }
 
+// items in a `criteria` block that are actual questions (heading:true rows carry no options).
+function criteriaItems(block) {
+  return block.items.filter((item) => !item.heading)
+}
+
+// a section with any `criteria` block (QA report) is counted purely by its options -- every
+// other block-type rule for that section is ignored (spec section 5). total/answered span every
+// criteria block in the section (section 8 has two: its main table + the 8.1 sub-table), notSeen
+// counts options marked "not" and is only attached when > 0 (hub subtitle "· K not seen").
+function criteriaSectionProgress(section, data) {
+  let answered = 0
+  let total = 0
+  let notSeen = 0
+  const criteriaData = data.criteria ?? {}
+  for (const block of section.blocks) {
+    if (block.type !== 'criteria') continue
+    for (const item of criteriaItems(block)) {
+      const entry = criteriaData[item.id] ?? {}
+      const opts = entry.opts ?? {}
+      for (const option of item.options) {
+        total += 1
+        const v = opts[option.id]?.v ?? ''
+        if (!isBlank(v)) answered += 1
+        if (v === 'not') notSeen += 1
+      }
+    }
+  }
+  const progress = { answered, total, done: total > 0 && answered === total, flagged: notSeen > 0 }
+  if (notSeen) progress.notSeen = notSeen
+  return { progress, customFlags: [] }
+}
+
 // one section's {answered, total, done, flagged} plus any customFlags text it contributed
 // (countsAsFlags cards -- free-text flags, contribute 0 to totals but flag the section).
 function sectionProgress(section, data) {
+  if (section.blocks.some((b) => b.type === 'criteria')) return criteriaSectionProgress(section, data)
+
   let answered = 0
   let total = 0
   let flagged = false
@@ -200,7 +245,7 @@ export function computeProgress(template, data) {
     .map((section) => sections[section.key])
 
   const answerCounts = {}
-  for (const answer of template.answers) answerCounts[answer.id] = 0
+  for (const answer of template.answers ?? []) answerCounts[answer.id] = 0
   const unanswered = []
   for (const { block } of allBlocks(template)) {
     if (block.type !== 'checklist') continue
@@ -240,6 +285,16 @@ export function sectionHasContent(section, data) {
         if (Object.entries(card).some(([key, value]) => !key.startsWith('_') && !isBlank(value))) return true
       }
     }
+    if (block.type === 'criteria') {
+      const criteriaData = data.criteria ?? {}
+      for (const item of criteriaItems(block)) {
+        const entry = criteriaData[item.id]
+        if (!entry) continue
+        const opts = entry.opts ?? {}
+        if (Object.values(opts).some((o) => !isBlank(o?.v) || !isBlank(o?.remark) || !isBlank(o?.detail))) return true
+        if (!isBlank(entry.evidence) || !isBlank(entry.note)) return true
+      }
+    }
     if (block.type === 'flags' && block.items.some((i) => (data.flags ?? []).includes(i.id))) return true
   }
   return false
@@ -257,11 +312,12 @@ export function newReportData(template, visit, officerName) {
         if (field.prefill === 'institute') fields[field.key] = visit?.institute ?? ''
         else if (field.prefill === 'association') fields[field.key] = visit?.association ?? ''
         else if (field.prefill === 'visit_date') fields[field.key] = visit?.start_date ?? ''
+        else if (field.prefill === 'visit_end') fields[field.key] = visit?.end_date ?? ''
         else if (field.prefill === 'officers') fields[field.key] = officerName ?? ''
       }
     } else if (block.type === 'cards') {
       cards[block.key] = Array.from({ length: block.start ?? 0 }, () => ({ _id: crypto.randomUUID() }))
     }
   }
-  return normalize(template, { fields, checks: {}, cards, flags: [] })
+  return normalize(template, { fields, checks: {}, cards, flags: [], criteria: {} })
 }
