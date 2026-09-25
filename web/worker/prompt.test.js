@@ -2,11 +2,13 @@ import { describe, it, expect } from 'vitest'
 import { buildMessages, cleanOutput } from './prompt.js'
 
 describe('buildMessages', () => {
-  it('puts the label as context ahead of the text', () => {
+  it('puts the label in the system prompt as context only, never in the note', () => {
     const messages = buildMessages('trainer late', 'Findings')
     expect(messages[0].role).toBe('system')
+    expect(messages[0].content).toContain('"Findings"')
+    expect(messages[0].content).toContain('never copy it')
     expect(messages[1].role).toBe('user')
-    expect(messages[1].content).toBe('Field: Findings\n\ntrainer late')
+    expect(messages[1].content).toBe('trainer late')
   })
 
   it('omits the context line when there is no label', () => {

@@ -12,11 +12,15 @@ const REMARKS_SYSTEM_PROMPT = `You are rewriting a field officer's bullet-point 
 // switches to REMARKS_SYSTEM_PROMPT (see above); anything else (including undefined) is the
 // default "Improve wording" rewrite.
 export function buildMessages(text, label, mode) {
-  const systemPrompt = mode === 'remarks' ? REMARKS_SYSTEM_PROMPT : SYSTEM_PROMPT
-  const context = label ? `Field: ${label}\n\n` : ''
+  const basePrompt = mode === 'remarks' ? REMARKS_SYSTEM_PROMPT : SYSTEM_PROMPT
+  // label in the user message got copied into answers ("Evidence observed: <label text>...");
+  // as system-side context with an explicit ban it stays out (bench 2026-09-25, 6/6 clean)
+  const systemPrompt = label
+    ? `${basePrompt} The note was written in the report box "${label}". That box name is only context: never copy it, repeat its words, or describe what it says; rewrite only the note itself.`
+    : basePrompt
   return [
     { role: 'system', content: systemPrompt },
-    { role: 'user', content: `${context}${text}` },
+    { role: 'user', content: text },
   ]
 }
 

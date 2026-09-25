@@ -101,8 +101,8 @@ describe('handleRewrite', () => {
     expect(modelId).toContain('@cf/')
     expect(options.temperature).toBeCloseTo(0.2)
     expect(options.max_tokens).toBe(700)
-    expect(options.messages[1].content).toContain('Findings')
-    expect(options.messages[1].content).toContain('trainer aslo lat')
+    expect(options.messages[0].content).toContain('Findings')
+    expect(options.messages[1].content).toBe('trainer aslo lat')
   })
 
   it('uses the requested model id in env.AI.run when a known key is sent', async () => {
@@ -154,8 +154,8 @@ describe('handleRewrite', () => {
     const res = await handleRewrite(req({ text: 'hello', label: longLabel }), env)
     expect(res.status).toBe(200)
     const [, options] = env.AI.run.mock.calls[0]
-    expect(options.messages[1].content).toContain('x'.repeat(80))
-    expect(options.messages[1].content).not.toContain('x'.repeat(81))
+    expect(options.messages[0].content).toContain('x'.repeat(80))
+    expect(options.messages[0].content).not.toContain('x'.repeat(81))
   })
 })
 
