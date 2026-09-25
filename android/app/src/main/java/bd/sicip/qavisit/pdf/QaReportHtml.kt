@@ -68,6 +68,7 @@ private val CSS = """
   th, td { border: 0.75pt solid #000; padding: 3pt 4pt; vertical-align: top; font-size: 10.5pt; }
   th { font-weight: 700; text-align: center; }
   td.sl { text-align: center; }
+  td.c { text-align: center; }
   td.heading-row { font-weight: 700; }
 
   ul.remarks { margin: 0; padding-left: 14pt; }
@@ -139,12 +140,14 @@ private fun remarksListHtml(item: CriteriaItem, data: ReportData): String {
 // section 1's fields/cards, and the conclusions sections (11-13's cards/fields, 14/15's
 // longtext) -- a generic best-effort renderer (label: value lines, longtext as a bulleted list of
 // its own non-blank lines, cards as one small table per block) rather than Annex-3's exact
-// hand-tuned sub-tables (1.10-1.62's own column layouts, 13's 9 fixed component rows): those
+// hand-tuned sub-tables (1.10-1.62's own column layouts; 11-13 + 16 now print their own tables,
+// see QaConclusionsHtml.kt): those
 // depend on the real qa-v1.json's exact field/card keys, which don't exist yet at the time this
 // was written (see this agent's own build note in DECISIONS.md). Generic rendering still prints
 // every value the officer entered, in template order, losing only the paper form's exact spacing
 // -- reasonable given the template it must match isn't authored yet.
 private fun fieldsBlockHtml(block: ReportBlock.Fields, data: ReportData): String {
+    if (block.pairs.isNotEmpty()) return strengthsWeaknessesHtml(block, data) // s13
     val heading = block.heading?.let { "<h3>${esc(it)}</h3>" } ?: ""
     return heading + block.fields.joinToString("") { field -> fieldHtml(field) { data.field(it) } }
 }
@@ -164,6 +167,8 @@ private fun fieldHtml(field: Field, value: (String) -> String): String {
 }
 
 private fun cardsBlockHtml(block: ReportBlock.Cards, data: ReportData): String {
+    if (block.anonymous) return feedbackTablesHtml(block, data) // s11/s12
+    if (block.draftFrom != null) return planTableHtml(block, data) // s16
     val cards = data.cards(block.key)
     if (cards.isEmpty()) return ""
     val headerCells = block.fields.joinToString("") { "<th>${esc(it.label)}</th>" }
