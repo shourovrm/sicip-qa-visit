@@ -19,9 +19,26 @@ export function buildMessages(text, label) {
 const FILLER_RE = /^sure,?\s*/i
 const LEADIN_RE = /^(here'?s|here is)?\s*(the\s+)?(rewritten|revised)(\s+(text|version|note))?\s*:\s*/i
 
-export function cleanOutput(raw) {
+// models often echo the field label as a heading ("Remarks: ...", "Field: Key findings\n\n...",
+// "**Key findings:**") -- strip one leading label line/prefix, never text mid-sentence.
+const FIELD_LINE_RE = /^\**field:[^\n]*\n+/i
+
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function stripLabel(out, label) {
+  out = out.replace(FIELD_LINE_RE, '')
+  if (!label) return out
+  // "Label:" prefix, or the bare label alone on its first line
+  const labelPrefix = new RegExp(`^\\**${escapeRegExp(label)}(\\s*:\\**\\s*|\\**[ \\t]*\\n+)`, 'i')
+  return out.replace(labelPrefix, '')
+}
+
+export function cleanOutput(raw, label = '') {
   let out = (raw || '').trim()
   out = out.replace(FILLER_RE, '').replace(LEADIN_RE, '').trim()
+  out = stripLabel(out, label).trim()
   if (out.length >= 2) {
     const first = out[0]
     const last = out[out.length - 1]

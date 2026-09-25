@@ -36,4 +36,15 @@ describe('cleanOutput', () => {
     expect(cleanOutput('   ')).toBe('')
     expect(cleanOutput(undefined)).toBe('')
   })
+
+  it('strips an echoed field label heading', () => {
+    expect(cleanOutput('Remarks: The trainer was absent.', 'Remarks')).toBe('The trainer was absent.')
+    expect(cleanOutput('**Key findings:** Three trainees had no ID.', 'Key findings')).toBe('Three trainees had no ID.')
+    expect(cleanOutput('Field: Key findings\n\nTool store not locked.', 'Key findings')).toBe('Tool store not locked.')
+    expect(cleanOutput('Key findings\n\nTool store not locked.', 'Key findings')).toBe('Tool store not locked.')
+  })
+
+  it('keeps the label word when it is real sentence content', () => {
+    expect(cleanOutput('Remarks were recorded in the register.', 'Remarks')).toBe('Remarks were recorded in the register.')
+  })
 })

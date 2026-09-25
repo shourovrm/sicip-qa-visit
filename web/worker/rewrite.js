@@ -13,6 +13,13 @@ function json(body, status) {
   })
 }
 
+// older models answer in `response`, newer chat-completions ones in choices[0].message.content
+function answerText(result) {
+  if (!result) return ''
+  if (typeof result.response === 'string') return result.response
+  return result.choices?.[0]?.message?.content ?? ''
+}
+
 export async function handleRewrite(request, env) {
   if (request.method !== 'POST') return json({ error: 'method' }, 405)
 
@@ -42,6 +49,7 @@ export async function handleRewrite(request, env) {
       messages: buildMessages(text, label),
       temperature: 0.2,
       max_tokens: 700,
+      ...model.options,
     })
   } catch (err) {
     // 3036 = daily free Workers AI allocation used up (see Cloudflare Workers AI error table).
@@ -52,7 +60,7 @@ export async function handleRewrite(request, env) {
     return json({ error: 'ai' }, 502)
   }
 
-  const rewritten = cleanOutput(result && result.response)
+  const rewritten = cleanOutput(answerText(result), label)
   if (!rewritten) return json({ error: 'ai' }, 502)
 
   return json({ text: rewritten, model: model.key }, 200)

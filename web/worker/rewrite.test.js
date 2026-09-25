@@ -95,7 +95,7 @@ describe('handleRewrite', () => {
     env.AI.run.mockResolvedValue({ response: 'Here is the rewritten text: "Trainer arrived late."' })
     const res = await handleRewrite(req({ text: 'trainer aslo lat', label: 'Findings' }), env)
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ text: 'Trainer arrived late.', model: 'quality' })
+    expect(await res.json()).toEqual({ text: 'Trainer arrived late.', model: 'gemma' })
 
     const [modelId, options] = env.AI.run.mock.calls[0]
     expect(modelId).toContain('@cf/')
@@ -107,11 +107,11 @@ describe('handleRewrite', () => {
 
   it('uses the requested model id in env.AI.run when a known key is sent', async () => {
     env.AI.run.mockResolvedValue({ response: 'ok' })
-    const res = await handleRewrite(req({ text: 'hello', model: 'quality' }), env)
+    const res = await handleRewrite(req({ text: 'hello', model: 'scout' }), env)
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ text: 'ok', model: 'quality' })
+    expect(await res.json()).toEqual({ text: 'ok', model: 'scout' })
     const [modelId] = env.AI.run.mock.calls[0]
-    expect(modelId).toBe(modelFor('quality').id)
+    expect(modelId).toBe(modelFor('scout').id)
   })
 
   it('falls back to the default model id for an unknown model key', async () => {
@@ -140,5 +140,14 @@ describe('handleRewrite', () => {
     const [, options] = env.AI.run.mock.calls[0]
     expect(options.messages[1].content).toContain('x'.repeat(80))
     expect(options.messages[1].content).not.toContain('x'.repeat(81))
+  })
+})
+
+describe('handleRewrite response shapes and model options', () => {
+  it('reads choices[0].message.content and passes model options', async () => {
+    env.AI.run.mockResolvedValue({ choices: [{ message: { content: 'Remarks: Fan broken.' } }] })
+    const res = await handleRewrite(req({ text: 'fan nosto', label: 'Remarks' }), env)
+    expect(await res.json()).toEqual({ text: 'Fan broken.', model: 'gemma' })
+    expect(env.AI.run.mock.calls[0][1].chat_template_kwargs).toEqual({ enable_thinking: false })
   })
 })
