@@ -152,6 +152,178 @@ def build_remarks(item, entry):
     return bullets
 
 
+# ---- QA conclusions drafts (s13 strengths/weaknesses, s14 findings, s16 plan, s15 recs) ----
+
+# one marked option -> its fixed sentence (detail group substituted) + officer remark
+def option_text(option, state):
+    v = state.get("v") or ""
+    remark = ensure_stop(str(state.get("remark") or "").strip())
+    sentence = option.get(v, "")
+    detail = str(state.get("detail") or "").strip()
+
+    def repl(match):
+        part = match.group(1)
+        return part.replace("$", detail) if detail else ""
+
+    sentence = BRACE_RE.sub(repl, sentence, count=1)
+    return " ".join(p for p in (sentence, remark) if p)
+
+
+def section_by_key(template, key):
+    return next(s for s in template["sections"] if s["key"] == key)
+
+
+# feedback cards (s11/s12) -> "N of M trainees said No: <question>." for questions tied to
+# this component. M = cards that answered the question at all.
+def feedback_lines(template, data, source_key):
+    lines = []
+    for _, block in all_blocks(template):
+        if block["type"] != "cards":
+            continue
+        cards = data.get("cards", {}).get(block["key"], [])
+        noun = block.get("itemLabel", "person").lower()
+        for field in block["fields"]:
+            if field.get("component") != source_key:
+                continue
+            answers = [c.get(field["key"]) for c in cards if not blank(c.get(field["key"]))]
+            no_count = sum(1 for a in answers if a == "no")
+            if no_count:
+                plural = "" if len(answers) == 1 else "s"
+                lines.append(f"{no_count} of {len(answers)} {noun}{plural} said No: {ensure_stop(field['label'])}")
+    return lines
+
+
+# one component (criteria section) sorted into seen / not seen / other notes / feedback
+def component_notes(template, data, source_key):
+    seen, gaps, other = [], [], []
+    criteria_data = data.get("criteria", {})
+    for block in section_by_key(template, source_key)["blocks"]:
+        if block["type"] != "criteria":
+            continue
+        for item in criteria_items(block):
+            entry = criteria_data.get(item["id"]) or {}
+            opts = entry.get("opts", {})
+            for option in item["options"]:
+                state = opts.get(option["id"]) or {}
+                v = state.get("v") or ""
+                if blank(v):
+                    remark = ensure_stop(str(state.get("remark") or "").strip())
+                    if remark:
+                        other.append(f"{option.get('short') or option['label']}: {remark}")
+                    continue
+                text = option_text(option, state)
+                if not text:
+                    continue
+                if v == "seen":
+                    seen.append(text)
+                elif v == "not":
+                    gaps.append(text)
+                else:
+                    other.append(text)
+            evidence = str(entry.get("evidence") or "").strip()
+            if evidence:
+                other.append("Evidence seen: " + ensure_stop(evidence))
+            note = str(entry.get("note") or "").strip()
+            if note:
+                other.append(ensure_stop(note))
+    return {"seen": seen, "gaps": gaps, "notes": other, "feedback": feedback_lines(template, data, source_key)}
+
+
+def has_notes(notes):
+    return any(notes[k] for k in ("seen", "gaps", "notes", "feedback"))
+
+
+# offline / AI-failed draft: seen -> strengths, gaps + feedback No's -> weaknesses
+def fallback_draft(notes):
+    return {"strengths": list(notes["seen"]), "weaknesses": notes["gaps"] + notes["feedback"]}
+
+
+# the user message sent to the Worker's mode "strengths"
+def strengths_prompt_text(notes):
+    parts = []
+    for heading, key in (("Positive observations", "seen"), ("Gaps observed", "gaps"),
+                         ("Feedback from trainees and trainers", "feedback"), ("Other officer notes", "notes")):
+        if notes[key]:
+            parts.append(heading + ":\n" + "\n".join("- " + line for line in notes[key]))
+    return "\n\n".join(parts)
+
+
+LIST_PREFIX_RE = re.compile(r"^\s*(?:[-*\u2022]+|\d+[.)])\s*")
+NONE_RE = re.compile(r"^none\b", re.I)
+HEADING_RE = re.compile(r"^[#*\s]*(strengths?|weakness(?:es)?)[\s*:]*$", re.I)
+
+
+# model text -> clean points: bullet/number prefix and ** stripped, blanks and "None..." dropped
+def clean_lines(text):
+    out = []
+    for raw in str(text or "").split("\n"):
+        line = LIST_PREFIX_RE.sub("", raw).replace("**", "").strip()
+        if line and not NONE_RE.match(line):
+            out.append(line)
+    return out
+
+
+# "STRENGTHS:\n- a\nWEAKNESSES:\n- b" -> {strengths, weaknesses}; None when no heading found
+def parse_strengths_answer(text):
+    lists = {"strengths": [], "weaknesses": []}
+    current = None
+    for raw in str(text or "").split("\n"):
+        match = HEADING_RE.match(raw)
+        if match:
+            current = "strengths" if match.group(1).lower().startswith("strength") else "weaknesses"
+            continue
+        if current:
+            lists[current] += clean_lines(raw)
+    if current is None:
+        return None
+    return lists
+
+
+# every weakness line across the s13 pairs, component order
+def all_weaknesses(template, data):
+    fields = data.get("fields", {})
+    lines = []
+    for _, block in all_blocks(template):
+        for pair in block.get("pairs", []):
+            lines += clean_lines(fields.get(pair["weakness"]))
+    return lines
+
+
+def numbered_text(lines):
+    return "\n".join(f"{i + 1}. {line}" for i, line in enumerate(lines))
+
+
+NUMBERED_RE = re.compile(r"^\s*\**(\d+)[.)]\**\s*(.+)$")
+
+
+# "1. a\n2. b" -> [a, b]; None unless every number 1..count has a non-blank answer
+def parse_numbered(text, count):
+    found = {}
+    for raw in str(text or "").split("\n"):
+        match = NUMBERED_RE.match(raw)
+        if match:
+            found.setdefault(int(match.group(1)), match.group(2).replace("**", "").strip())
+    answers = [found.get(n, "") for n in range(1, count + 1)]
+    return answers if all(answers) else None
+
+
+# one plan card per weakness; a card with the same weakness keeps its responsible/timeline
+# (and its action when the AI gave none). actions=None -> AI failed.
+def plan_cards(weaknesses, actions, existing, new_id):
+    cards = []
+    for i, weakness in enumerate(weaknesses):
+        prev = next((c for c in existing if str(c.get("weakness") or "").strip() == weakness), None) or {}
+        action = actions[i] if actions else str(prev.get("action") or "")
+        cards.append({"_id": prev.get("_id") or new_id(i), "weakness": weakness, "action": action,
+                      "responsible": prev.get("responsible") or "", "timeline": prev.get("timeline") or ""})
+    return cards
+
+
+# s15 prefill: one line per plan action
+def recommendations_from_plan(cards):
+    return "\n".join(str(c.get("action") or "").strip() for c in cards if not blank(c.get("action")))
+
+
 # printedRemarks: the AI rewrite (entry.ai.text) replaces the fixed bullets only while it is
 # still fresh -- entry.ai.source must equal the CURRENT bullets joined by "\n" (any edit to an
 # option/remark/evidence/note after the AI ran makes ai.source stale, so the fixed bullets show
@@ -492,6 +664,51 @@ def fixture_qa_progress_1():
     return {"template": "qa-v1.json", "data": data, "expected": report_progress(QA_TEMPLATE, data)}
 
 
+# QA conclusions drafts: every draft helper run on one data set, values computed through the
+# reference fns. parse_* cases take raw model answers, including the messy shapes seen live.
+def fixture_drafts_qa_1():
+    data = {"fields": {
+        "weak_1": "- No self-assessment team.",
+        "weak_7": "PPE list missing.\n\nNo PPE worn in the workshop.",
+        "str_7": "Fire extinguisher checked.",
+    }, "cards": {
+        "trainee_feedback": [
+            {"_id": "t1", "tq3": "no", "tq5": "no", "tq6": "yes"},
+            {"_id": "t2", "tq3": "yes", "tq5": "no"},
+            {"_id": "t3", "tq3": "na"},
+        ],
+        "trainer_feedback": [{"_id": "r1", "rq2": "no", "rq3": "yes"}],
+        "plan": [{"_id": "p1", "weakness": "PPE list missing.", "action": "Old action",
+                  "responsible": "Principal", "timeline": "1 month"}],
+    }, "criteria": {
+        "s8_1c": {"opts": {
+            "extinguisher": {"v": "seen", "detail": "12/02/2026"}, "first_aid": {"v": "seen", "remark": "kept in office"},
+            "ppe_list": {"v": "not"}, "ppe_symbols": {"v": "na"}, "ppe_use": {"v": "", "remark": "only goggles"},
+        }, "evidence": "fire log book", "note": "Workshop is small"},
+    }}
+    notes = component_notes(QA_TEMPLATE, data, "s8")
+    weaknesses = all_weaknesses(QA_TEMPLATE, data)
+    parse_cases = [
+        "STRENGTHS:\n- Fire extinguisher checked on 12/02/2026.\n- First aid kit kept.\nWEAKNESSES:\n- No PPE list.",
+        "**Strengths**\n1. Good.\n\n**Weaknesses:**\n* None.",
+        "Strengths:\nNone\nWeakness:\n- Budget not shared",
+        "Here is a summary without headings.",
+    ]
+    numbered_cases = [("1. Make a PPE list.\n2. Buy PPE.\n3. Form a team.", 3),
+                      ("**1.** Make a list\n2) Buy PPE", 2), ("1. Only one", 2)]
+    actions = ["Form a self-assessment team.", "Prepare a PPE list.", "Enforce PPE use."]
+    cards_ai = plan_cards(weaknesses, actions, data["cards"]["plan"], lambda i: f"new-{i}")
+    cards_failed = plan_cards(weaknesses, None, data["cards"]["plan"], lambda i: f"new-{i}")
+    return {"template": "qa-v1.json", "data": data,
+            "component_s8": notes, "fallback_s8": fallback_draft(notes), "prompt_s8": strengths_prompt_text(notes),
+            "has_notes_s3": has_notes(component_notes(QA_TEMPLATE, data, "s3")),
+            "parse_strengths": [{"text": t, "expected": parse_strengths_answer(t)} for t in parse_cases],
+            "weaknesses": weaknesses, "plan_prompt": numbered_text(weaknesses),
+            "parse_numbered": [{"text": t, "count": c, "expected": parse_numbered(t, c)} for t, c in numbered_cases],
+            "actions": actions, "plan_ai": cards_ai, "plan_failed": cards_failed,
+            "recommendations": recommendations_from_plan(cards_ai)}
+
+
 if __name__ == "__main__":
     fixture = fixture_1()
     (HERE / "progress-1.json").write_text(json.dumps(fixture, indent=1, ensure_ascii=False) + "\n")
@@ -505,3 +722,7 @@ if __name__ == "__main__":
     qa_progress_fixture = fixture_qa_progress_1()
     (HERE / "progress-qa-1.json").write_text(json.dumps(qa_progress_fixture, indent=1, ensure_ascii=False) + "\n")
     print(json.dumps(qa_progress_fixture["expected"]["sections"]))
+
+    drafts_fixture = fixture_drafts_qa_1()
+    (HERE / "drafts-qa-1.json").write_text(json.dumps(drafts_fixture, indent=1, ensure_ascii=False) + "\n")
+    print("drafts-qa-1.json written")

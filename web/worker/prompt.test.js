@@ -24,7 +24,15 @@ describe('buildMessages', () => {
     expect(remarksMessages[1]).toEqual(defaultMessages[1]) // user content unaffected by mode
   })
 
-  it('any mode other than "remarks" (including undefined) uses the default prompt', () => {
+  it('draft modes each get their own system prompt with a fixed answer shape', () => {
+    const base = buildMessages('x', '')[0].content
+    expect(buildMessages('x', '', 'strengths')[0].content).toMatch(/STRENGTHS:\n- point\nWEAKNESSES:/)
+    expect(buildMessages('x', '', 'plan')[0].content).toMatch(/same numbering/)
+    expect(buildMessages('x', '', 'findings')[0].content).toMatch(/at most 6/)
+    for (const mode of ['strengths', 'plan', 'findings']) expect(buildMessages('x', '', mode)[0].content).not.toBe(base)
+  })
+
+  it('an unknown mode (including undefined) uses the default prompt', () => {
     const a = buildMessages('x', '', undefined)
     const b = buildMessages('x', '', 'improve')
     expect(a[0].content).toBe(b[0].content)

@@ -91,6 +91,20 @@ describe('handleRewrite', () => {
     expect(await res.json()).toEqual({ error: 'ai' })
   })
 
+  it('draft modes allow up to 6000 chars and a 1200-token answer', async () => {
+    env.AI.run.mockResolvedValue({ response: 'STRENGTHS:\n- ok\nWEAKNESSES:\n- None' })
+    const res = await handleRewrite(req({ text: 'a'.repeat(6000), mode: 'strengths' }), env)
+    expect(res.status).toBe(200)
+    expect(env.AI.run.mock.calls[0][1].max_tokens).toBe(1200)
+    const tooLong = await handleRewrite(req({ text: 'a'.repeat(6001), mode: 'plan' }), env)
+    expect(tooLong.status).toBe(413)
+  })
+
+  it('an unknown mode keeps the 1500-char cap', async () => {
+    const res = await handleRewrite(req({ text: 'a'.repeat(1501), mode: 'essay' }), env)
+    expect(res.status).toBe(413)
+  })
+
   it('returns the cleaned rewritten text on success', async () => {
     env.AI.run.mockResolvedValue({ response: 'Here is the rewritten text: "Trainer arrived late."' })
     const res = await handleRewrite(req({ text: 'trainer aslo lat', label: 'Findings' }), env)

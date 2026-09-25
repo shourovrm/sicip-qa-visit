@@ -1,0 +1,220 @@
+{
+ "template": "qa-v1.json",
+ "data": {
+  "fields": {
+   "weak_1": "- No self-assessment team.",
+   "weak_7": "PPE list missing.\n\nNo PPE worn in the workshop.",
+   "str_7": "Fire extinguisher checked."
+  },
+  "cards": {
+   "trainee_feedback": [
+    {
+     "_id": "t1",
+     "tq3": "no",
+     "tq5": "no",
+     "tq6": "yes"
+    },
+    {
+     "_id": "t2",
+     "tq3": "yes",
+     "tq5": "no"
+    },
+    {
+     "_id": "t3",
+     "tq3": "na"
+    }
+   ],
+   "trainer_feedback": [
+    {
+     "_id": "r1",
+     "rq2": "no",
+     "rq3": "yes"
+    }
+   ],
+   "plan": [
+    {
+     "_id": "p1",
+     "weakness": "PPE list missing.",
+     "action": "Old action",
+     "responsible": "Principal",
+     "timeline": "1 month"
+    }
+   ]
+  },
+  "criteria": {
+   "s8_1c": {
+    "opts": {
+     "extinguisher": {
+      "v": "seen",
+      "detail": "12/02/2026"
+     },
+     "first_aid": {
+      "v": "seen",
+      "remark": "kept in office"
+     },
+     "ppe_list": {
+      "v": "not"
+     },
+     "ppe_symbols": {
+      "v": "na"
+     },
+     "ppe_use": {
+      "v": "",
+      "remark": "only goggles"
+     }
+    },
+    "evidence": "fire log book",
+    "note": "Workshop is small"
+   }
+  }
+ },
+ "component_s8": {
+  "seen": [
+   "Fire extinguishers are available and in working condition, last examined on 12/02/2026.",
+   "First aid kit is available. kept in office."
+  ],
+  "gaps": [
+   "No list of available PPE was found."
+  ],
+  "notes": [
+   "PPE use: only goggles.",
+   "Evidence seen: fire log book.",
+   "Workshop is small."
+  ],
+  "feedback": [
+   "2 of 2 trainees said No: Safety gear (PPE) provided and used.",
+   "1 of 1 trainer said No: Consumables sufficient when needed."
+  ]
+ },
+ "fallback_s8": {
+  "strengths": [
+   "Fire extinguishers are available and in working condition, last examined on 12/02/2026.",
+   "First aid kit is available. kept in office."
+  ],
+  "weaknesses": [
+   "No list of available PPE was found.",
+   "2 of 2 trainees said No: Safety gear (PPE) provided and used.",
+   "1 of 1 trainer said No: Consumables sufficient when needed."
+  ]
+ },
+ "prompt_s8": "Positive observations:\n- Fire extinguishers are available and in working condition, last examined on 12/02/2026.\n- First aid kit is available. kept in office.\n\nGaps observed:\n- No list of available PPE was found.\n\nFeedback from trainees and trainers:\n- 2 of 2 trainees said No: Safety gear (PPE) provided and used.\n- 1 of 1 trainer said No: Consumables sufficient when needed.\n\nOther officer notes:\n- PPE use: only goggles.\n- Evidence seen: fire log book.\n- Workshop is small.",
+ "has_notes_s3": false,
+ "parse_strengths": [
+  {
+   "text": "STRENGTHS:\n- Fire extinguisher checked on 12/02/2026.\n- First aid kit kept.\nWEAKNESSES:\n- No PPE list.",
+   "expected": {
+    "strengths": [
+     "Fire extinguisher checked on 12/02/2026.",
+     "First aid kit kept."
+    ],
+    "weaknesses": [
+     "No PPE list."
+    ]
+   }
+  },
+  {
+   "text": "**Strengths**\n1. Good.\n\n**Weaknesses:**\n* None.",
+   "expected": {
+    "strengths": [
+     "Good."
+    ],
+    "weaknesses": []
+   }
+  },
+  {
+   "text": "Strengths:\nNone\nWeakness:\n- Budget not shared",
+   "expected": {
+    "strengths": [],
+    "weaknesses": [
+     "Budget not shared"
+    ]
+   }
+  },
+  {
+   "text": "Here is a summary without headings.",
+   "expected": null
+  }
+ ],
+ "weaknesses": [
+  "No self-assessment team.",
+  "PPE list missing.",
+  "No PPE worn in the workshop."
+ ],
+ "plan_prompt": "1. No self-assessment team.\n2. PPE list missing.\n3. No PPE worn in the workshop.",
+ "parse_numbered": [
+  {
+   "text": "1. Make a PPE list.\n2. Buy PPE.\n3. Form a team.",
+   "count": 3,
+   "expected": [
+    "Make a PPE list.",
+    "Buy PPE.",
+    "Form a team."
+   ]
+  },
+  {
+   "text": "**1.** Make a list\n2) Buy PPE",
+   "count": 2,
+   "expected": [
+    "Make a list",
+    "Buy PPE"
+   ]
+  },
+  {
+   "text": "1. Only one",
+   "count": 2,
+   "expected": null
+  }
+ ],
+ "actions": [
+  "Form a self-assessment team.",
+  "Prepare a PPE list.",
+  "Enforce PPE use."
+ ],
+ "plan_ai": [
+  {
+   "_id": "new-0",
+   "weakness": "No self-assessment team.",
+   "action": "Form a self-assessment team.",
+   "responsible": "",
+   "timeline": ""
+  },
+  {
+   "_id": "p1",
+   "weakness": "PPE list missing.",
+   "action": "Prepare a PPE list.",
+   "responsible": "Principal",
+   "timeline": "1 month"
+  },
+  {
+   "_id": "new-2",
+   "weakness": "No PPE worn in the workshop.",
+   "action": "Enforce PPE use.",
+   "responsible": "",
+   "timeline": ""
+  }
+ ],
+ "plan_failed": [
+  {
+   "_id": "new-0",
+   "weakness": "No self-assessment team.",
+   "action": "",
+   "responsible": "",
+   "timeline": ""
+  },
+  {
+   "_id": "p1",
+   "weakness": "PPE list missing.",
+   "action": "Old action",
+   "responsible": "Principal",
+   "timeline": "1 month"
+  },
+  {
+   "_id": "new-2",
+   "weakness": "No PPE worn in the workshop.",
+   "action": "",
+   "responsible": "",
+   "timeline": ""
+  }
+ ],
+ "recommendations": "Form a self-assessment team.\nPrepare a PPE list.\nEnforce PPE use."
+}

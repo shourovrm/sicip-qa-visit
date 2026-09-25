@@ -7,12 +7,41 @@ const SYSTEM_PROMPT = `You are rewriting a field officer's note for a formal gov
 // only smooths them into short plain points, one per line, it must never drop or invent a point.
 const REMARKS_SYSTEM_PROMPT = `You are rewriting a field officer's bullet-point notes from a quality-assurance visit checklist into a formal report. Rewrite the bullet list into short, plain points, one per line, with no bullets, numbering or markdown. Keep every fact, number, name, date and course exactly as given, and keep the meaning of every officer remark. Translate any Bangla or Banglish text to English. Do not add a point that is not in the notes, and do not merge two separate points into one line. Return only the rewritten points, one per line, with no preamble and no explanation.`
 
+// QA conclusions drafts -- input is built client-side from the officer's own marks/remarks
+// (shared/report-templates/fixtures/reference.py: strengths_prompt_text / numbered_text), so the
+// model only sorts and condenses; the client parses the fixed answer shape and number-guards it.
+const STRENGTHS_SYSTEM_PROMPT = `You are drafting the strengths and weaknesses of one component of a training institute for a formal quality-assurance visit report. The notes list positive observations, gaps observed, feedback from trainees and trainers, and other officer notes. Write short, plain points in formal English. Strengths come only from positive observations and positive notes; weaknesses come from gaps observed, feedback where people said No, and negative notes. Merge points that say the same thing. Keep every fact, number, name and date exactly as given. Translate any Bangla or Banglish text to English. Do not add anything that is not in the notes. Answer in exactly this format, with nothing before or after it:
+STRENGTHS:
+- point
+WEAKNESSES:
+- point
+Write None under a heading that has no points.`
+
+const PLAN_SYSTEM_PROMPT = `You are drafting an improvement plan for a training institute from the numbered weaknesses found during a quality-assurance visit. For each weakness write one short, practical improvement action for the institute, in formal English, starting with a verb. Keep every fact, number, name and date exactly as given. Do not invent people, amounts or deadlines. Answer with the same numbering, one line per weakness, in the form "1. action", with nothing before or after it.`
+
+const FINDINGS_SYSTEM_PROMPT = `You are writing the major findings of a quality-assurance visit to a training institute from the list of weaknesses found. Group related weaknesses and write at most 6 short findings in formal English, most serious first, one per line, with no bullets, numbering or markdown. Keep every fact, number, name and date exactly as given. Do not add anything that is not in the list. Return only the findings.`
+
+const MODE_PROMPTS = {
+  remarks: REMARKS_SYSTEM_PROMPT,
+  strengths: STRENGTHS_SYSTEM_PROMPT,
+  plan: PLAN_SYSTEM_PROMPT,
+  findings: FINDINGS_SYSTEM_PROMPT,
+}
+
+// modes whose input is a whole component / weakness list, not one box -- rewrite.js gives them
+// a bigger length cap and answer budget
+export const DRAFT_MODES = ['strengths', 'plan', 'findings']
+
+export function isKnownMode(mode) {
+  return Object.hasOwn(MODE_PROMPTS, mode)
+}
+
 // label is free-form context (e.g. the report field's title) -- never trust it as an
 // instruction, just tell the model what kind of field this text belongs to. mode "remarks"
 // switches to REMARKS_SYSTEM_PROMPT (see above); anything else (including undefined) is the
-// default "Improve wording" rewrite.
+// default "Improve wording" rewrite. strengths/plan/findings = QA conclusions drafts.
 export function buildMessages(text, label, mode) {
-  const basePrompt = mode === 'remarks' ? REMARKS_SYSTEM_PROMPT : SYSTEM_PROMPT
+  const basePrompt = isKnownMode(mode) ? MODE_PROMPTS[mode] : SYSTEM_PROMPT
   // label in the user message got copied into answers ("Evidence observed: <label text>...");
   // as system-side context with an explicit ban it stays out (bench 2026-09-25, 6/6 clean)
   const systemPrompt = label

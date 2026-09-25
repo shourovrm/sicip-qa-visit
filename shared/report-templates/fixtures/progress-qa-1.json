@@ -152,6 +152,12 @@
     "total": 0,
     "done": false,
     "flagged": false
+   },
+   "s16": {
+    "answered": 0,
+    "total": 0,
+    "done": false,
+    "flagged": false
    }
   },
   "sectionsDone": 1,

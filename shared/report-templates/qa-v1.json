@@ -732,12 +732,25 @@
   {
    "key": "s11", "number": "11", "title": "TRAINEE'S FEEDBACK ON THE OVERALL TRAINING QUALITY (From at least two trainees)", "short": "Trainee feedback", "group": "conclusions",
    "blocks": [
-    {"type": "cards", "key": "trainee_feedback", "itemLabel": "Trainee", "start": 2, "titleField": "name",
+    {"type": "cards", "key": "trainee_feedback", "itemLabel": "Trainee", "start": 2, "titleField": "trade", "anonymous": true,
      "fields": [
-      {"key": "name", "label": "Name of the Trainee", "kind": "text"},
       {"key": "trade", "label": "Trade", "kind": "text"},
       {"key": "batch", "label": "Batch", "kind": "text"},
-      {"key": "feedback", "label": "Feedback of the Trainee", "kind": "longtext", "rewrite": true}
+      {"key": "tq1", "label": "Trainer explains well and answers questions", "kind": "choice", "component": "s7",
+       "options": [{"id": "yes", "label": "Yes", "tone": "yes"}, {"id": "no", "label": "No", "tone": "no"}, {"id": "na", "label": "N/A", "tone": "na"}]},
+      {"key": "tq2", "label": "Trainers come regularly as scheduled", "kind": "choice", "component": "s7",
+       "options": [{"id": "yes", "label": "Yes", "tone": "yes"}, {"id": "no", "label": "No", "tone": "no"}, {"id": "na", "label": "N/A", "tone": "na"}]},
+      {"key": "tq3", "label": "Enough hands-on practice", "kind": "choice", "component": "s9",
+       "options": [{"id": "yes", "label": "Yes", "tone": "yes"}, {"id": "no", "label": "No", "tone": "no"}, {"id": "na", "label": "N/A", "tone": "na"}]},
+      {"key": "tq4", "label": "Received learning materials and working tools", "kind": "choice", "component": "s6",
+       "options": [{"id": "yes", "label": "Yes", "tone": "yes"}, {"id": "no", "label": "No", "tone": "no"}, {"id": "na", "label": "N/A", "tone": "na"}]},
+      {"key": "tq5", "label": "Safety gear (PPE) provided and used", "kind": "choice", "component": "s8",
+       "options": [{"id": "yes", "label": "Yes", "tone": "yes"}, {"id": "no", "label": "No", "tone": "no"}, {"id": "na", "label": "N/A", "tone": "na"}]},
+      {"key": "tq6", "label": "Contacted by the job placement officer", "kind": "choice", "component": "s5",
+       "options": [{"id": "yes", "label": "Yes", "tone": "yes"}, {"id": "no", "label": "No", "tone": "no"}, {"id": "na", "label": "N/A", "tone": "na"}]},
+      {"key": "tq7", "label": "Satisfied with the overall training", "kind": "choice",
+       "options": [{"id": "yes", "label": "Yes", "tone": "yes"}, {"id": "no", "label": "No", "tone": "no"}, {"id": "na", "label": "N/A", "tone": "na"}]},
+      {"key": "feedback", "label": "Any problem or suggestion", "kind": "longtext", "rewrite": true}
      ]}
    ]
   },
@@ -745,11 +758,20 @@
   {
    "key": "s12", "number": "12", "title": "TRAINERS' FEEDBACK ON THE OVERALL TRAINING ENVIRONMENT AND RESOURCES", "short": "Trainer feedback", "group": "conclusions",
    "blocks": [
-    {"type": "cards", "key": "trainer_feedback", "itemLabel": "Trainer", "start": 2, "titleField": "name",
+    {"type": "cards", "key": "trainer_feedback", "itemLabel": "Trainer", "start": 2, "titleField": "trade", "anonymous": true,
      "fields": [
-      {"key": "name", "label": "Name of the Trainer", "kind": "text"},
       {"key": "trade", "label": "Trade", "kind": "text"},
-      {"key": "feedback", "label": "Feedback of the Trainer", "kind": "longtext", "rewrite": true}
+      {"key": "rq1", "label": "Learning materials (CBLM/job sheets) complete and available", "kind": "choice", "component": "s6",
+       "options": [{"id": "yes", "label": "Yes", "tone": "yes"}, {"id": "no", "label": "No", "tone": "no"}, {"id": "na", "label": "N/A", "tone": "na"}]},
+      {"key": "rq2", "label": "Consumables sufficient when needed", "kind": "choice", "component": "s8",
+       "options": [{"id": "yes", "label": "Yes", "tone": "yes"}, {"id": "no", "label": "No", "tone": "no"}, {"id": "na", "label": "N/A", "tone": "na"}]},
+      {"key": "rq3", "label": "Required tools and equipment in use and working", "kind": "choice", "component": "s8",
+       "options": [{"id": "yes", "label": "Yes", "tone": "yes"}, {"id": "no", "label": "No", "tone": "no"}, {"id": "na", "label": "N/A", "tone": "na"}]},
+      {"key": "rq4", "label": "Has received pedagogy/skills training", "kind": "choice", "component": "s7",
+       "options": [{"id": "yes", "label": "Yes", "tone": "yes"}, {"id": "no", "label": "No", "tone": "no"}, {"id": "na", "label": "N/A", "tone": "na"}]},
+      {"key": "rq5", "label": "Management supports training needs", "kind": "choice", "component": "s7",
+       "options": [{"id": "yes", "label": "Yes", "tone": "yes"}, {"id": "no", "label": "No", "tone": "no"}, {"id": "na", "label": "N/A", "tone": "na"}]},
+      {"key": "feedback", "label": "Main problem or suggestion", "kind": "longtext", "rewrite": true}
      ]}
    ]
   },
@@ -758,6 +780,17 @@
    "key": "s13", "number": "13", "title": "COMPONENT-WISE STRENGTHS & WEAKNESSES", "short": "Strengths & weaknesses", "group": "conclusions",
    "blocks": [
     {"type": "fields",
+     "pairs": [
+      {"component": "Quality Management System", "source": "s2", "strength": "str_1", "weakness": "weak_1"},
+      {"component": "Budgeting", "source": "s3", "strength": "str_2", "weakness": "weak_2"},
+      {"component": "Selection and Enrolment of Trainees", "source": "s4", "strength": "str_3", "weakness": "weak_3"},
+      {"component": "Job Placement or Employment Support", "source": "s5", "strength": "str_4", "weakness": "weak_4"},
+      {"component": "Standards, Learning Material and Assessment Tools", "source": "s6", "strength": "str_5", "weakness": "weak_5"},
+      {"component": "Trainers", "source": "s7", "strength": "str_6", "weakness": "weak_6"},
+      {"component": "Physical Resources", "source": "s8", "strength": "str_7", "weakness": "weak_7"},
+      {"component": "Training & Learning Approach", "source": "s9", "strength": "str_8", "weakness": "weak_8"},
+      {"component": "Assessment and Certification", "source": "s10", "strength": "str_9", "weakness": "weak_9"}
+     ],
      "fields": [
       {"key": "str_1", "label": "Quality Management System — Strengths", "kind": "longtext", "rewrite": true},
       {"key": "weak_1", "label": "Quality Management System — Weakness", "kind": "longtext", "rewrite": true},
@@ -786,7 +819,7 @@
    "blocks": [
     {"type": "fields",
      "fields": [
-      {"key": "findings", "label": "Major findings (one point per line)", "kind": "longtext", "rewrite": true}
+      {"key": "findings", "label": "Major findings (one point per line)", "kind": "longtext", "rewrite": true, "draftFrom": "weaknesses"}
      ]}
    ]
   },
@@ -796,7 +829,20 @@
    "blocks": [
     {"type": "fields",
      "fields": [
-      {"key": "recommendations", "label": "Recommendations (one point per line)", "kind": "longtext", "rewrite": true}
+      {"key": "recommendations", "label": "Recommendations (one point per line)", "kind": "longtext", "rewrite": true, "draftFrom": "plan"}
+     ]}
+   ]
+  },
+
+  {
+   "key": "s16", "number": "16", "title": "IMPROVEMENT PLAN", "short": "Improvement plan", "group": "conclusions",
+   "blocks": [
+    {"type": "cards", "key": "plan", "itemLabel": "Action", "start": 0, "titleField": "weakness", "draftFrom": "weaknesses",
+     "fields": [
+      {"key": "weakness", "label": "Weakness", "kind": "longtext"},
+      {"key": "action", "label": "Improvement action", "kind": "longtext", "rewrite": true},
+      {"key": "responsible", "label": "Responsible", "kind": "text"},
+      {"key": "timeline", "label": "Timeline", "kind": "text"}
      ]}
    ]
   }
