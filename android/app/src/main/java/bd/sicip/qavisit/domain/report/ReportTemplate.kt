@@ -63,6 +63,10 @@ data class Field(
     val placeholder: String? = null,
     val options: JsonElement? = null,
     val optionsFrom: String? = null,
+    // "Improve wording" button shows under this field's longtext editor (ui/reports/
+    // ImproveWording.kt) -- set per-field in the template json, never inferred from `kind`, so
+    // address/officers-style longtext fields can opt out (spec: never those two).
+    val rewrite: Boolean = false,
 ) {
     fun selectOptions(): List<String> =
         (options as? JsonArray)?.map { it.jsonPrimitive.content } ?: emptyList()

@@ -215,14 +215,21 @@ fun FieldEditor(
             modifier = modifier.fillMaxWidth(),
         )
 
-        "longtext" -> OutlinedTextField(
-            value = value,
-            onValueChange = onDebounced,
-            label = { Text(field.label) },
-            readOnly = readOnly,
-            minLines = 3,
-            modifier = modifier.fillMaxWidth(),
-        )
+        "longtext" -> Column(modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = value,
+                onValueChange = onDebounced,
+                label = { Text(field.label) },
+                readOnly = readOnly,
+                minLines = 3,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            // template opts a longtext field in per-field (spec: never address/officers) --
+            // see domain/report/ReportTemplate.kt's Field.rewrite.
+            if (field.rewrite) {
+                ImproveWordingButton(text = value, label = field.label, readOnly = readOnly, onApply = onImmediate)
+            }
+        }
 
         else -> OutlinedTextField( // "text" and any unrecognised kind fall back to a plain single-line field
             value = value,
@@ -372,13 +379,23 @@ private fun ChecklistRemarksField(
     onOpen: () -> Unit,
 ) {
     if (remarksOpen) {
-        OutlinedTextField(
-            value = remarks,
-            onValueChange = { v -> editor.editDebounced(data.withCheck(item.id, remarks = v)) },
-            label = { Text("Remarks") },
-            readOnly = readOnly,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            OutlinedTextField(
+                value = remarks,
+                onValueChange = { v -> editor.editDebounced(data.withCheck(item.id, remarks = v)) },
+                label = { Text("Remarks") },
+                readOnly = readOnly,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            // every checklist remarks box gets the button, unconditionally (spec) -- unlike
+            // longtext template fields there is no per-item opt-out here.
+            ImproveWordingButton(
+                text = remarks,
+                label = item.text,
+                readOnly = readOnly,
+                onApply = { v -> editor.editNow(data.withCheck(item.id, remarks = v)) },
+            )
+        }
     } else if (!readOnly) {
         TextButton(onClick = onOpen) { Text("Add remarks") }
     }
