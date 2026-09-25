@@ -1,0 +1,804 @@
+{
+ "id": "qa",
+ "version": 1,
+ "title": "Quality Assurance Visit Report",
+ "short": "QA visit",
+ "annex": "Annex-3",
+ "program": "Skills for Industry Competitiveness and Innovation Program (SICIP)",
+ "visitType": "qa",
+ "purposes": ["Monitoring Visit"],
+ "sections": [
+  {
+   "key": "s1", "number": "1", "title": "General Information", "short": "General, MoU & enrolment", "group": "profile",
+   "blocks": [
+    {
+     "type": "fields",
+     "fields": [
+      {"key": "ti_name", "label": "Name of Training TI/TC Visited", "kind": "text", "prefill": "institute", "required": true},
+      {"key": "provider", "label": "Name of the Association/Provider", "kind": "text", "prefill": "association"},
+      {"key": "address", "label": "Address of Training Institute and Contact", "kind": "longtext"},
+      {"key": "date_from", "label": "Date(s) of Visit — from", "kind": "date", "prefill": "visit_date", "required": true},
+      {"key": "date_to", "label": "Date(s) of Visit — to", "kind": "date", "prefill": "visit_end", "required": true},
+      {"key": "officers", "label": "Name(s) & Designation(s) of Visiting Officer(s)", "kind": "longtext", "prefill": "officers"},
+      {"key": "status", "label": "i) Status of the Training Institute (Registered with BTEB/NSDA/others — please specify)", "kind": "longtext"},
+      {"key": "purposes", "label": "ii) Purpose(s) of this Monitoring Visit", "kind": "longtext"},
+      {"key": "team", "label": "iii) Monitoring Team Members with Designations", "kind": "longtext"}
+     ]
+    },
+    {
+     "type": "cards", "key": "persons", "heading": "1.10 Persons Met/Interviewed from the TI Management & Training Staff during the Visit",
+     "itemLabel": "Person", "start": 3, "titleField": "name",
+     "fields": [
+      {"key": "name", "label": "Name", "kind": "text"},
+      {"key": "designation", "label": "Designation", "kind": "text"},
+      {"key": "contact", "label": "Contact Number", "kind": "phone"}
+     ]
+    },
+    {
+     "type": "fields", "heading": "1.20 Contract/MoU Information",
+     "fields": [
+      {"key": "contract_with", "label": "1.21 Contract/MoU has been signed with", "kind": "text"},
+      {"key": "signed_date", "label": "1.22 Date of signing the contract/MoU", "kind": "date"},
+      {"key": "mou_target", "label": "1.23 Total target set in the MoU", "kind": "number"},
+      {"key": "mou_duration", "label": "1.24 Contract/MoU duration", "kind": "text"},
+      {"key": "mou_amount", "label": "1.25 Total contract/MoU amount", "kind": "text"}
+     ]
+    },
+    {
+     "type": "fields", "heading": "1.30 Contract/MoU signed with organizations/projects other than SICIP for skills training delivery",
+     "fields": [
+      {"key": "other_contract", "label": "Signed with other organizations/projects?", "kind": "choice",
+       "options": [{"id": "yes", "label": "Yes"}, {"id": "na", "label": "N/A"}]},
+      {"key": "other_orgs", "label": "1.31 Name(s) of the organization(s)/projects", "kind": "longtext"},
+      {"key": "other_courses", "label": "1.32 Training courses to be delivered", "kind": "longtext"},
+      {"key": "overlapping_courses", "label": "1.33 Overlapping courses with SICIP", "kind": "longtext"},
+      {"key": "same_facilities", "label": "1.34 Using the same/different facilities for those training programs?", "kind": "text"},
+      {"key": "comments", "label": "Comments of the Visiting Officer", "kind": "longtext"}
+     ]
+    },
+    {
+     "type": "cards", "key": "mou_courses", "heading": "1.40 Name(s) of course(s) included in the MoU with duration(s)",
+     "itemLabel": "Course", "start": 4, "titleField": "course",
+     "fields": [
+      {"key": "course", "label": "Training Course", "kind": "text"},
+      {"key": "target", "label": "Target", "kind": "number"},
+      {"key": "duration", "label": "Duration", "kind": "text"},
+      {"key": "batches", "label": "No. of Batches", "kind": "number"},
+      {"key": "batch_size", "label": "Batch Size", "kind": "number"}
+     ]
+    },
+    {
+     "type": "cards", "key": "cumulative", "heading": "1.50 Cumulative Training Implementation Information (up to the date of visit)",
+     "itemLabel": "Course", "start": 2, "titleField": "course", "note": "T = Total and F = Female",
+     "fields": [
+      {"key": "course", "label": "Course Name", "kind": "courseRef", "optionsFrom": "mou_courses"},
+      {"key": "target", "label": "Target", "kind": "number"},
+      {"key": "enrolled_t", "label": "Enrolled, T", "kind": "number"},
+      {"key": "enrolled_f", "label": "Enrolled, F", "kind": "number"},
+      {"key": "certified_t", "label": "Certified, T", "kind": "number"},
+      {"key": "certified_f", "label": "Certified, F", "kind": "number"},
+      {"key": "placed_t", "label": "Job Placed, T", "kind": "number"},
+      {"key": "placed_f", "label": "Job Placed, F", "kind": "number"},
+      {"key": "dropout_t", "label": "No. of dropouts, T", "kind": "number"},
+      {"key": "dropout_f", "label": "No. of dropouts, F", "kind": "number"}
+     ]
+    },
+    {
+     "type": "cards", "key": "batches", "heading": "1.60 Enrolment and Attendance Information of Current Batches",
+     "itemLabel": "Batch", "start": 2, "titleField": "course",
+     "fields": [
+      {"key": "course", "label": "Course Name", "kind": "courseRef", "optionsFrom": "mou_courses"},
+      {"key": "batch", "label": "Batch No.", "kind": "text"},
+      {"key": "start_end", "label": "Start and End Date", "kind": "text"},
+      {"key": "enrolled", "label": "Total Number of Enrolled Trainees", "kind": "number"},
+      {"key": "female", "label": "Number of Female Trainees", "kind": "number"},
+      {"key": "attendance_today", "label": "Attendance on Visit Date", "kind": "number"},
+      {"key": "attendance_7day", "label": "Attendance (07-day average)", "kind": "number"},
+      {"key": "tms_mismatch", "label": "No. of Attendance Data-Mismatch with TMS", "kind": "number"},
+      {"key": "dropouts", "label": "No. of Dropouts", "kind": "number"}
+     ]
+    },
+    {
+     "type": "fields",
+     "fields": [
+      {"key": "dropout_reasons", "label": "1.61 Please give major reasons for dropouts (one point per line)", "kind": "longtext"},
+      {"key": "dropout_steps", "label": "1.62 Steps taken by the TI management to mitigate dropouts (one point per line)", "kind": "longtext"}
+     ]
+    }
+   ]
+  },
+
+  {
+   "key": "s2", "number": "2", "title": "QUALITY MANAGEMENT SYSTEM", "short": "Quality management system", "group": "criteria",
+   "blocks": [
+    {"type": "criteria", "key": "s2",
+     "intro": "The training provider has a quality management system in place or is committed to implementing quality standards and procedures set by SICIP.",
+     "items": [
+      {"id": "s2_1", "no": "1.",
+       "text": "Process describing training provider's quality management system is available; assessment reports produced by the PIU & SDCMU following SICIP quality assurance framework are available",
+       "evidence": "- Written procedures of quality management system/ flow chart of work process\n- Capacity assessment reports",
+       "options": [
+        {"id": "qms_process", "label": "Written QMS procedure / flow chart", "short": "QMS procedure", "src": ["A3"],
+         "seen": "A written quality management system procedure or work-flow chart is kept.", "not": "No written quality management system procedure was found.", "na": ""},
+        {"id": "qms_assessment", "label": "PIU/SDCMU capacity assessment reports", "short": "Capacity assessment reports", "src": ["A3"],
+         "seen": "PIU/SDCMU capacity assessment reports are available.", "not": "No PIU/SDCMU capacity assessment report was found.", "na": ""},
+        {"id": "self_assessment_team", "label": "Self-assessment team formed", "src": ["CL"],
+         "seen": "A self-assessment team has been formed.", "not": "No self-assessment team has been formed.", "na": ""},
+        {"id": "self_appraisal", "label": "Self-appraisal documented", "src": ["CL"],
+         "seen": "Self-appraisal is documented.", "not": "Self-appraisal is not documented.", "na": ""},
+        {"id": "feedback_plan", "label": "Feedback and improvement plan documented", "short": "Feedback & improvement plan", "src": ["CL"],
+         "seen": "A feedback and improvement plan is documented.", "not": "No feedback and improvement plan was found.", "na": ""},
+        {"id": "visit_log", "label": "Visit log / monitoring register maintained", "short": "Visit log / monitoring register", "src": ["CL", "FC"],
+         "seen": "A visit log / monitoring register is maintained.", "not": "No visit log or monitoring register was found.", "na": ""}
+       ]}
+     ]}
+   ]
+  },
+
+  {
+   "key": "s3", "number": "3", "title": "BUDGETING", "short": "Budgeting", "group": "criteria",
+   "blocks": [
+    {"type": "criteria", "key": "s3",
+     "intro": "The training provider has drawn-up a plan spelling out detailed requirements of training program implementation and especially resource and budgetary requirements",
+     "items": [
+      {"id": "s3_1", "no": "1.",
+       "text": "Business plan/ MoU for the TI (outsourced or own) describing details of each training program offered under SICIP including budgetary provision. Number of trainees and resource requirements by training programme to be offered are available",
+       "evidence": "- Business plan/ MoU\n- Batch-wise required resources- like tools equipment, training materials and other expenses",
+       "options": [
+        {"id": "business_plan", "label": "Business plan / MoU with budgetary provision", "short": "Business plan / MoU", "src": ["A3"],
+         "seen": "A business plan / MoU describing each training programme with budgetary provision is available.", "not": "No business plan / MoU describing the training programme with budgetary provision was found.", "na": ""},
+        {"id": "resource_reqs", "label": "Batch-wise resource requirements", "src": ["A3"],
+         "seen": "Batch-wise resource requirements (tools, equipment, training materials, other expenses) are recorded.", "not": "No batch-wise resource requirements were recorded.", "na": ""},
+        {"id": "periodic_budget", "label": "Periodic budget by trainee target", "src": ["CL"],
+         "seen": "A periodic budget approved by trainee target is available.", "not": "No periodic budget approved by trainee target was found.", "na": ""},
+        {"id": "expenditure_plan", "label": "Expenditure plan", "src": ["CL"],
+         "seen": "An expenditure plan is prepared.", "not": "No expenditure plan was found.", "na": ""},
+        {"id": "ttm_purchase", "label": "TTM purchase documents", "src": ["CL"],
+         "seen": "Purchase documents (bills, vouchers) for teaching and training materials are kept.", "not": "No purchase documents for teaching and training materials were found.", "na": ""},
+        {"id": "ttm_registers", "label": "Stock, daily consumption and fuel registers", "src": ["CL"],
+         "seen": "Stock, daily consumption and fuel consumption registers are maintained.", "not": "Stock, daily consumption or fuel consumption registers are missing.", "na": ""},
+        {"id": "bank_account", "label": "Separate bank account", "src": ["CL"],
+         "seen": "A separate bank account is kept for SICIP training.", "not": "No separate bank account is kept for SICIP training.", "na": ""},
+        {"id": "fin_registers", "label": "Bill register, cash book, ledgers, vouchers, fixed asset register", "short": "Financial registers", "src": ["CL"],
+         "seen": "Bill register, cash book, ledgers, vouchers and fixed asset register are maintained.", "not": "Bill register, cash book, ledgers, vouchers or fixed asset register are missing.", "na": ""},
+        {"id": "stipend_time", "label": "Stipend disbursed on time", "src": ["CL"],
+         "seen": "Stipend is disbursed on time.", "not": "Stipend is not disbursed on time.", "na": ""},
+        {"id": "soe", "label": "Statement of Expenditure (SOE) per guideline", "short": "SOE per guideline", "src": ["CL"],
+         "seen": "A Statement of Expenditure (SOE) is prepared per SICIP guideline.", "not": "No Statement of Expenditure (SOE) per SICIP guideline was found.", "na": ""},
+        {"id": "spend_budget", "label": "Expenditure within approved budget", "src": ["CL"],
+         "seen": "Expenditure is in line with the approved budget.", "not": "Expenditure is not in line with the approved budget.", "na": ""},
+        {"id": "trainer_salary", "label": "Trainer's salary paid through bank", "short": "Trainer salary via bank", "src": ["CL"],
+         "seen": "Trainer's salary is paid through bank account.", "not": "Trainer's salary is paid in cash, not through bank account.", "na": ""}
+       ]}
+     ]}
+   ]
+  },
+
+  {
+   "key": "s4", "number": "4", "title": "SELECTION AND ENROLMENT OF TRAINEES", "short": "Selection & enrolment", "group": "criteria",
+   "blocks": [
+    {"type": "criteria", "key": "s4",
+     "intro": "The training provider follows selection and enrolment procedures described in the SICIP Quality Assurance Framework",
+     "items": [
+      {"id": "s4_1", "no": "1.",
+       "text": "Applicants were informed about training objectives, outputs and schedule, as well as topics and methods applied during training.",
+       "evidence": "Advertisement or flyer indicates the training objectives, outputs etc, besides, at the beginning of training program, trainer informs trainees about the objective, outputs and schedule of training (trainees' feedback and copy of flyer)",
+       "options": [
+        {"id": "flyer", "label": "Advertisement or flyer states objectives, outputs, schedule", "short": "Advertisement / flyer", "src": ["A3"],
+         "seen": "An advertisement or flyer states the training objectives, outputs and schedule.", "not": "No advertisement or flyer stating the training objectives was found.", "na": ""},
+        {"id": "trainer_informed", "label": "Trainer explained objectives at the start of training", "short": "Trainer explained objectives", "src": ["A3"],
+         "seen": "Trainees confirm the trainer explained objectives, outputs and schedule at the start of training.", "not": "Trainees say the trainer did not explain objectives, outputs and schedule at the start.", "na": ""},
+        {"id": "ad_media", "label": "Advertisement through various media", "short": "Advertisement through media", "src": ["CL"],
+         "seen": "The training was advertised through various media.", "not": "No advertisement of the training was found.", "na": ""}
+       ]},
+      {"id": "s4_2", "no": "2.",
+       "text": "Selection and enrolment are properly done (list of applicants and trainees admitted, waiting lists, interview protocols, admission test results)",
+       "evidence": "List of applicants and trainees admitted, waiting lists are recorded and maintained and available with the centre (trainees list)",
+       "options": [
+        {"id": "applicants_list", "label": "List of applicants", "src": ["CL"], "detail": "Number of applicants (optional)",
+         "seen": "A list of applicants is available{ ($ applicants)}.", "not": "No list of applicants was found.", "na": ""},
+        {"id": "admission_forms", "label": "Admission form and supporting documents", "src": ["CL"],
+         "seen": "Admission forms with supporting documents are kept.", "not": "Admission forms or supporting documents are missing.", "na": ""},
+        {"id": "test_participant_list", "label": "Participant list at selection tests", "src": ["CL"],
+         "seen": "A participant list of the selection tests is available.", "not": "No participant list of the selection tests was found.", "na": ""},
+        {"id": "selection_criteria", "label": "Criteria of selection", "src": ["CL"],
+         "seen": "Selection criteria (age, education, aptitude test, interview) are documented.", "not": "Selection criteria are not documented.", "na": ""},
+        {"id": "test_results_summary", "label": "Results summary of aptitude tests / interviews", "short": "Test / interview results summary", "src": ["CL"],
+         "seen": "A results summary of aptitude tests and interviews is available.", "not": "No results summary of aptitude tests or interviews was found.", "na": ""},
+        {"id": "final_list", "label": "Final list of trainees", "src": ["CL"],
+         "seen": "A final list of trainees is available.", "not": "No final list of trainees was found.", "na": ""},
+        {"id": "waiting_list", "label": "Waiting list of trainees", "src": ["CL"],
+         "seen": "A waiting list of trainees is maintained.", "not": "No waiting list of trainees is maintained.", "na": "No waiting list was needed."},
+        {"id": "tms_upload", "label": "Enrolment information uploaded in TMS", "short": "TMS upload", "src": ["CL"],
+         "seen": "Trainees' enrolment information is uploaded in TMS.", "not": "Trainees' enrolment information is not uploaded in TMS.", "na": ""}
+       ]},
+      {"id": "s4_3", "no": "3.",
+       "text": "Admission test procedures and results are recorded and archived",
+       "evidence": "Admission test procedures and results are recorded and available (result sheet attached)",
+       "options": [
+        {"id": "test_procedures", "label": "Admission test procedures and results recorded", "short": "Test procedures & results", "src": ["A3"],
+         "seen": "Admission test procedures and results are recorded and available.", "not": "Admission test procedures and results are not recorded.", "na": ""}
+       ]},
+      {"id": "s4_4", "no": "4.",
+       "text": "Selection and enrolment of trainees are following the principles of equal opportunity",
+       "evidence": "Admission test procedures and results are recorded and available (result sheet attached)",
+       "options": [
+        {"id": "equal_opportunity", "label": "Selection follows equal opportunity", "src": ["A3"],
+         "seen": "Selection and enrolment follow the principles of equal opportunity.", "not": "Selection and enrolment do not follow the principles of equal opportunity.", "na": ""}
+       ]},
+      {"id": "s4_5", "no": "5.",
+       "text": "Selection and enrolment promote and give preference to application of female candidates and candidates from indigenous and ethnic communities, socially disadvantaged and people with special needs",
+       "evidence": "List of applicants and trainees admitted aggregated by gender and candidates from indigenous and ethnic communities, socially disadvantaged and people with special needs are available (list attached)",
+       "options": [
+        {"id": "gender_disadvantaged_list", "label": "Aggregated list by gender / disadvantaged groups", "short": "Gender / disadvantaged list", "src": ["A3"],
+         "seen": "A list of applicants and trainees admitted, aggregated by gender and by indigenous/ethnic, disadvantaged and special-needs groups, is available.", "not": "No such aggregated list was found.", "na": ""},
+        {"id": "women_priority", "label": "Women and disadvantaged prioritised", "src": ["CL"],
+         "seen": "Women and disadvantaged groups are prioritised during enrolment.", "not": "Women and disadvantaged groups are not prioritised during enrolment.", "na": ""}
+       ]},
+      {"id": "s4_6", "no": "6.",
+       "text": "Admission form of each trainee and records in the TMS",
+       "evidence": "Admission records, records are available in TMS",
+       "options": [
+        {"id": "admission_tms", "label": "Admission form and TMS record per trainee", "short": "Admission form & TMS record", "src": ["A3"],
+         "seen": "Each trainee's admission form and TMS record is available.", "not": "Admission forms or TMS records are missing.", "na": ""}
+       ]},
+      {"id": "s4_7", "no": "7.",
+       "text": "Admitted trainees fulfil minimum entry requirements",
+       "evidence": "List of trainees (course-wise) with entry level qualification and experience are recorded, maintained and available with the centre (Sample attached)",
+       "options": [
+        {"id": "entry_qualification", "label": "Course-wise entry qualification / experience list", "short": "Entry qualification list", "src": ["A3"],
+         "seen": "A course-wise list of trainees with entry qualification and experience is available.", "not": "No course-wise list of trainee entry qualification was found.", "na": ""},
+        {"id": "no_employees", "label": "No existing employees enrolled as trainees", "src": ["CL"],
+         "seen": "No existing employees of the centre or partner industry are enrolled as trainees.", "not": "Existing employees of the centre or partner industry were found enrolled as trainees.", "na": ""}
+       ]},
+      {"id": "s4_8", "no": "8.",
+       "text": "Complaint procedures for failed/rejected applicants are in place.",
+       "evidence": "Written complaint procedures (attached)",
+       "options": [
+        {"id": "complaint_procedures", "label": "Written complaint procedures", "src": ["A3"],
+         "seen": "Written complaint procedures for failed or rejected applicants are in place.", "not": "No written complaint procedures for failed or rejected applicants were found.", "na": ""}
+       ]}
+     ]}
+   ]
+  },
+
+  {
+   "key": "s5", "number": "5", "title": "JOB PLACEMENT AND EMPLOYMENT SUPPORT", "short": "Job placement", "group": "criteria",
+   "blocks": [
+    {"type": "criteria", "key": "s5",
+     "intro": "The training provider has adequate and appropriate job placement or employment support procedures",
+     "items": [
+      {"id": "s5_1", "no": "1.",
+       "text": "Job profiles and vacancies in industry are available",
+       "evidence": "Job placement officer collected job profiles and vacancies for graduates and all the vacancy advertisement are recorded and maintained with Job placement unit (List of actual job vacancies)",
+       "options": [
+        {"id": "job_profiles", "label": "Job profiles and vacancies recorded", "src": ["A3"],
+         "seen": "Job profiles and vacancies collected by the job placement officer are recorded and maintained.", "not": "No record of job profiles or vacancies was found.", "na": ""},
+        {"id": "prospective_jobs", "label": "List of prospective jobs and employers", "src": ["CL"],
+         "seen": "A list of prospective jobs and employers is kept.", "not": "No list of prospective jobs and employers was found.", "na": ""}
+       ]},
+      {"id": "s5_2", "no": "2.",
+       "text": "Job placement or employment support unit has been formed (list of members)",
+       "evidence": "Job placement officer is recruited and engaged to liaise with employers (List of members, appointment letter)",
+       "options": [
+        {"id": "placement_unit", "label": "Placement unit formed, members list + appointment letter", "short": "Placement unit formed", "src": ["A3"],
+         "seen": "A job placement / employment support unit has been formed, with a list of members and appointment letter.", "not": "No job placement / employment support unit has been formed.", "na": ""},
+        {"id": "placement_unit_bp", "label": "Unit formed per Business Plan", "src": ["CL"],
+         "seen": "The job placement unit / employers' committee was formed according to the Business Plan.", "not": "The job placement unit / employers' committee was not formed per the Business Plan.", "na": ""}
+       ]},
+      {"id": "s5_3", "no": "3.",
+       "text": "Employers' committee has been set-up and regular committee meetings take place [applicable for PTIs]",
+       "evidence": "Employers' committee formed, List of committee members, notice for meetings and record notes of meeting are available with the centre (latest sample attached)",
+       "options": [
+        {"id": "employers_committee", "label": "Employers' committee set up, meets regularly", "short": "Employers' committee", "src": ["A3"],
+         "seen": "An employers' committee is set up and holds regular meetings, with members list, notices and minutes kept.", "not": "No employers' committee, or no regular meetings, was found.", "na": "Not applicable (not a PTI)."}
+       ]},
+      {"id": "s5_4", "no": "4.",
+       "text": "Job placement activities are properly documented",
+       "evidence": "industry visit register, register for contacting industry through phone, information of intern trainees (if applicable), arrangement of job fair, career counselling",
+       "options": [
+        {"id": "industry_visit_register", "label": "Industry visit register", "src": ["CL"],
+         "seen": "An industry visit register is maintained.", "not": "No industry visit register was found.", "na": ""},
+        {"id": "phone_contact_register", "label": "Register for contacting industry by phone", "short": "Phone-contact register", "src": ["CL"],
+         "seen": "A register for contacting industry by phone is maintained.", "not": "No phone-contact register was found.", "na": ""},
+        {"id": "cv_profile", "label": "Trainee CVs and job profiles", "src": ["CL"],
+         "seen": "Trainees' CVs and job profiles for prospective employers are kept.", "not": "No trainee CVs or job profiles were found.", "na": ""},
+        {"id": "intern_docs", "label": "Intern trainee documentation", "src": ["CL"],
+         "seen": "Intern trainee information is documented.", "not": "No intern trainee documentation was found.", "na": "No interns this period."},
+        {"id": "counselling", "label": "Trainee counselling documented", "src": ["CL"],
+         "seen": "Trainee counselling is documented.", "not": "No trainee counselling record was found.", "na": ""},
+        {"id": "job_fair", "label": "Job fair arrangements documented", "src": ["CL"],
+         "seen": "Job fair arrangements are documented.", "not": "No job fair documentation was found.", "na": "No job fair this period."}
+       ]},
+      {"id": "s5_5", "no": "5.",
+       "text": "Placement records are collected, preserved and properly uploaded in TMS",
+       "evidence": "Placement records since beginning of SICIP program are recorded and maintained with the centre and in parallel, all the job placement records are uploaded in TMS",
+       "options": [
+        {"id": "placement_register", "label": "Placement register since start of SICIP", "short": "Placement register", "src": ["CL"],
+         "seen": "A job placement register is maintained since the start of SICIP.", "not": "No job placement register was found.", "na": ""},
+        {"id": "placement_tms", "label": "Placement records uploaded in TMS", "src": ["CL"],
+         "seen": "Job placement records are uploaded in TMS.", "not": "Job placement records are not uploaded in TMS.", "na": ""}
+       ]},
+      {"id": "s5_6", "no": "6.",
+       "text": "Evidence of job placements such appointment letter, statement of engagement by employers are recorded",
+       "evidence": "- Job tracking records (periodically for 3 months)\n- Placement records since beginning\n\nPlacement records are maintained with the centre (latest sample attached)",
+       "options": [
+        {"id": "appointment_letters", "label": "Appointment letters / employer statements", "src": ["A3"],
+         "seen": "Appointment letters or statements of engagement from employers are recorded.", "not": "No appointment letters or employer statements were found.", "na": ""},
+        {"id": "job_tracking", "label": "3-month job tracking record", "src": ["CL"],
+         "seen": "Job tracking records are kept periodically for at least 3 months.", "not": "No periodic job tracking record was found.", "na": ""}
+       ]}
+     ]}
+   ]
+  },
+
+  {
+   "key": "s6", "number": "6", "title": "STANDARDS, LEARNING MATERIALS AND ASSESSMENT TOOLS", "short": "Standards & materials", "group": "criteria",
+   "blocks": [
+    {"type": "criteria", "key": "s6",
+     "intro": "The training provider offers courses based on competency standards or modular course outlines with learning materials and assessment tools available",
+     "items": [
+      {"id": "s6_1", "no": "1.",
+       "text": "Competency-based training standards or modular course outlines and learning materials and assessment tools are available and used",
+       "evidence": "Standards and course outlines (CSs) are available with the centre (list of standards and courses implemented for SICIP)",
+       "options": [
+        {"id": "cs_available", "label": "Competency standards / course outlines available and used", "short": "CS / course outlines", "src": ["A3"],
+         "seen": "Competency standards / course outlines are available and used, with a list of standards and courses implemented.", "not": "No competency standards or course outlines were found.", "na": ""},
+        {"id": "cs_uptodate", "label": "Up-to-date CS and CBLM", "src": ["CL"],
+         "seen": "Competency standards and CBLMs on site are up to date.", "not": "Competency standards or CBLMs on site are outdated.", "na": ""}
+       ]},
+      {"id": "s6_2", "no": "2.",
+       "text": "Learning material covers all topics provided in the occupation specific knowledge and occupation specific skills stated in each unit of competency of the modular course outline.",
+       "evidence": "Learning materials developed by the centre covers the all the units of competency specified in standards. (Provide list of contents in case of new learning materials)\n- CBLMs\n- Lesson plan\n- Training delivery plan\n- Job sheet",
+       "options": [
+        {"id": "learning_materials", "label": "Learning materials cover every unit of competency", "short": "Learning materials cover all units", "src": ["A3"],
+         "seen": "Learning materials cover every unit of competency in the course outline.", "not": "Learning materials do not cover every unit of competency.", "na": ""},
+        {"id": "cblm", "label": "CBLM available", "src": ["A3"],
+         "seen": "CBLMs are available.", "not": "No CBLM was found.", "na": ""},
+        {"id": "lesson_plan", "label": "Lesson plan available", "src": ["A3"],
+         "seen": "A lesson plan is available.", "not": "No lesson plan was found.", "na": ""},
+        {"id": "tdp", "label": "Training delivery plan (TDP) available", "short": "TDP available", "src": ["A3", "CL"],
+         "seen": "A training delivery plan (TDP) is available.", "not": "No training delivery plan was found.", "na": ""},
+        {"id": "job_sheet", "label": "Job sheet available", "src": ["A3"],
+         "seen": "A job sheet is available.", "not": "No job sheet was found.", "na": ""},
+        {"id": "all_units_covered", "label": "All units and topics of CS covered", "short": "All units/topics covered", "src": ["CL"],
+         "seen": "All units and topics of the competency standard are evidenced as covered.", "not": "Some units or topics of the competency standard are not covered.", "na": ""}
+       ]},
+      {"id": "s6_3", "no": "3.",
+       "text": "Assessment tools provide all checklist needed for each unit of competency and shall cover all requirement of competencies for the targeted occupations in the job market stated in the modular course outline.",
+       "evidence": "Tools such Demonstration checklist, Observation checklist, question checklist are used and adequate to assess trainees' performance (provide sample in case of new courses)",
+       "options": [
+        {"id": "assessment_tools", "label": "Demonstration / observation / question checklists used", "short": "Assessment checklists used", "src": ["A3"],
+         "seen": "Demonstration, observation and question checklists are used and adequate to assess trainees.", "not": "Assessment checklists are missing or inadequate.", "na": ""}
+       ]}
+     ]}
+   ]
+  },
+
+  {
+   "key": "s7", "number": "7", "title": "TRAINING DELIVERY SYSTEM – TRAINERS", "short": "Trainers", "group": "criteria",
+   "blocks": [
+    {"type": "criteria", "key": "s7",
+     "intro": "The training providers ensure training staff according to the requirements of training programmes offered",
+     "items": [
+      {"id": "s7_1", "no": "1.", "text": "Skills and qualifications of trainers including guest trainers match the requirements of the training", "heading": true},
+      {"id": "s7_1a", "no": "a)",
+       "text": "Professional education/training prior to becoming a trainer",
+       "evidence": "List of trainers with qualifications and experiences are available with the centre (attached)",
+       "options": [
+        {"id": "trainer_quals", "label": "Trainer professional education recorded", "short": "Professional education recorded", "src": ["A3"],
+         "seen": "A list of trainers with their professional education prior to becoming a trainer is available.", "not": "No record of trainers' professional education was found.", "na": ""}
+       ]},
+      {"id": "s7_1b", "no": "b)",
+       "text": "Working experience in teaching/training",
+       "evidence": "List of trainers with qualifications and experiences are available with the centre (attached)",
+       "options": [
+        {"id": "teaching_experience", "label": "Teaching/training experience recorded", "src": ["A3"],
+         "seen": "Trainers' teaching/training experience is recorded.", "not": "No record of trainers' teaching experience was found.", "na": ""}
+       ]},
+      {"id": "s7_1c", "no": "c)",
+       "text": "Working experience in industry, especially related to the subject of teaching",
+       "evidence": "List of trainers with qualifications and experiences are available with the centre (attached)",
+       "options": [
+        {"id": "industry_experience", "label": "Related industry experience recorded", "src": ["A3"],
+         "seen": "Trainers' related industry experience is recorded.", "not": "No record of trainers' industry experience was found.", "na": ""}
+       ]},
+      {"id": "s7_1d", "no": "d)",
+       "text": "Further training in skills/pedagogy from SICIP and outside received",
+       "evidence": "Title of training, duration and others are mentioned in the list of trainers who received training and this list is available (attached)",
+       "options": [
+        {"id": "further_training", "label": "Further training received (title, duration) listed", "short": "Further training listed", "src": ["A3"],
+         "seen": "Further training received (title, duration) is listed for trainers.", "not": "No record of trainers' further training was found.", "na": ""}
+       ]},
+      {"id": "s7_1e", "no": "e)",
+       "text": "Exhibits mastery of skills and theoretical knowledge in training",
+       "evidence": "Observation of training delivery, assessment results of trainees, trainees' feedback and annual appraisal",
+       "options": [
+        {"id": "mastery_observation", "label": "Observed mastery of skills and knowledge", "src": ["A3"],
+         "seen": "Observed training delivery shows the trainer's mastery of skills and knowledge.", "not": "Observed training delivery does not show mastery of skills and knowledge.", "na": ""},
+        {"id": "annual_appraisal", "label": "Yearly appraisal of trainers", "src": ["CL"],
+         "seen": "Trainers receive a yearly appraisal.", "not": "No yearly appraisal of trainers was found.", "na": ""}
+       ]},
+      {"id": "s7_2", "no": "2.",
+       "text": "Appropriate teaching staff is maintained through recruitment, appraisal and staff development",
+       "evidence": "Number of trainers with qualification per course and training received from SICIP and outside SICIP are maintained, Appraisal record, training records, trainer's feedback",
+       "options": [
+        {"id": "staff_records", "label": "Trainer numbers, qualifications, appraisal, training records", "short": "Trainer staff records", "src": ["A3"],
+         "seen": "Records of trainer numbers, qualifications, appraisal and training are maintained.", "not": "Records of trainer numbers, qualifications, appraisal or training are missing.", "na": ""},
+        {"id": "capacity_dev_plan", "label": "Capacity development plan for trainers", "src": ["CL"],
+         "seen": "A capacity development plan for trainers is available.", "not": "No capacity development plan for trainers was found.", "na": ""}
+       ]},
+      {"id": "s7_3", "no": "3.",
+       "text": "while recruiting guest trainers, preference is given to people with related industry experience in the area of training",
+       "evidence": "Documents of selection process, industry experience of candidates are maintained (attached)",
+       "options": [
+        {"id": "guest_trainer_pref", "label": "Guest-trainer preference for industry experience", "short": "Guest-trainer preference", "src": ["A3"],
+         "seen": "Guest-trainer recruitment records show preference for related industry experience.", "not": "No preference for related industry experience is evidenced in guest-trainer recruitment.", "na": "No guest trainers recruited."}
+       ]},
+      {"id": "s7_4", "no": "4.",
+       "text": "Recruitment process is transparent and documented for verifications",
+       "evidence": "Documentation of selection process available, required qualification stated and criteria for selection of candidate documented (attached)",
+       "options": [
+        {"id": "recruitment_docs", "label": "Selection process documented, qualifications/criteria stated", "short": "Recruitment documented", "src": ["A3", "CL"],
+         "seen": "The trainer recruitment/selection process is documented, with required qualifications and criteria stated.", "not": "The trainer recruitment/selection process is not documented.", "na": ""},
+        {"id": "eligible_criteria", "label": "Trainers selected per Business Plan criteria", "src": ["CL"],
+         "seen": "Trainers were selected per the criteria in the Business Plan.", "not": "Trainers were not selected per the Business Plan criteria.", "na": ""}
+       ]},
+      {"id": "s7_5", "no": "5.",
+       "text": "Principles of equal opportunity are applied during the recruitment process",
+       "evidence": "Documentation of selection process available (advertisement is inclusive and not gender-biased) are available (attached)",
+       "options": [
+        {"id": "equal_opportunity_recruit", "label": "Recruitment ads inclusive, not gender-biased", "short": "Inclusive recruitment ads", "src": ["A3"],
+         "seen": "Trainer recruitment advertisements are inclusive and not gender-biased.", "not": "Trainer recruitment advertisements are not inclusive or are gender-biased.", "na": ""}
+       ]}
+     ]}
+   ]
+  },
+
+  {
+   "key": "s8", "number": "8", "title": "TRAINING DELIVERY SYSTEM – Physical Resources", "short": "Physical resources", "group": "criteria",
+   "blocks": [
+    {"type": "criteria", "key": "s8",
+     "intro": "The training provider provides and maintains physical resource and OHS requirements as required by the training programmes offered",
+     "items": [
+      {"id": "s8_1", "no": "1.", "text": "Physical resources (including OHS requirements) are appropriate for the training programme(s) offered", "heading": true},
+      {"id": "s8_1a", "no": "a)",
+       "text": "Sizes of class room, workshop or training space are sufficient",
+       "evidence": "- Room size and workshop space for each of the SICIP course are mentioned in the annex (provide layout)",
+       "options": [
+        {"id": "room_size", "label": "Room/workshop size recorded and sufficient", "short": "Room/workshop size", "src": ["A3"],
+         "seen": "Room and workshop sizes for each SICIP course are recorded and sufficient.", "not": "Room and workshop sizes are not sufficient or not recorded.", "na": ""},
+        {"id": "workshop_space", "label": "Workshop space sufficient for quality training", "short": "Sufficient workshop space", "src": ["CL"],
+         "seen": "Workshop space and arrangements are sufficient for quality skills training.", "not": "Workshop space or arrangements are not sufficient.", "na": ""}
+       ]},
+      {"id": "s8_1b", "no": "b)",
+       "text": "Ventilation and light in class room and workshop are sufficient",
+       "evidence": "- Ventilation and light in class room and workshop are sufficient (picture attached)\n- Air-conditioning in the class room/ workshop (where necessary) is properly made and functioning well",
+       "options": [
+        {"id": "ventilation_light", "label": "Ventilation and light sufficient", "src": ["A3"],
+         "seen": "Ventilation and light in the classroom and workshop are sufficient.", "not": "Ventilation or light in the classroom or workshop is not sufficient.", "na": ""},
+        {"id": "ac_working", "label": "Air-conditioning working properly", "src": ["A3"],
+         "seen": "Air-conditioning in the classroom/workshop, where necessary, is working properly.", "not": "Air-conditioning in the classroom/workshop is not working.", "na": "No air-conditioning required."}
+       ]},
+      {"id": "s8_1c", "no": "c)", "text": "Safety and fire prevention equipment available and in working conditions",
+       "evidence": "- fire extinguishers, date of last examination, first aid kits are available with centre. (state date of last examination)\n- List of available Personal Protective Equipment (or enumerate available PPE) is attached\n- PPE symbols are displayed in the class room/workshop (photos)\n- Safety & PPE symbols are displayed in the class room/workshop",
+       "options": [
+        {"id": "extinguisher", "label": "Fire extinguishers", "src": ["A3"], "detail": "Date of last examination",
+         "seen": "Fire extinguishers are available and in working condition{, last examined on $}.", "not": "No working fire extinguisher was found.", "na": ""},
+        {"id": "first_aid", "label": "First aid kit", "src": ["A3"],
+         "seen": "First aid kit is available.", "not": "No first aid kit was found.", "na": ""},
+        {"id": "ppe_list", "label": "List of available PPE", "src": ["CL", "FC"], "detail": "PPE listed (optional)",
+         "seen": "A list of available PPE is kept{: $}.", "not": "No list of available PPE was found.", "na": ""},
+        {"id": "ppe_symbols", "label": "Safety and PPE symbols displayed", "short": "Safety and PPE symbols", "src": ["A3"],
+         "seen": "Safety and PPE symbols are displayed in the classroom and workshop.", "not": "Safety and PPE symbols are not displayed in the classroom or workshop.", "na": ""},
+        {"id": "ppe_use", "label": "PPE used during practice", "short": "PPE use", "src": ["CL"],
+         "seen": "Trainees were using the required PPE during practice.", "not": "Trainees were not using the required PPE during practice.", "na": ""}
+       ]},
+      {"id": "s8_1d", "no": "d)",
+       "text": "Utilities (electricity, water, gas, compressed air) needed for training are available in the workshop",
+       "evidence": "- Utilities (electricity, water, gas, compressed air) for training are available in the workshop (included in layout plan)",
+       "options": [
+        {"id": "utilities", "label": "Utilities available in workshop", "src": ["A3", "CL"],
+         "seen": "Utilities (electricity, water, gas, compressed air) needed for training are available in the workshop.", "not": "Required utilities are not available in the workshop.", "na": ""}
+       ]},
+      {"id": "s8_1e", "no": "e)",
+       "text": "Training equipment, machinery and tools are sufficient and in line with requirements of competency standard taught.",
+       "evidence": "- Training equipment, machinery and tools are sufficient and in line with requirements of competency standard (list attached according to the lab/ workshop standard).",
+       "options": [
+        {"id": "equipment_sufficient", "label": "Equipment, machinery, tools sufficient per CS", "short": "Equipment sufficient per CS", "src": ["A3"],
+         "seen": "Training equipment, machinery and tools are sufficient and match the competency standard, with a list attached.", "not": "Training equipment, machinery or tools are not sufficient or do not match the standard.", "na": ""},
+        {"id": "tools_available_list", "label": "List of available tools and equipment", "short": "Available tools list", "src": ["CL"],
+         "seen": "A list of available tools and equipment is kept.", "not": "No list of available tools and equipment was found.", "na": ""},
+        {"id": "tools_required_list", "label": "List of tools/equipment required to cover all CS competencies", "short": "Required tools list", "src": ["CL"],
+         "seen": "A list of tools and equipment required to cover all CS competencies is kept.", "not": "No list of required tools and equipment was found.", "na": ""},
+        {"id": "sicip_tools_used", "label": "SICIP-provided tools/equipment used in training", "short": "SICIP tools used", "src": ["CL"],
+         "seen": "Tools and equipment provided by SICIP are being used in training.", "not": "Tools and equipment provided by SICIP are not being used.", "na": "No SICIP-provided tools/equipment."}
+       ]},
+      {"id": "s8_2", "no": "2.",
+       "text": "Preventive maintenance is carried out regularly (schedule and records)",
+       "evidence": "Preventive Maintenance Schedules for all the equipment installed in the centre are maintained",
+       "options": [
+        {"id": "maintenance_schedule", "label": "Preventive maintenance schedule and records", "src": ["A3", "CL"],
+         "seen": "Preventive maintenance schedules and records for all installed equipment are maintained.", "not": "No preventive maintenance schedule or record was found.", "na": ""}
+       ]},
+      {"id": "s8_3", "no": "3.",
+       "text": "Training materials (consumable supplies) are available and sufficient",
+       "evidence": "-List of consumables purchased and list of consumables used per course",
+       "options": [
+        {"id": "consumables_list", "label": "Lists of consumables purchased and used per course", "short": "Consumables lists", "src": ["A3", "CL"],
+         "seen": "Lists of consumables purchased and used per course are kept.", "not": "No list of consumables purchased or used was found.", "na": ""}
+       ]},
+      {"id": "s8_4", "no": "4.",
+       "text": "Daily consumption registers by user sections and workshops are maintained",
+       "evidence": "Register for consumables used on daily basis is maintained",
+       "options": [
+        {"id": "daily_consumption_register", "label": "Daily consumption register", "src": ["A3"],
+         "seen": "A daily consumption register by user section/workshop is maintained.", "not": "No daily consumption register was found.", "na": ""}
+       ]},
+      {"id": "s8_5", "no": "5.",
+       "text": "Tools and Equipment provided by SICIP are being used in training",
+       "evidence": "Tools and equipment provided by SICIP are used in training",
+       "options": [
+        {"id": "sicip_equipment_used", "label": "SICIP-provided tools/equipment used", "src": ["A3"],
+         "seen": "Tools and equipment provided by SICIP are used in training.", "not": "Tools and equipment provided by SICIP are not used in training.", "na": "No SICIP-provided tools/equipment."}
+       ]},
+      {"id": "s8_6", "no": "6.",
+       "text": "Monitoring logbook to ensure compliance with the visit findings is maintained by the TI.",
+       "evidence": "Monitoring logbook",
+       "options": [
+        {"id": "monitoring_logbook", "label": "Monitoring logbook maintained", "src": ["A3"],
+         "seen": "A monitoring logbook is maintained by the TI.", "not": "No monitoring logbook was found.", "na": ""},
+        {"id": "previous_findings_review", "label": "Pending issues from previous visits reviewed", "short": "Previous findings reviewed", "src": ["FC"],
+         "seen": "Pending issues from previous visits were reviewed in the monitoring logbook.", "not": "Pending issues from previous visits were not reviewed.", "na": "No previous visit findings pending."}
+       ]}
+     ]},
+    {"type": "criteria", "key": "s81", "heading": "8.1 Physical Resources, Maintenance Schedule and Replacement Records",
+     "items": [
+      {"id": "s81_1", "no": "1.",
+       "text": "List of physical resources (including OHS resources) required for implementation of training programme is available",
+       "evidence": "Yes/No if yes, attach list",
+       "options": [
+        {"id": "resource_list_required", "label": "List of required physical resources", "src": ["A3"],
+         "seen": "A list of required physical resources (including OHS) is available.", "not": "No list of required physical resources was found.", "na": ""}
+       ]},
+      {"id": "s81_2", "no": "2.",
+       "text": "List of actual physical resources (including OHS requirements) is available",
+       "evidence": "Yes/No if yes, attach list",
+       "options": [
+        {"id": "resource_list_actual", "label": "List of actual physical resources", "src": ["A3"],
+         "seen": "A list of actual physical resources (including OHS) is available.", "not": "No list of actual physical resources was found.", "na": ""}
+       ]},
+      {"id": "s81_3", "no": "3.",
+       "text": "Maintenance schedule and maintenance records (including OHS equipment) are available",
+       "evidence": "Yes/No if yes, attach list",
+       "options": [
+        {"id": "maintenance_records", "label": "Maintenance schedule and records", "src": ["A3"],
+         "seen": "Maintenance schedule and records (including OHS equipment) are available.", "not": "No maintenance schedule or record was found.", "na": ""}
+       ]},
+      {"id": "s81_4", "no": "4.",
+       "text": "Replacement records for damaged/broken equipment (including OHS equipment), tools and machinery are available",
+       "evidence": "Yes/No if yes, attach list",
+       "options": [
+        {"id": "replacement_records", "label": "Replacement records for damaged/broken equipment", "short": "Replacement records", "src": ["A3"],
+         "seen": "Replacement records for damaged or broken equipment, tools and machinery are available.", "not": "No replacement records were found.", "na": "No replacements needed."}
+       ]}
+     ]}
+   ]
+  },
+
+  {
+   "key": "s9", "number": "9", "title": "TRAINING DELIVERY SYSTEM – Training & Learning Approach", "short": "Training & learning approach", "group": "criteria",
+   "blocks": [
+    {"type": "criteria", "key": "s9",
+     "intro": "The training provider manages the quality of delivery to meet the requirements of training programmes and the needs of trainees",
+     "items": [
+      {"id": "s9_1", "no": "1.", "text": "Appropriate teaching/learning approaches to meet the learning needs of trainees.", "heading": true},
+      {"id": "s9_1a", "no": "a)",
+       "text": "Training delivery is learner-centred and accommodates individual learning needs",
+       "evidence": "- Observation- Training delivery is learner-centred and accommodates individual learning needs (Observation report with examples)",
+       "options": [
+        {"id": "learner_centred", "label": "Training delivery is learner-centred", "src": ["A3"],
+         "seen": "Observed training delivery is learner-centred and accommodates individual learning needs.", "not": "Observed training delivery is not learner-centred.", "na": ""},
+        {"id": "inclusive_learning", "label": "Learning observed is inclusive", "src": ["CL"],
+         "seen": "The learning observed is inclusive of all trainees.", "not": "The learning observed is not inclusive.", "na": ""}
+       ]},
+      {"id": "s9_1b", "no": "b)",
+       "text": "Formative assessment is performed to check whether learners are achieving learning outcomes",
+       "evidence": "-Formative assessment is performed (assessment report attached)",
+       "options": [
+        {"id": "formative_check", "label": "Formative assessment checks learning outcomes", "short": "Formative assessment performed", "src": ["A3"],
+         "seen": "Formative assessment is performed to check learning outcomes, with a report attached.", "not": "No formative assessment report was found.", "na": ""}
+       ]},
+      {"id": "s9_1c", "no": "c)",
+       "text": "Maintain sequencing of learning provision outlined in Competency Standards",
+       "evidence": "- Sequencing of learning provision is reviewed and found okay (Lesson plan in accordance with CS)",
+       "options": [
+        {"id": "sequencing", "label": "Lesson plan follows CS sequencing", "src": ["A3"],
+         "seen": "The lesson plan follows the sequencing of learning provision outlined in the Competency Standard.", "not": "The lesson plan does not follow the CS sequencing.", "na": ""}
+       ]},
+      {"id": "s9_2", "no": "2.",
+       "text": "OHS and soft skills are delivered in line with the requirements",
+       "evidence": "- OHS and soft skills are delivered in line with the requirements- (Observation report, with examples), trainees' feedback, training delivery plan, lesson plan",
+       "options": [
+        {"id": "ohs_softskills", "label": "OHS and soft skills delivered per requirements", "short": "OHS & soft skills delivered", "src": ["A3"],
+         "seen": "OHS and soft skills are delivered in line with requirements.", "not": "OHS or soft skills are not delivered in line with requirements.", "na": ""},
+        {"id": "demo_techniques", "label": "Competency-based demonstration techniques used", "short": "Competency-based demonstration", "src": ["CL"],
+         "seen": "Competency-based training delivery techniques (demonstration) are used in theory and practical sessions.", "not": "Competency-based demonstration techniques are not used.", "na": ""},
+        {"id": "job_sheets", "label": "Job/spec/info sheets available for demonstration", "short": "Job/spec/info sheets", "src": ["CL"],
+         "seen": "Job sheets, specification sheets and information sheets are available for demonstration.", "not": "No job, specification or information sheets were found.", "na": ""}
+       ]},
+      {"id": "s9_3", "no": "3.",
+       "text": "Proposed ratio of 80:20 of practise to theory training is observed",
+       "evidence": "- lesson plan, job sheet indicates trainers maintain the ratio, (Observation report, with examples)\n- Trainees feedback/evaluation of trainer",
+       "options": [
+        {"id": "ratio_8020", "label": "80:20 practice-to-theory ratio maintained", "short": "80:20 ratio maintained", "src": ["A3"],
+         "seen": "The lesson plan and job sheet show the 80:20 practice-to-theory ratio is maintained.", "not": "The 80:20 practice-to-theory ratio is not maintained.", "na": ""},
+        {"id": "ppe_consumables_use", "label": "PPE and consumables properly used in practice", "short": "PPE & materials used in practice", "src": ["CL"],
+         "seen": "Required PPE and consumable training materials are properly used during practice.", "not": "PPE or consumable training materials are not properly used during practice.", "na": ""}
+       ]},
+      {"id": "s9_4", "no": "4.",
+       "text": "Training time is appropriate for the target group",
+       "evidence": "- Trainees feedback/evaluation of trainer",
+       "options": [
+        {"id": "training_time", "label": "Training time appropriate for target group", "src": ["A3"],
+         "seen": "Trainees confirm the training time is appropriate for their group.", "not": "Trainees say the training time is not appropriate.", "na": ""}
+       ]},
+      {"id": "s9_5", "no": "5.",
+       "text": "For industry-based centres or internship programs, logbooks are maintained as per Business Plan (if applicable).",
+       "evidence": "Industry logbook with entries on activities, trainer/trainee signatures, and supervisor notes.",
+       "options": [
+        {"id": "industry_logbook", "label": "Industry logbook maintained per Business Plan", "short": "Industry logbook", "src": ["A3", "CL"],
+         "seen": "An industry logbook with activity entries, signatures and supervisor notes is maintained per the Business Plan.", "not": "No industry logbook, or an incomplete one, was found.", "na": "Not an industry-based centre / no internship programme."}
+       ]}
+     ]}
+   ]
+  },
+
+  {
+   "key": "s10", "number": "10", "title": "ASSESSMENT AND CERTIFICATION (full appraisal)", "short": "Assessment & certification", "group": "criteria",
+   "blocks": [
+    {"type": "criteria", "key": "s10",
+     "intro": "The training provider assesses and certifies trainees according to the requirements of the training programmes offered",
+     "items": [
+      {"id": "s10_1", "no": "1.",
+       "text": "Trainees are informed of the procedures of assessment, appeals of assessment results and procedures for reassessments",
+       "evidence": "Trainees' feedback\n- written reassessment procedures",
+       "options": [
+        {"id": "trainees_informed", "label": "Trainees informed of assessment/appeal/reassessment", "short": "Trainees informed of procedures", "src": ["A3"],
+         "seen": "Trainees confirm they were informed of assessment, appeal and reassessment procedures.", "not": "Trainees say they were not informed of assessment, appeal or reassessment procedures.", "na": ""},
+        {"id": "reassessment_procedures", "label": "Written reassessment procedures", "src": ["A3"],
+         "seen": "Written reassessment procedures are available.", "not": "No written reassessment procedures were found.", "na": ""}
+       ]},
+      {"id": "s10_2", "no": "2.",
+       "text": "Assessment plan is available for the formative and summative assessments.",
+       "evidence": "Training delivery plan includes schedule, and mode of assessment.",
+       "options": [
+        {"id": "assessment_plan", "label": "Formative/summative assessment plan in TDP", "short": "Assessment plan", "src": ["A3", "CL"],
+         "seen": "A formative and summative assessment plan is available in the training delivery plan (schedule and mode).", "not": "No formative/summative assessment plan was found.", "na": ""}
+       ]},
+      {"id": "s10_3", "no": "3.",
+       "text": "Assessment methods are appropriate, fair, manageable, and integrated with work or training",
+       "evidence": "Trainees' feedback, lesson plan and assessment samples",
+       "options": [
+        {"id": "assessment_methods", "label": "Assessment methods appropriate, fair, integrated", "short": "Assessment methods appropriate", "src": ["A3"],
+         "seen": "Assessment methods are appropriate, fair and integrated with training, per trainee feedback and samples.", "not": "Assessment methods are not appropriate, fair or integrated with training.", "na": ""}
+       ]},
+      {"id": "s10_4", "no": "4.",
+       "text": "Assessment includes aspects of OHS",
+       "evidence": "Trainees' feedback, formative and summative assessment records",
+       "options": [
+        {"id": "assessment_ohs", "label": "OHS included in assessment", "src": ["A3"],
+         "seen": "OHS aspects are included in the assessment, per records and feedback.", "not": "OHS aspects are not included in the assessment.", "na": ""}
+       ]},
+      {"id": "s10_5", "no": "5.",
+       "text": "Assessment Guide and Assessment Tools are available and practiced in training assessment",
+       "evidence": "Assessment Guide and Assessment Tools are available",
+       "options": [
+        {"id": "assessment_guide_tools", "label": "Assessment guide and tools available/used", "short": "Assessment guide & tools", "src": ["A3", "CL"],
+         "seen": "An assessment guide and assessment tools are available and used.", "not": "No assessment guide or tools were found.", "na": ""}
+       ]},
+      {"id": "s10_6", "no": "6.",
+       "text": "Records of tests or unit-based assessment results are available",
+       "evidence": "Results of formative assessments are recorded and maintained",
+       "options": [
+        {"id": "formative_records", "label": "Formative assessment results recorded", "src": ["A3", "CL"],
+         "seen": "Formative assessment results are recorded and maintained.", "not": "Formative assessment results are not recorded.", "na": ""}
+       ]},
+      {"id": "s10_7", "no": "7.",
+       "text": "Trainees' final assessment work, and records of final assessment result and overall assessment result are available",
+       "evidence": "Records of summative assessment are maintained (attached)",
+       "options": [
+        {"id": "summative_records", "label": "Summative assessment work and results recorded", "short": "Summative assessment records", "src": ["A3"],
+         "seen": "Summative assessment work and results are recorded and maintained.", "not": "Summative assessment work or results are not recorded.", "na": ""}
+       ]},
+      {"id": "s10_8", "no": "8.",
+       "text": "Selected assessors are accredited by the BTEB, NSDA, national accreditation authority, standing committee, or fulfil minimum criteria set by the SDCMU",
+       "evidence": "Course-wise assessors list is attached",
+       "options": [
+        {"id": "qualified_assessors", "label": "Course-wise accredited assessors list", "short": "Qualified assessors list", "src": ["A3", "CL"],
+         "seen": "A course-wise list of accredited/qualified assessors is attached.", "not": "No course-wise list of accredited assessors was found.", "na": ""}
+       ]},
+      {"id": "s10_9", "no": "9.",
+       "text": "Certification records are available",
+       "evidence": "Certification records are maintained (attached by course and batch)",
+       "options": [
+        {"id": "certification_records", "label": "Certification records by course and batch", "short": "Certification records", "src": ["A3", "CL"],
+         "seen": "Certification records by course and batch are maintained, with a graduate list and certificate register.", "not": "No certification records or graduate/certificate register were found.", "na": ""}
+       ]}
+     ]}
+   ]
+  },
+
+  {
+   "key": "s11", "number": "11", "title": "TRAINEE'S FEEDBACK ON THE OVERALL TRAINING QUALITY (From at least two trainees)", "short": "Trainee feedback", "group": "conclusions",
+   "blocks": [
+    {"type": "cards", "key": "trainee_feedback", "itemLabel": "Trainee", "start": 2, "titleField": "name",
+     "fields": [
+      {"key": "name", "label": "Name of the Trainee", "kind": "text"},
+      {"key": "trade", "label": "Trade", "kind": "text"},
+      {"key": "batch", "label": "Batch", "kind": "text"},
+      {"key": "feedback", "label": "Feedback of the Trainee", "kind": "longtext", "rewrite": true}
+     ]}
+   ]
+  },
+
+  {
+   "key": "s12", "number": "12", "title": "TRAINERS' FEEDBACK ON THE OVERALL TRAINING ENVIRONMENT AND RESOURCES", "short": "Trainer feedback", "group": "conclusions",
+   "blocks": [
+    {"type": "cards", "key": "trainer_feedback", "itemLabel": "Trainer", "start": 2, "titleField": "name",
+     "fields": [
+      {"key": "name", "label": "Name of the Trainer", "kind": "text"},
+      {"key": "trade", "label": "Trade", "kind": "text"},
+      {"key": "feedback", "label": "Feedback of the Trainer", "kind": "longtext", "rewrite": true}
+     ]}
+   ]
+  },
+
+  {
+   "key": "s13", "number": "13", "title": "COMPONENT-WISE STRENGTHS & WEAKNESSES", "short": "Strengths & weaknesses", "group": "conclusions",
+   "blocks": [
+    {"type": "fields",
+     "fields": [
+      {"key": "str_1", "label": "Quality Management System — Strengths", "kind": "longtext", "rewrite": true},
+      {"key": "weak_1", "label": "Quality Management System — Weakness", "kind": "longtext", "rewrite": true},
+      {"key": "str_2", "label": "Budgeting — Strengths", "kind": "longtext", "rewrite": true},
+      {"key": "weak_2", "label": "Budgeting — Weakness", "kind": "longtext", "rewrite": true},
+      {"key": "str_3", "label": "Selection and Enrolment of Trainees — Strengths", "kind": "longtext", "rewrite": true},
+      {"key": "weak_3", "label": "Selection and Enrolment of Trainees — Weakness", "kind": "longtext", "rewrite": true},
+      {"key": "str_4", "label": "Job Placement or Employment Support — Strengths", "kind": "longtext", "rewrite": true},
+      {"key": "weak_4", "label": "Job Placement or Employment Support — Weakness", "kind": "longtext", "rewrite": true},
+      {"key": "str_5", "label": "Standards, Learning Material and Assessment Tools — Strengths", "kind": "longtext", "rewrite": true},
+      {"key": "weak_5", "label": "Standards, Learning Material and Assessment Tools — Weakness", "kind": "longtext", "rewrite": true},
+      {"key": "str_6", "label": "Trainers — Strengths", "kind": "longtext", "rewrite": true},
+      {"key": "weak_6", "label": "Trainers — Weakness", "kind": "longtext", "rewrite": true},
+      {"key": "str_7", "label": "Physical Resources — Strengths", "kind": "longtext", "rewrite": true},
+      {"key": "weak_7", "label": "Physical Resources — Weakness", "kind": "longtext", "rewrite": true},
+      {"key": "str_8", "label": "Training & Learning Approach — Strengths", "kind": "longtext", "rewrite": true},
+      {"key": "weak_8", "label": "Training & Learning Approach — Weakness", "kind": "longtext", "rewrite": true},
+      {"key": "str_9", "label": "Assessment and Certification — Strengths", "kind": "longtext", "rewrite": true},
+      {"key": "weak_9", "label": "Assessment and Certification — Weakness", "kind": "longtext", "rewrite": true}
+     ]}
+   ]
+  },
+
+  {
+   "key": "s14", "number": "14", "title": "MAJOR FINDINGS OF THE VISIT", "short": "Major findings", "group": "conclusions",
+   "blocks": [
+    {"type": "fields",
+     "fields": [
+      {"key": "findings", "label": "Major findings (one point per line)", "kind": "longtext", "rewrite": true}
+     ]}
+   ]
+  },
+
+  {
+   "key": "s15", "number": "15", "title": "RECOMMENDATIONS TO IMPROVE THE OVERALL TRAINING QUALITY", "short": "Recommendations", "group": "conclusions",
+   "blocks": [
+    {"type": "fields",
+     "fields": [
+      {"key": "recommendations", "label": "Recommendations (one point per line)", "kind": "longtext", "rewrite": true}
+     ]}
+   ]
+  }
+ ]
+}
