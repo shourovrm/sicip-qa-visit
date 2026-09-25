@@ -10,6 +10,7 @@
 <script>
   import { createEventDispatcher } from 'svelte'
   import AnswerSegmented from './AnswerSegmented.svelte'
+  import ImproveWording from './ImproveWording.svelte'
 
   export let item // {id, text, perCourse?}
   export let index // 1-based, for the "n." prefix
@@ -36,6 +37,11 @@
   function setRemarks(event) {
     dispatch('change', { answer, remarks: event.target.value, courses: check?.courses })
   }
+  // "Use this" from the rewrite panel reports the new remarks text the same way typing would, so
+  // it goes through the parent's normal on:change path (autosave, normalize, etc).
+  function onImprove(event) {
+    dispatch('change', { answer, remarks: event.detail, courses: check?.courses })
+  }
 </script>
 
 <div class="item">
@@ -56,6 +62,7 @@
   {/if}
   {#if remarks || remarksOpen}
     <textarea class="remarks" placeholder="Remarks" rows="1" value={remarks} on:input={setRemarks} {disabled}></textarea>
+    <ImproveWording text={remarks} label={item.text} {disabled} on:change={onImprove} />
   {:else}
     <button type="button" class="btn-link add-remarks" on:click={() => (remarksOpen = true)} {disabled}>+ Add remarks</button>
   {/if}

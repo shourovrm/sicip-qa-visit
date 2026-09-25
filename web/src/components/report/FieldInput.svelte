@@ -5,6 +5,7 @@
 <script>
   import { createEventDispatcher } from 'svelte'
   import AnswerSegmented from './AnswerSegmented.svelte'
+  import ImproveWording from './ImproveWording.svelte'
 
   export let field
   export let value = ''
@@ -19,6 +20,11 @@
     dispatch('change', event.target.value)
   }
   function onChoice(event) {
+    dispatch('change', event.detail)
+  }
+  // "Use this" from the rewrite panel reports the new text the same way a keystroke would, so
+  // it goes through the parent's normal on:change path (autosave, normalize, etc).
+  function onImprove(event) {
     dispatch('change', event.detail)
   }
 </script>
@@ -54,6 +60,9 @@
     <input type="text" placeholder={field.placeholder ?? ''} {value} {disabled} on:input={onInput} />
   {/if}
 </label>
+{#if field.kind === 'longtext' && field.rewrite}
+  <ImproveWording text={value} label={field.label} {disabled} on:change={onImprove} />
+{/if}
 
 <style>
   .field { display: block; margin-bottom: 12px; }
