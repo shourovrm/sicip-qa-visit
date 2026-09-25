@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AlertDialog
@@ -47,8 +46,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import bd.sicip.qavisit.R
 import bd.sicip.qavisit.BuildConfig
 import bd.sicip.qavisit.data.auth.SessionStore
 import bd.sicip.qavisit.data.db.AppDb
@@ -415,7 +416,7 @@ private fun AboutCard(onOpen: (String) -> Unit) {
             ) {
                 Text("SICIP QA Visit", style = MaterialTheme.typography.titleMedium)
                 IconButton(onClick = { onOpen(GITHUB_URL) }) {
-                    Icon(Icons.Filled.Code, contentDescription = "Source")
+                    Icon(painterResource(R.drawable.ic_github), contentDescription = "GitHub")
                 }
             }
             Text(
