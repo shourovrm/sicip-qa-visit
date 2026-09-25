@@ -21,9 +21,11 @@ function messageFor(code) {
 }
 
 // text = the field's current value, label = the field's own label (e.g. "Key findings"), sent
-// so the Worker's prompt can add a little context. Returns the rewritten string, or throws an
-// Error whose message is already the short user-facing text.
-export async function rewriteText(text, label) {
+// so the Worker's prompt can add a little context. mode "remarks" switches to the QA report "AI
+// remarks" system prompt (see web/worker/prompt.js) -- everything else about the request/error
+// handling is identical. Returns the rewritten string, or throws an Error whose message is
+// already the short user-facing text.
+async function callRewrite(text, label, mode) {
   const {
     data: { session },
   } = await supabase.auth.getSession()
@@ -31,7 +33,7 @@ export async function rewriteText(text, label) {
 
   // no saved key -> omit "model" entirely so the Worker falls back to its own default
   const model = getModel()
-  const requestBody = model ? { text, label, model } : { text, label }
+  const requestBody = { text, label, ...(model ? { model } : {}), ...(mode ? { mode } : {}) }
 
   let response
   try {
@@ -56,4 +58,15 @@ export async function rewriteText(text, label) {
 
   if (!response.ok) throw new Error(messageFor(body.error))
   return body.text
+}
+
+// "Improve wording" -- a single prose field or a checklist remarks box.
+export async function rewriteText(text, label) {
+  return callRewrite(text, label)
+}
+
+// "AI remarks" (QA report, one request per criterion) -- text is the criterion's current
+// buildRemarks() bullets joined by "\n"; label is the criterion's own question text.
+export async function rewriteRemarks(text, label) {
+  return callRewrite(text, label, 'remarks')
 }

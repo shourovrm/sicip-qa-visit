@@ -14,7 +14,7 @@ vi.mock('./rewritemodel.js', () => ({
 
 import { supabase } from './supabase.js'
 import { getModel } from './rewritemodel.js'
-import { rewriteText } from './rewrite.js'
+import { rewriteText, rewriteRemarks } from './rewrite.js'
 
 const SESSION = { data: { session: { access_token: 'tok-123' } } }
 const NO_SESSION = { data: { session: null } }
@@ -108,4 +108,36 @@ it('maps a fetch rejection (offline) to the offline message', async () => {
   global.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
 
   await expect(rewriteText('raw text', 'Remarks')).rejects.toThrow('You are offline')
+})
+
+describe('rewriteRemarks (QA report "AI remarks")', () => {
+  it('sends mode:"remarks" on the request body, same error handling as rewriteText', async () => {
+    supabase.auth.getSession.mockResolvedValue(SESSION)
+    global.fetch = vi.fn().mockResolvedValue(jsonResponse(200, { text: 'Rewritten.' }))
+
+    const result = await rewriteRemarks('bullet one\nbullet two', 'Safety and fire prevention')
+
+    expect(result).toBe('Rewritten.')
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/rewrite',
+      expect.objectContaining({
+        body: JSON.stringify({ text: 'bullet one\nbullet two', label: 'Safety and fire prevention', mode: 'remarks' }),
+      })
+    )
+  })
+
+  it('includes the saved model key alongside mode:"remarks" when one is set', async () => {
+    supabase.auth.getSession.mockResolvedValue(SESSION)
+    getModel.mockReturnValue('scout')
+    global.fetch = vi.fn().mockResolvedValue(jsonResponse(200, { text: 'Rewritten.' }))
+
+    await rewriteRemarks('bullets', 'Label')
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/rewrite',
+      expect.objectContaining({
+        body: JSON.stringify({ text: 'bullets', label: 'Label', model: 'scout', mode: 'remarks' }),
+      })
+    )
+  })
 })
