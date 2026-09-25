@@ -40,8 +40,8 @@ fun newReport(
                     }
                 }
 
-                // checklist/flags start with nothing ticked -- no seeding needed.
-                is ReportBlock.Checklist, is ReportBlock.Flags -> Unit
+                // checklist/flags/criteria start with nothing ticked/marked -- no seeding needed.
+                is ReportBlock.Checklist, is ReportBlock.Flags, is ReportBlock.Criteria -> Unit
             }
         }
     }

@@ -36,7 +36,11 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
-data class SectionProgress(val answered: Int, val total: Int, val done: Boolean, val flagged: Boolean)
+// notSeenCount is only ever non-zero for a `criteria`-block section (QA report spec §5) -- the
+// hub's "N of M options marked · K not seen" subtitle (ui/reports/ReportHub.kt) reads it
+// directly instead of re-deriving it from raw data, same reasoning as every other pre-computed
+// SectionProgress field.
+data class SectionProgress(val answered: Int, val total: Int, val done: Boolean, val flagged: Boolean, val notSeenCount: Int = 0)
 
 data class ReportProgress(
     val sections: Map<String, SectionProgress>,
@@ -84,6 +88,32 @@ fun cardCompareMismatch(compare: CardsCompare, card: JsonObject): Boolean {
     return presentInts.size >= 2 && presentInts.distinct().size > 1
 }
 
+// QA report spec §5: optionsTotal/optionsMarked count every option of every non-heading item
+// across this section's `criteria` block(s) (there can be 2, e.g. section 8's main table + its
+// own "8.1" sub-table) -- a heading item (spec: no options) contributes nothing. `flagged` mirrors
+// the checklist rule's spirit (a "not seen" finding needs the officer's attention, same as a
+// checklist "no" answer does) even though spec §5 doesn't spell it out as literally as it does
+// for checklist/fields/cards.
+private fun criteriaSectionProgress(section: ReportSection, data: ReportData): SectionProgress {
+    var total = 0
+    var marked = 0
+    var notSeen = 0
+    section.blocks.filterIsInstance<ReportBlock.Criteria>().forEach { block ->
+        block.items.forEach { item ->
+            if (item.heading) return@forEach
+            item.options.forEach { option ->
+                total++
+                val value = data.criteriaOptValue(item.id, option.id)
+                if (!isBlank(value)) {
+                    marked++
+                    if (value == "not") notSeen++
+                }
+            }
+        }
+    }
+    return SectionProgress(answered = marked, total = total, done = total > 0 && marked == total, flagged = notSeen > 0, notSeenCount = notSeen)
+}
+
 // one section's {answered,total,done,flagged} plus any free-text customFlags it contributed
 // (reference.py's section_progress returns the same pair).
 private fun sectionProgress(
@@ -93,6 +123,13 @@ private fun sectionProgress(
     answerCounts: MutableMap<String, Int>,
     unanswered: MutableList<String>,
 ): Pair<SectionProgress, List<String>> {
+    // spec §5: "sections with criteria blocks ignore other rules" -- a criteria section counts
+    // ONLY its options, never mixed in with a checklist/fields/cards block that happens to share
+    // the section (qa-v1.json's sections don't do this today, but nothing stops a future template).
+    if (section.blocks.any { it is ReportBlock.Criteria }) {
+        return criteriaSectionProgress(section, data) to emptyList()
+    }
+
     var total = 0
     var answered = 0
     var flagged = false
@@ -166,6 +203,10 @@ private fun sectionProgress(
                 val tickedFlagIds = data.flags()
                 if (block.items.any { it.id in tickedFlagIds }) flagged = true
             }
+
+            // unreachable: a section carrying a Criteria block returns from
+            // criteriaSectionProgress() above before this loop ever runs.
+            is ReportBlock.Criteria -> Unit
         }
     }
 
@@ -214,5 +255,8 @@ fun sectionHasContent(section: ReportSection, data: ReportData): Boolean = secti
             card.any { (key, value) -> !key.startsWith("_") && !isBlank(value.toString().trim('"')) }
         }
         is ReportBlock.Flags -> block.items.any { it.id in data.flags() }
+        is ReportBlock.Criteria -> block.items.any { item ->
+            !item.heading && item.options.any { option -> !isBlank(data.criteriaOptValue(item.id, option.id)) }
+        }
     }
 }

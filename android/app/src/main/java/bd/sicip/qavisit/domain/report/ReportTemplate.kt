@@ -36,6 +36,39 @@ data class ChecklistItem(val id: String, val text: String, val perCourse: Boolea
 @Serializable
 data class FlagItem(val id: String, val text: String)
 
+// one option under a `criteria` item (QA report spec §2/§3) -- src is a subset of ["A3","CL",
+// "FC"] shown as small source tags in the UI; short (defaults to label at the call site, never
+// here, so "missing" stays distinguishable from "explicitly blank") names the point in an
+// unmarked-option remark bullet (domain/report/Remarks.kt's buildRemarks); seen/not/na are the
+// fixed sentence templates for each 3-way answer, each with at most one `{...$...}` detail group
+// (see Remarks.kt for how `$` is substituted or the whole group dropped).
+@Serializable
+data class CriteriaOption(
+    val id: String,
+    val label: String,
+    val short: String? = null,
+    val src: List<String> = emptyList(),
+    val detail: String? = null,
+    val seen: String = "",
+    val not: String = "",
+    val na: String = "",
+)
+
+// one row of a `criteria` block: either a heading (no options, `no` + `text` print across the
+// row, e.g. "1." Physical resources...) or a real criterion with >= 1 option (e.g. "c)" Safety
+// and fire prevention...). `evidence` is the Annex-3 evidence text shown as a UI hint ("Evidence
+// (Annex-3): ...") -- not to be confused with a report's own per-item evidence-seen text, which
+// is ReportData.criteriaEvidence(itemId), an officer-typed value.
+@Serializable
+data class CriteriaItem(
+    val id: String,
+    val no: String? = null,
+    val text: String,
+    val heading: Boolean = false,
+    val evidence: String? = null,
+    val options: List<CriteriaOption> = emptyList(),
+)
+
 @Serializable
 data class CardsCompare(val fields: List<String>, val message: String)
 
@@ -108,6 +141,12 @@ sealed class ReportBlock {
 
     @Serializable
     data class Flags(val items: List<FlagItem>) : ReportBlock()
+
+    // QA report Annex-3 criteria table (spec §2/§3): one table per section (or per sub-heading,
+    // e.g. section 8's own "8.1" block) -- `intro` is the italic description line under the
+    // Annex-3 heading, printed once above the table (pdf/QaReportHtml.kt) and as a note in the UI.
+    @Serializable
+    data class Criteria(val key: String, val intro: String? = null, val items: List<CriteriaItem>) : ReportBlock()
 }
 
 // picks the sealed subtype from the JSON's "type" discriminator ("fields"/"checklist"/
@@ -120,22 +159,38 @@ private object ReportBlockSerializer : JsonContentPolymorphicSerializer<ReportBl
             "checklist" -> ReportBlock.Checklist.serializer()
             "cards" -> ReportBlock.Cards.serializer()
             "flags" -> ReportBlock.Flags.serializer()
+            "criteria" -> ReportBlock.Criteria.serializer()
             else -> error("unknown report block type: $type")
         }
 }
 
 @Serializable
 data class ReportSection(
-    val letter: String,
+    // surprise-v1.json's own scheme (A, B, C...) -- qa-v1.json uses `number` ("1".."15") instead
+    // (spec §2/§8), so `letter` is blank there; UI code should prefer `number` when non-blank,
+    // falling back to `letter` (see ui/reports/ReportHub.kt's sectionBadge).
+    val letter: String = "",
     val key: String,
     val short: String,
     val title: String,
     val note: String? = null,
+    // qa-v1.json only (spec §2): "1".."15", the Annex-3 section number shown as the hub/section
+    // badge instead of `letter`.
+    val number: String? = null,
+    // qa-v1.json only (spec §2/§8): "profile" (section 1) | "criteria" (2-10) | "conclusions"
+    // (11-15) -- ui/reports/ReportHub.kt groups the hub list by this when present, with the
+    // labels "Centre profile" / "Quality criteria" / "Feedback & conclusions". null (surprise
+    // template) means an ungrouped flat list, same as before this field existed.
+    val group: String? = null,
     // excluded from ReportProgress's sectionsCounted/sectionsDone rollup (spec: "optional
     // section"); still computed and shown in `sections`, just tagged "Optional" in the UI.
     val optional: Boolean = false,
     val blocks: List<@Serializable(with = ReportBlockSerializer::class) ReportBlock>,
-)
+) {
+    // "8" (qa) or "A" (surprise) -- the one badge/number string the UI should ever print, so
+    // call sites never have to choose between `number` and `letter` themselves.
+    val badge: String get() = number?.takeIf { it.isNotBlank() } ?: letter
+}
 
 @Serializable
 data class ReportTemplate(
@@ -143,10 +198,27 @@ data class ReportTemplate(
     val version: Int,
     val title: String,
     val program: String,
-    val subtitle: String,
+    val subtitle: String = "",
+    // qa-v1.json only (spec §2): "QA visit" / "Surprise visit" -- the New-report button/type-chip
+    // label (spec: "No 'Annex-3' text in UI"). surprise-v1.json falls back to
+    // ui/reports/ReportStart.kt's own reportTypeLabel() for its equivalent copy, so this stays
+    // null there rather than duplicating "Surprise visit" in two places.
+    val short: String? = null,
+    // qa-v1.json only (spec §2): "Annex-3" -- printed top-right on the PDF/Word output
+    // (pdf/QaReportHtml.kt), never shown anywhere in the app UI itself (spec: "No 'Annex-3' text
+    // in UI").
+    val annex: String? = null,
+    // qa-v1.json only (spec §1): "surprise" | "qa" -- which visits.visit_type this template
+    // renders a report for (ui/reports/ReportStart.kt's reportTypeForVisit picks the template by
+    // matching this, not by the report row's own `type` string, though in practice the two are
+    // kept equal).
+    val visitType: String? = null,
     // visit purposes this report can be written for ("Monitoring Visit"); empty = any visit
     val purposes: List<String> = emptyList(),
-    val answers: List<AnswerOption>,
+    // qa-v1.json has no checklist blocks (its 3-way seen/not/na criteria answers are a separate
+    // fixed shape, not a `choice`-style AnswerOption list) -- defaults to empty so its absence
+    // from that template's JSON doesn't fail to parse.
+    val answers: List<AnswerOption> = emptyList(),
     val sections: List<ReportSection>,
 )
 

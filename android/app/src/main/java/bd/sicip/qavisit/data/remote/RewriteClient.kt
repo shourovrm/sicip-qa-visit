@@ -30,7 +30,12 @@ const val REWRITE_OFFLINE_MESSAGE = "You are offline"
 
 sealed class RewriteResult {
     data class Ok(val text: String) : RewriteResult()
-    data class Err(val message: String) : RewriteResult()
+
+    // retryAfterSeconds is non-null ONLY for a 429 -- the QA report "AI remarks" sequential
+    // runner (ui/reports/CriteriaBlocks.kt, spec §6) waits that many seconds and resumes the
+    // same item instead of giving up on it; every other error (401/413/network/malformed body)
+    // leaves it null, meaning "not worth retrying automatically".
+    data class Err(val message: String, val retryAfterSeconds: Int? = null) : RewriteResult()
 }
 
 // one GET /api/models {key,id,label,note} entry -- key is what the officer's pick + the rewrite
@@ -44,18 +49,29 @@ data class RewriteModel(val key: String, val id: String, val label: String, val 
 @Serializable
 data class RewriteModelsResponse(val default: String, val models: List<RewriteModel>)
 
-// pure: builds the fixed {"text","label"[,"model"]} request body the worker expects. modelKey
-// null means "let the server use its own default" -- the key is simply omitted, never sent blank.
-internal fun buildRewriteRequestBody(text: String, label: String, modelKey: String? = null): String =
+// pure: builds the fixed {"text","label"[,"model"][,"mode"]} request body the worker expects.
+// modelKey null means "let the server use its own default" -- the key is simply omitted, never
+// sent blank. mode "remarks" (QA report spec §6) asks the worker's /api/rewrite for its
+// bullet-list rewrite prompt instead of the default single-field one; null (every other caller,
+// e.g. ImproveWordingButton) omits the field entirely, same as today.
+internal fun buildRewriteRequestBody(text: String, label: String, modelKey: String? = null, mode: String? = null): String =
     buildJsonObject {
         put("text", text)
         put("label", label)
         if (modelKey != null) put("model", modelKey)
+        if (mode != null) put("mode", mode)
     }.toString()
 
 // pure: pulls "text" out of the worker's 200 {"text"} response.
 internal fun parseRewriteResponseText(body: String): String =
     Json.parseToJsonElement(body).jsonObject.getValue("text").jsonPrimitive.content
+
+// pure: a 429 body may carry {"error":"quota","retry_after":N} (seconds) -- absent or
+// unparseable falls back to 10s (spec §6's "on 429 wait retry_after/10s"), never null, so the AI
+// remarks runner always has a concrete wait to use.
+internal fun parseRetryAfterSeconds(body: String): Int =
+    runCatching { Json.parseToJsonElement(body).jsonObject["retry_after"]?.jsonPrimitive?.content?.toInt() }
+        .getOrNull() ?: 10
 
 // pure: decodes GET /api/models's 200 body. Public (not internal) -- ui/profile/ProfileScreen.kt
 // also calls this to re-parse the cached copy of this same body when offline.
@@ -75,7 +91,7 @@ class RewriteClient {
     // modelKey = officer's saved settings/RewriteModelPref.kt pick, or null to let the worker
     // use its own default (unknown/stale key from an old cache is also the server's problem to
     // fall back on, per the API contract -- android never validates it against the model list).
-    suspend fun rewrite(text: String, label: String, accessToken: String, modelKey: String? = null): RewriteResult =
+    suspend fun rewrite(text: String, label: String, accessToken: String, modelKey: String? = null, mode: String? = null): RewriteResult =
         withContext(Dispatchers.IO) {
             if (text.length > REWRITE_MAX_CHARS) return@withContext RewriteResult.Err(REWRITE_TOO_LONG_MESSAGE)
             try {
@@ -87,14 +103,14 @@ class RewriteClient {
                     conn.setRequestProperty("Authorization", "Bearer $accessToken")
                     conn.setRequestProperty("Content-Type", "application/json")
                     conn.doOutput = true
-                    conn.outputStream.use { it.write(buildRewriteRequestBody(text, label, modelKey).toByteArray()) }
+                    conn.outputStream.use { it.write(buildRewriteRequestBody(text, label, modelKey, mode).toByteArray()) }
                     val code = conn.responseCode
                     val responseBody = (if (code in 200..299) conn.inputStream else conn.errorStream)
                         ?.bufferedReader()?.use { it.readText() } ?: ""
-                    if (code in 200..299) {
-                        RewriteResult.Ok(parseRewriteResponseText(responseBody))
-                    } else {
-                        RewriteResult.Err(rewriteErrorMessage(code))
+                    when {
+                        code in 200..299 -> RewriteResult.Ok(parseRewriteResponseText(responseBody))
+                        code == 429 -> RewriteResult.Err(rewriteErrorMessage(code), retryAfterSeconds = parseRetryAfterSeconds(responseBody))
+                        else -> RewriteResult.Err(rewriteErrorMessage(code))
                     }
                 } finally {
                     conn.disconnect()

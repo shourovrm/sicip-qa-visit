@@ -169,6 +169,72 @@ data class ReportData(val root: JsonObject) {
         return withRoot("cards", newCardsObj)
     }
 
+    // ============ criteria (QA report spec §3) ============
+    // data.criteria[itemId] = {opts: {optionId: {v, detail, remark}}, evidence, note, ai:
+    // {source, text}} -- one entry per CriteriaItem.id, absent until the officer touches that
+    // item. `v` is one of "seen"/"not"/"na"/"" (blank = untouched); see domain/report/Remarks.kt
+    // for how these fields turn into the printed Remarks bullets.
+    private val criteriaObj: JsonObject get() = (root["criteria"] as? JsonObject) ?: JsonObject(emptyMap())
+    private fun criteriaEntry(itemId: String): JsonObject = (criteriaObj[itemId] as? JsonObject) ?: JsonObject(emptyMap())
+    private fun JsonObject.opts(): JsonObject = (this["opts"] as? JsonObject) ?: JsonObject(emptyMap())
+
+    fun criteriaOptValue(itemId: String, optionId: String): String =
+        ((criteriaEntry(itemId).opts()[optionId] as? JsonObject)?.get("v"))?.jsonPrimitive?.contentOrNull ?: ""
+
+    fun criteriaOptDetail(itemId: String, optionId: String): String =
+        ((criteriaEntry(itemId).opts()[optionId] as? JsonObject)?.get("detail"))?.jsonPrimitive?.contentOrNull ?: ""
+
+    fun criteriaOptRemark(itemId: String, optionId: String): String =
+        ((criteriaEntry(itemId).opts()[optionId] as? JsonObject)?.get("remark"))?.jsonPrimitive?.contentOrNull ?: ""
+
+    fun criteriaEvidence(itemId: String): String = criteriaEntry(itemId)["evidence"]?.jsonPrimitive?.contentOrNull ?: ""
+
+    fun criteriaNote(itemId: String): String = criteriaEntry(itemId)["note"]?.jsonPrimitive?.contentOrNull ?: ""
+
+    // the AI-remarks "was this run against the CURRENT fixed-sentence bullets, or are they stale
+    // now" check (domain/report/Remarks.kt's printedRemarks) compares `source` against a fresh
+    // buildRemarks() join -- both fields blank ("", "") when nobody has ever run AI remarks here.
+    fun criteriaAiSource(itemId: String): String = (criteriaEntry(itemId)["ai"] as? JsonObject)?.get("source")?.jsonPrimitive?.contentOrNull ?: ""
+    fun criteriaAiText(itemId: String): String = (criteriaEntry(itemId)["ai"] as? JsonObject)?.get("text")?.jsonPrimitive?.contentOrNull ?: ""
+
+    private fun withCriteriaEntry(itemId: String, mutate: (MutableMap<String, JsonElement>) -> Unit): ReportData {
+        val entry = criteriaEntry(itemId).toMutableMap()
+        mutate(entry)
+        val newCriteriaObj = JsonObject(criteriaObj.toMutableMap().apply { put(itemId, JsonObject(entry)) })
+        return withRoot("criteria", newCriteriaObj)
+    }
+
+    // pass only the parameter that changed, same convention as withCheck above -- a remark-only
+    // edit must never clobber an already-chosen v/detail and vice versa. v == "" clears the
+    // answer (the 3-way Seen/Not seen/N/A UI's tap-the-chosen-one-again-to-clear rule).
+    fun withCriteriaOpt(itemId: String, optionId: String, v: String? = null, detail: String? = null, remark: String? = null): ReportData =
+        withCriteriaEntry(itemId) { entry ->
+            val opts = (entry["opts"] as? JsonObject)?.toMutableMap() ?: mutableMapOf()
+            val existingOpt = (opts[optionId] as? JsonObject)?.toMutableMap() ?: mutableMapOf()
+            if (v != null) existingOpt["v"] = JsonPrimitive(v)
+            if (detail != null) existingOpt["detail"] = JsonPrimitive(detail)
+            if (remark != null) existingOpt["remark"] = JsonPrimitive(remark)
+            opts[optionId] = JsonObject(existingOpt)
+            entry["opts"] = JsonObject(opts)
+        }
+
+    fun withCriteriaEvidence(itemId: String, evidence: String): ReportData =
+        withCriteriaEntry(itemId) { entry -> entry["evidence"] = JsonPrimitive(evidence) }
+
+    fun withCriteriaNote(itemId: String, note: String): ReportData =
+        withCriteriaEntry(itemId) { entry -> entry["note"] = JsonPrimitive(note) }
+
+    // "Use AI version" (spec §6) -- source is the exact bullets.joinToString("\n") this run was
+    // made from, so a later edit that changes the fixed-sentence bullets makes printedRemarks
+    // (Remarks.kt) notice the AI text is stale and fall back to the fresh bullets automatically.
+    fun withCriteriaAi(itemId: String, source: String, text: String): ReportData =
+        withCriteriaEntry(itemId) { entry -> entry["ai"] = buildJsonObject { put("source", source); put("text", text) } }
+
+    // "Keep original" (spec §6) -- stores nothing, per spec ("Use AI version -> store
+    // ai={source,text}; Keep original -> store nothing").
+    fun withCriteriaAiCleared(itemId: String): ReportData =
+        withCriteriaEntry(itemId) { entry -> entry.remove("ai") }
+
     private fun withRoot(key: String, value: JsonElement): ReportData =
         ReportData(JsonObject(root.toMutableMap().apply { put(key, value) }))
 }

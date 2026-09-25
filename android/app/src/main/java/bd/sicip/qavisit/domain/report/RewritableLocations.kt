@@ -98,6 +98,11 @@ fun collectRewritableLocations(template: ReportTemplate, data: ReportData): List
                 }
 
                 is ReportBlock.Flags -> Unit
+
+                // criteria items get their own dedicated "AI remarks" flow (spec §6,
+                // ui/reports/CriteriaBlocks.kt), never the generic per-field ImproveWordingButton
+                // this list drives -- nothing to collect here.
+                is ReportBlock.Criteria -> Unit
             }
         }
     }

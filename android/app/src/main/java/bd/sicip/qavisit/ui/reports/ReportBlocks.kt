@@ -728,6 +728,7 @@ fun ReportBlockView(
         is ReportBlock.Checklist -> ChecklistBlockView(block, answers, data, readOnly, editor)
         is ReportBlock.Cards -> CardsBlockView(block, data, readOnly, editor, template, onOpenSection)
         is ReportBlock.Flags -> FlagsBlockView(block, data, readOnly, editor)
+        is ReportBlock.Criteria -> CriteriaBlockView(block, data, readOnly, editor)
     }
 }
 

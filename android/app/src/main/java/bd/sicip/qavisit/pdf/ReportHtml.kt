@@ -300,6 +300,9 @@ private fun blockHtml(block: ReportBlock, data: ReportData, template: ReportTemp
     is ReportBlock.Checklist -> checklistBlockHtml(block, data, template, answerMap)
     is ReportBlock.Cards -> if (block.display == "tabs") tabsCardsBlockHtml(block, data, template, answerMap) else cardsBlockHtml(block, data)
     is ReportBlock.Flags -> "" // handled by sectionHtml's combinedFlagsHtml, alongside any countsAsFlags cards block in the same section
+    // this surprise-report layout never receives one -- qa-v1.json's criteria blocks render
+    // through the separate pdf/QaReportHtml.kt (spec §7), never this file.
+    is ReportBlock.Criteria -> ""
 }
 
 private fun sectionHtml(section: ReportSection, data: ReportData, template: ReportTemplate, answerMap: Map<String, AnswerOption>): String {
