@@ -106,6 +106,10 @@ data class Field(
     // ImproveWording.kt) -- set per-field in the template json, never inferred from `kind`, so
     // address/officers-style longtext fields can opt out (spec: never those two).
     val rewrite: Boolean = false,
+    // QA s11/s12 question: key of the criteria section its No answers feed (Drafts.kt feedbackLines)
+    val component: String? = null,
+    // "weaknesses" (s14 findings) | "plan" (s15 recommendations): which draft button it gets
+    val draftFrom: String? = null,
 ) {
     fun selectOptions(): List<String> =
         (options as? JsonArray)?.map { it.jsonPrimitive.content } ?: emptyList()
@@ -118,13 +122,18 @@ data class Field(
     fun toneFor(value: String): String? = choiceOptions().find { it.id == value }?.tone
 }
 
+// QA s13 row: component name + its criteria section + the two top-level text field keys
+@Serializable
+data class ComponentPair(val component: String, val source: String, val strength: String, val weakness: String)
+
 @Serializable
 sealed class ReportBlock {
     // `heading` (qa-v1.json's section 1 only, e.g. "1.20 Contract/MoU Information") labels one
     // fields block as its own numbered sub-section, same idea as Cards/Checklist's own `heading` --
     // surprise-v1.json's fields blocks never set it, so it stays null there.
+    // pairs: QA s13 only -- one strengths/weaknesses group per component (Drafts.kt)
     @Serializable
-    data class Fields(val fields: List<Field>, val heading: String? = null) : ReportBlock()
+    data class Fields(val fields: List<Field>, val heading: String? = null, val pairs: List<ComponentPair> = emptyList()) : ReportBlock()
 
     @Serializable
     data class Checklist(val key: String, val heading: String? = null, val items: List<ChecklistItem>) : ReportBlock()
@@ -145,6 +154,10 @@ sealed class ReportBlock {
         // block contributes 0 to progress totals; every card whose titleField is non-blank is
         // a free-text flag instead (section L's "other_flags") -- see ReportProgress's customFlags.
         val countsAsFlags: Boolean = false,
+        // QA s11/s12: no name field; old cards may still hold `name` -- never show or print it
+        val anonymous: Boolean = false,
+        // "weaknesses" (QA s16 plan): cards rebuilt from s13 weaknesses (Drafts.kt planCards)
+        val draftFrom: String? = null,
         val fields: List<Field>,
     ) : ReportBlock()
 

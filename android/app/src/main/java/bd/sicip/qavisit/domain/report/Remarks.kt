@@ -31,6 +31,21 @@ fun ensureStop(s: String): String {
     return if (last == '.' || last == '!' || last == '?') s else "$s."
 }
 
+// one MARKED option -> its fixed sentence ({...$...} resolved) + typed remark, one string
+// (reference.py option_text; shared by buildRemarks and Drafts.kt's componentNotes).
+fun optionText(itemId: String, option: CriteriaOption, data: ReportData): String {
+    val remark = ensureStop(data.criteriaOptRemark(itemId, option.id).trim())
+    val sentenceTemplate = when (data.criteriaOptValue(itemId, option.id)) {
+        "seen" -> option.seen
+        "not" -> option.not
+        "na" -> option.na
+        else -> "" // unrecognised stored value -- treat as no fixed sentence, remark still prints
+    }
+    val detail = data.criteriaOptDetail(itemId, option.id).trim()
+    val sentence = resolveDetailGroup(sentenceTemplate, detail).trim()
+    return listOf(sentence, remark).filter { it.isNotBlank() }.joinToString(" ")
+}
+
 // spec §4's buildRemarks(item, entry) -> List<String>, in template option order:
 // 1. for each option: v blank + a typed remark -> its own bullet "<short/label>: <remark>."
 //    (an unmarked option with no remark contributes nothing); v non-blank -> that answer's fixed
@@ -54,16 +69,7 @@ fun buildRemarks(item: CriteriaItem, data: ReportData): List<String> {
             return@forEach
         }
 
-        val sentenceTemplate = when (value) {
-            "seen" -> option.seen
-            "not" -> option.not
-            "na" -> option.na
-            else -> "" // unrecognised stored value -- treat as no fixed sentence, remark still prints
-        }
-        val detail = data.criteriaOptDetail(item.id, option.id).trim()
-        val sentence = resolveDetailGroup(sentenceTemplate, detail).trim()
-
-        val joined = listOf(sentence, remark).filter { it.isNotBlank() }.joinToString(" ")
+        val joined = optionText(item.id, option, data)
         if (joined.isNotBlank()) bullets += joined
     }
 
