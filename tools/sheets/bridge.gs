@@ -47,7 +47,7 @@ function syncAll() {
     var officersById = fetchOfficersMap(cfg);
 
     var visits = fetchAllPages(cfg, '/rest/v1/visits',
-      'id,officer_id,institute,association,district,purpose,ref_no,ref_date,start_date,end_date,category,remarks,created_at',
+      'id,officer_id,institute,association,district,purpose,ref_no,ref_date,start_date,end_date,category,remarks,visit_type,created_at',
       { deleted: 'eq.false', order: 'created_at.asc' });
     writeVisitsTab(ss, visits, officersById);
 
@@ -146,6 +146,18 @@ function getOrCreateSheet(ss, name) {
   return sh;
 }
 
+// visit_type ('surprise'|'qa') prefixes the Remarks cell so the type is visible without a
+// separate column (spec docs/superpowers/plans/2026-09-25-qa-report.md section 1): "QA visit" /
+// "Surprise visit", then "; " + the officer's own remarks if any. Visits with no visit_type
+// (every purpose except Monitoring Visit, plus old rows) print remarks as before, unprefixed.
+var VISIT_TYPE_LABELS = { surprise: 'Surprise visit', qa: 'QA visit' };
+function remarksCell(v) {
+  var prefix = VISIT_TYPE_LABELS[v.visit_type];
+  var remarks = v.remarks || '';
+  if (!prefix) return remarks;
+  return remarks ? (prefix + '; ' + remarks) : prefix;
+}
+
 function writeVisitsTab(ss, visits, officersById) {
   var sh = getOrCreateSheet(ss, VISITS_TAB);
   sh.clear();
@@ -164,7 +176,7 @@ function writeVisitsTab(ss, visits, officersById) {
       v.start_date || '',
       v.end_date || '',
       v.category || '',
-      v.remarks || '',
+      remarksCell(v),
       v.id
     ];
   });
