@@ -60,7 +60,10 @@ import bd.sicip.qavisit.domain.report.ReportBlock
 import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportSection
 import bd.sicip.qavisit.domain.report.ReportTemplate
+import bd.sicip.qavisit.domain.report.collectRewritableLocations
 import bd.sicip.qavisit.domain.report.computeProgress
+import bd.sicip.qavisit.domain.report.currentText
+import bd.sicip.qavisit.domain.report.withText
 import bd.sicip.qavisit.ui.theme.LocalToneColors
 import bd.sicip.qavisit.ui.theme.forToneId
 import kotlinx.coroutines.flow.filterNotNull
@@ -113,6 +116,15 @@ fun ReportReview(
     // never a copy this screen's own first composition happened to see.
     val editor = registry.forReport(current)
     val progress = remember(editor.data) { computeProgress(template, editor.data) }
+    // every non-blank Field.rewrite=true text (plain fields + cards blocks, incl. linked/tabs)
+    // plus every checklist item's remarks -- recomputed off editor.data on every render, so a
+    // suggestion just applied below drops off (blank again) or an edit made elsewhere shows up
+    // immediately, same as every other Review tile. Blank ones are filtered out here rather than
+    // relying solely on ImproveWordingButton's own guard, so an empty slot doesn't print a bare
+    // label with nothing under it.
+    val rewritableLocations = remember(editor.data) {
+        collectRewritableLocations(template, editor.data).filter { it.currentText(editor.data).isNotBlank() }
+    }
 
     // insets already applied by AppShell's scaffold
     Scaffold(
@@ -187,6 +199,28 @@ fun ReportReview(
                                 )
                                 Text(answer.label, style = MaterialTheme.typography.labelSmall, color = tones.forToneId(answer.tone))
                             }
+                        }
+                    }
+                }
+            }
+
+            if (rewritableLocations.isNotEmpty()) {
+                item { Text("Written text", style = MaterialTheme.typography.labelLarge) }
+                items(rewritableLocations) { loc ->
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                "${loc.sectionLetter} · ${loc.label}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(loc.currentText(editor.data), style = MaterialTheme.typography.bodyMedium)
+                            ImproveWordingButton(
+                                text = loc.currentText(editor.data),
+                                label = loc.label,
+                                readOnly = editor.readOnly,
+                                onApply = { v -> editor.editNow(loc.withText(editor.data, v)) },
+                            )
                         }
                     }
                 }
