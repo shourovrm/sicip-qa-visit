@@ -123,7 +123,7 @@
       {@const card = cards[activeTab]}
       <div class="card entry">
         {#each editableFields as field (field.key)}
-          <FieldInput {field} value={card[field.key] ?? ''} {disabled}
+          <FieldInput {field} value={card[field.key] ?? ''} {disabled} compact={Boolean(block.anonymous)}
             courseOptions={field.kind === 'courseRef' ? courseOptions : undefined}
             on:change={(e) => setField(activeTab, field.key, e.detail)} />
         {/each}
@@ -141,7 +141,7 @@
           {/if}
         </div>
         {#each editableFields as field (field.key)}
-          <FieldInput {field} value={card[field.key] ?? ''} {disabled}
+          <FieldInput {field} value={card[field.key] ?? ''} {disabled} compact={Boolean(block.anonymous)}
             courseOptions={field.kind === 'courseRef' ? courseOptions : undefined}
             on:change={(e) => setField(index, field.key, e.detail)} />
         {/each}

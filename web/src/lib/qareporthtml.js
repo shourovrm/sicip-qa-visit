@@ -220,7 +220,7 @@ function planTableHtml(block, data) {
   const entries = (data.cards && data.cards[block.key]) || []
   const rows = entries.length >= 3 ? entries : entries.concat(Array.from({ length: 3 - entries.length }, () => ({})))
   const body = rows.map((entry, i) => `<tr><td>${i + 1}.</td>${block.fields.map((field) => `<td>${escMultiline(entry[field.key])}</td>`).join('')}</tr>`).join('')
-  return `<table class="grid"><tr><th>S.N.</th>${block.fields.map((field) => `<th>${esc(field.label)}</th>`).join('')}</tr>${body}</table>`
+  return `<table class="grid"><tr><th style="width:5%">S.N.</th>${block.fields.map((field) => `<th>${esc(field.label)}</th>`).join('')}</tr>${body}</table>`
 }
 
 // ---- sections 14/15: bullet lists from lines ----

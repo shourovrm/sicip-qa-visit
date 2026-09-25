@@ -11,6 +11,7 @@
   export let value = ''
   export let disabled = false
   export let courseOptions = [] // only used by kind:'courseRef' -- "course · batch" strings
+  export let compact = false // choice on one row with its question (feedback question lists)
 
   const dispatch = createEventDispatcher()
   // datalist id must be unique per rendered field (many identity cards can each have one)
@@ -31,7 +32,7 @@
 
 <!-- svelte-ignore a11y-label-has-associated-control -- the choice branch renders AnswerSegmented
      (a div, not a labelable control); every other branch is a real input/select/textarea -->
-<label class="field">
+<label class="field" class:inline-choice={compact && field.kind === 'choice'}>
   <span class="field-label">{field.label}{field.required ? ' *' : ''}</span>
   {#if field.kind === 'choice'}
     <AnswerSegmented options={field.options} {value} {disabled} on:change={onChoice} />
@@ -67,4 +68,7 @@
 <style>
   .field { display: block; margin-bottom: 12px; }
   .field-label { display: block; font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+  .inline-choice { display: grid; grid-template-columns: 1fr minmax(240px, 320px); align-items: center; gap: 12px; }
+  .inline-choice .field-label { margin-bottom: 0; }
+  @media (max-width: 600px) { .inline-choice { display: block; } .inline-choice .field-label { margin-bottom: 4px; } }
 </style>
