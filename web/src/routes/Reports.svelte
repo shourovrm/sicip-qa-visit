@@ -10,9 +10,11 @@
   import Dropdown from '../components/Dropdown.svelte'
   import ReportEditor from '../components/report/ReportEditor.svelte'
   import { openReportPrint } from '../lib/reporthtml.js'
+  import { openNarrativePrint } from '../lib/narrativehtml.js'
   import { openQaReportPrint } from '../lib/qareporthtml.js'
   // docx lib is heavy: load it only when someone asks for a word file
   const downloadDocx = (...args) => import('../lib/reportdocx.js').then((m) => m.downloadReportDocx(...args))
+  const downloadNarrativeDocx = (...args) => import('../lib/narrativedocx.js').then((m) => m.downloadNarrativeDocx(...args))
   const downloadQaDocx = (...args) => import('../lib/qareportdocx.js').then((m) => m.downloadQaReportDocx(...args))
 
   // report-row `type` -> its template's own `short` label ("Surprise visit" / "QA visit") --
@@ -64,7 +66,7 @@
     return visits.find((v) => v.id === r.visit_id)?.institute ?? r.data?.fields?.ti_name ?? '—'
   }
   function progressFor(r) {
-    return computeProgress(templateFor(r.type), r.data)
+    return computeProgress(templateFor(r.type, r.template_version), r.data)
   }
 
   // visit_type 'surprise'/'qa' -> that one template only; null (old rows created before the
@@ -119,17 +121,21 @@
   function open(r) { current = r }
   function closeEditor() { current = null }
   function onSave(e) { reports = reports.map((r) => (r.id === e.detail.id ? e.detail : r)) }
+  function onConverted(e) { onSave(e); current = e.detail }
   function onDelete(e) { reports = reports.filter((r) => r.id !== e.detail.id); current = null }
 
   $: currentVisit = current ? visits.find((v) => v.id === current.visit_id) ?? null : null
-  $: currentTemplate = current ? templateFor(current.type) : null
+  $: currentTemplate = current ? templateFor(current.type, current.template_version) : null
   $: currentReadonly = current ? current.status === 'submitted' && !$isAdmin : false
 </script>
 
 {#if current}
-  <ReportEditor report={current} template={currentTemplate} visit={currentVisit} officerName={$officer?.name ?? ''}
-    readonly={currentReadonly} onPrint={printReport} onDocx={docxReport}
-    on:close={closeEditor} on:save={onSave} on:submit={onSave} on:delete={onDelete} />
+  <!-- keyed on the version: converting v1 -> v2 restarts the editor on the new template -->
+  {#key `${current.id}:${current.template_version}`}
+    <ReportEditor report={current} template={currentTemplate} visit={currentVisit} officerName={$officer?.name ?? ''}
+      readonly={currentReadonly} onPrint={printReport} onDocx={docxReport} onNarrative={openNarrativePrint} onNarrativeDocx={downloadNarrativeDocx}
+      on:close={closeEditor} on:save={onSave} on:submit={onSave} on:delete={onDelete} on:converted={onConverted} />
+  {/key}
 {:else}
   <h1>Reports</h1>
 

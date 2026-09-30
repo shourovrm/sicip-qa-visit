@@ -4,16 +4,29 @@
 // truth for these rules -- android matches it too, see fixtures/progress-1.json,
 // fixtures/remarks-1.json, fixtures/progress-qa-1.json).
 import surpriseV1 from '../../../shared/report-templates/surprise-v1.json'
+import surpriseV2 from '../../../shared/report-templates/surprise-v2.json'
 import qaV1 from '../../../shared/report-templates/qa-v1.json'
 
 // the `reports.type` DB column predates the QA template (check constraint 'surprise'|'monitoring'
 // -- see supabase/migrations/010_reports.sql) -- 'monitoring' is qa-v1's DB-side type, so a QA
 // report's row keeps type:'monitoring' while its template id/short/visitType are 'qa'. templateFor
 // accepts either name so callers can pass a DB row's `type` directly.
-export const TEMPLATES = { surprise: surpriseV1, qa: qaV1, monitoring: qaV1 }
+// the LATEST template per type -- what a new report is created with
+export const TEMPLATES = { surprise: surpriseV2, qa: qaV1, monitoring: qaV1 }
 
-export function templateFor(type) {
-  return TEMPLATES[type] ?? null
+// older versions an existing report row may still be on (template_version column)
+const OLDER_VERSIONS = { surprise: { 1: surpriseV1 } }
+
+// version omitted = latest; a report row passes its own template_version
+export function templateFor(type, version) {
+  const latest = TEMPLATES[type] ?? null
+  if (version == null || latest?.version === version) return latest
+  return OLDER_VERSIONS[type]?.[version] ?? latest
+}
+
+// an old-format surprise report the editor offers to convert (lib/reportconvert.js)
+export function needsConversion(report) {
+  return report?.type === 'surprise' && Number(report.template_version) < TEMPLATES.surprise.version
 }
 
 // the DB `type` column value for a template id (inverse of templateFor's 'monitoring' alias).
@@ -129,7 +142,18 @@ function counts(field) {
   return Boolean(field.required) || field.kind === 'choice'
 }
 
-function compareMismatch(compare, card) {
+// gapPct set (surprise v2): only when fields[0] (headcount) is more than gapPct% below any
+// other field (7-day averages); otherwise any difference
+export function compareMismatch(compare, card) {
+  if (compare.gapPct != null) {
+    if (isBlank(card[compare.fields[0]])) return false
+    const first = Number(card[compare.fields[0]])
+    return compare.fields.slice(1).some((key) => {
+      if (isBlank(card[key])) return false
+      const other = Number(card[key])
+      return other > 0 && first < other * (1 - compare.gapPct / 100)
+    })
+  }
   const values = compare.fields.map((key) => card[key]).filter((v) => !isBlank(v)).map(Number)
   return values.length >= 2 && new Set(values).size > 1
 }
@@ -222,6 +246,10 @@ function sectionProgress(section, data) {
     } else if (block.type === 'flags') {
       const ticked = new Set(data.flags ?? [])
       if (block.items.some((item) => ticked.has(item.id))) flagged = true
+    } else if (block.type === 'findings') {
+      // one item: at least one major finding picked (remarks blocks count nothing)
+      total += 1
+      if ((data.findings ?? []).some((f) => !isBlank(f.text))) answered += 1
     }
   }
 
@@ -296,6 +324,8 @@ export function sectionHasContent(section, data) {
       }
     }
     if (block.type === 'flags' && block.items.some((i) => (data.flags ?? []).includes(i.id))) return true
+    if (block.type === 'remarks' && !isBlank(data.remarks?.[block.key]?.text)) return true
+    if (block.type === 'findings' && (data.findings ?? []).length > 0) return true
   }
   return false
 }
@@ -317,6 +347,8 @@ export function newReportData(template, visit, officerName) {
       }
     } else if (block.type === 'cards') {
       cards[block.key] = Array.from({ length: block.start ?? 0 }, () => ({ _id: crypto.randomUUID() }))
+      // surprise v2 visiting officers: the first card is the officer writing it
+      if (block.prefill === 'officers' && cards[block.key].length > 0) cards[block.key][0].name = officerName ?? ''
     }
   }
   return normalize(template, { fields, checks: {}, cards, flags: [], criteria: {} })

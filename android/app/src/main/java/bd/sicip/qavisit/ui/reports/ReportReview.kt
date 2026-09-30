@@ -109,7 +109,7 @@ fun ReportReview(
     }
 
     val current = report ?: return
-    val template = remember(current.type) { templateForType(context, current.type) }
+    val template = remember(current.type, current.templateVersion) { templateForReport(context, current) }
     val itemLocations = remember(template) { checklistItemLocations(template) }
     // reuses the SAME editor any section screen already opened for this report id -- see
     // ReportEditorRegistry's comment. Submit (below) then flushes+writes the truly-latest data,

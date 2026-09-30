@@ -1,13 +1,14 @@
 <!-- draft button above a field with `draftFrom`: findings <- s13 weaknesses (AI, preview first),
-     recommendations <- s16 plan actions (no AI; pre-filled on load when blank). -->
+     recommendations <- s16 plan actions (no AI; pre-filled on load when blank), surprise v2
+     recommendations <- picked major findings (AI, preview first). -->
 <script>
   import { onMount } from 'svelte'
   import DraftPreview from './DraftPreview.svelte'
   import { isBlank } from '../../lib/reporttemplate.js'
   import { allWeaknesses, recommendationsFromPlan } from '../../lib/drafts.js'
-  import { draftFindings } from '../../lib/draftrun.js'
+  import { draftFindings, draftRecommendations } from '../../lib/draftrun.js'
 
-  export let field // {key, draftFrom: 'weaknesses' | 'plan'}
+  export let field // {key, draftFrom: 'weaknesses' | 'plan' | 'findings'}
   export let template
   export let data // mutated in place, then onChange()
   export let disabled = false
@@ -17,7 +18,11 @@
   let preview = null // {lines, usedFallback}
 
   $: fromPlan = field.draftFrom === 'plan'
-  $: sourceText = fromPlan ? recommendationsFromPlan(data.cards?.plan ?? []) : allWeaknesses(template, data).join('\n')
+  $: fromFindings = field.draftFrom === 'findings'
+  $: pickedFindings = (data.findings ?? []).map((f) => f.text).filter((t) => !isBlank(t))
+  $: sourceText = fromPlan
+    ? recommendationsFromPlan(data.cards?.plan ?? [])
+    : fromFindings ? pickedFindings.join('\n') : allWeaknesses(template, data).join('\n')
   $: current = data.fields[field.key]
 
   function write(text) {
@@ -37,7 +42,7 @@
     }
     busy = true
     try {
-      preview = await draftFindings(template, data)
+      preview = fromFindings ? await draftRecommendations(pickedFindings) : await draftFindings(template, data)
     } finally {
       busy = false
     }
@@ -50,14 +55,14 @@
 
 <div class="field-draft">
   <button type="button" class="btn-link" on:click={draft} disabled={disabled || busy || !sourceText}>
-    {#if busy}Drafting…{:else if fromPlan}Fill from improvement plan{:else}Draft from weaknesses{/if}
+    {#if busy}Drafting…{:else if fromPlan}Fill from improvement plan{:else if fromFindings}Draft from major findings{:else}Draft from weaknesses{/if}
   </button>
   {#if !sourceText}
-    <span class="hint">{fromPlan ? 'Add improvement actions in section 16 first' : 'Add weaknesses in section 13 first'}</span>
+    <span class="hint">{fromPlan ? 'Add improvement actions in section 16 first' : fromFindings ? 'Select major findings above first' : 'Add weaknesses in section 13 first'}</span>
   {/if}
 </div>
 {#if preview}
-  <DraftPreview columns={[{ label: 'Major findings', lines: preview.lines }]} usedFallback={preview.usedFallback}
+  <DraftPreview columns={[{ label: fromFindings ? 'Recommendations' : 'Major findings', lines: preview.lines }]} usedFallback={preview.usedFallback}
     replaces={!isBlank(current)} on:use={usePreview} on:discard={() => (preview = null)} />
 {/if}
 

@@ -10,6 +10,11 @@ import bd.sicip.qavisit.data.remote.RewriteClient
 import bd.sicip.qavisit.data.remote.RewriteResult
 import bd.sicip.qavisit.data.remote.SupabaseClient
 import bd.sicip.qavisit.domain.report.ComponentNotes
+import bd.sicip.qavisit.domain.report.Finding
+import bd.sicip.qavisit.domain.report.RemarkLine
+import bd.sicip.qavisit.domain.report.fallbackMajorFindings
+import bd.sicip.qavisit.domain.report.fallbackRecommendations
+import bd.sicip.qavisit.domain.report.parseMajorAnswer
 import bd.sicip.qavisit.domain.report.StrengthsDraft
 import bd.sicip.qavisit.domain.report.cleanLines
 import bd.sicip.qavisit.domain.report.fallbackDraft
@@ -55,6 +60,24 @@ class QaDraftAi(private val context: Context) {
             ?.let { cleanLines(it) }
             ?.takeIf { it.isNotEmpty() }
         return if (lines != null) Drafted(lines, false) else Drafted(weaknesses, true)
+    }
+
+    // surprise v2: AI picks the major findings out of every remarks line (issues first);
+    // fallback = every issue line
+    suspend fun majorFindings(candidates: List<RemarkLine>): Drafted<List<Finding>> {
+        val input = numberedText(candidates.map { if (it.neg) "(issue) ${it.text}" else it.text })
+        val picked = ask("major", input)?.let { parseMajorAnswer(it, candidates.size) }
+        return if (picked != null) {
+            Drafted(picked.map { Finding(candidates[it].text, candidates[it].text) }, false)
+        } else {
+            Drafted(fallbackMajorFindings(candidates), true)
+        }
+    }
+
+    // surprise v2: "The institute/PIU/SICIP should ..." per major finding
+    suspend fun recommendations(findings: List<String>): Drafted<List<String>> {
+        val lines = ask("recommend", numberedText(findings))?.let { cleanLines(it) }?.takeIf { it.isNotEmpty() }
+        return if (lines != null) Drafted(lines, false) else Drafted(fallbackRecommendations(findings), true)
     }
 
     suspend fun plan(weaknesses: List<String>, existing: List<JsonObject>): Drafted<List<JsonObject>> {

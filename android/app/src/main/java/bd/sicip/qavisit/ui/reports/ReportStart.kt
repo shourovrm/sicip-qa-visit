@@ -24,16 +24,27 @@ const val REPORT_TYPE_SURPRISE = "surprise"
 // place the two ids ("monitoring" the stored type vs "qa" the template file/id) meet is right here.
 const val REPORT_TYPE_QA = "monitoring"
 
-fun surpriseTemplate(context: Context): ReportTemplate = loadReportTemplate(context, "surprise-v1.json")
+// new surprise reports use the latest version; older rows keep the version they were made with
+const val SURPRISE_LATEST_VERSION = 2
+
+fun surpriseTemplate(context: Context, version: Int = SURPRISE_LATEST_VERSION): ReportTemplate =
+    loadReportTemplate(context, "surprise-v$version.json")
 fun qaTemplate(context: Context): ReportTemplate = loadReportTemplate(context, "qa-v1.json")
 
 // the one place a report `type` string picks its template -- every screen that opens a report
 // (hub/section/review/PDF) calls this instead of hardcoding which loader to use, so adding a
 // third report type later is a one-line change here, not a find-and-replace across the UI.
-fun templateForType(context: Context, type: String): ReportTemplate = when (type) {
+// version null = the latest (a new report); an existing row passes its own template_version
+fun templateForType(context: Context, type: String, version: Int? = null): ReportTemplate = when (type) {
     REPORT_TYPE_QA -> qaTemplate(context)
-    else -> surpriseTemplate(context)
+    else -> surpriseTemplate(context, version ?: SURPRISE_LATEST_VERSION)
 }
+
+// an old-format surprise report the hub offers to convert
+fun needsConversion(report: Report): Boolean = report.type == REPORT_TYPE_SURPRISE && report.templateVersion < SURPRISE_LATEST_VERSION
+
+fun templateForReport(context: Context, report: Report): ReportTemplate =
+    templateForType(context, report.type, report.templateVersion)
 
 // visits.visit_type ("surprise"/"qa", spec §1's own migration) -> reports.type (REPORT_TYPE_QA =
 // "monitoring", see that constant's own comment for why the two strings differ). null means

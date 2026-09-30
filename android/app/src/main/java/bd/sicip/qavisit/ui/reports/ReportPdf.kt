@@ -11,6 +11,7 @@ import bd.sicip.qavisit.data.db.Report
 import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportTemplate
 import bd.sicip.qavisit.pdf.ReportMeta
+import bd.sicip.qavisit.pdf.buildNarrativeReportHtml
 import bd.sicip.qavisit.pdf.buildQaReportHtml
 import bd.sicip.qavisit.pdf.buildReportHtml
 import bd.sicip.qavisit.pdf.renderBillPdf
@@ -18,7 +19,7 @@ import bd.sicip.qavisit.pdf.renderBillPdf
 // matches the authority declared in AndroidManifest.xml for BillScreen's own FileProvider use.
 private const val FILE_PROVIDER_AUTHORITY = "bd.sicip.qavisit.fileprovider"
 
-suspend fun shareReportPdf(context: Context, template: ReportTemplate, report: Report, officerName: String) {
+suspend fun shareReportPdf(context: Context, template: ReportTemplate, report: Report, officerName: String, narrative: Boolean = false) {
     val data = ReportData.parse(report.data)
     // QA report spec §7: Annex-3's own layout, a different builder from the surprise report's --
     // picked by template id, never by report.type string (the two are kept equal in practice,
@@ -27,7 +28,7 @@ suspend fun shareReportPdf(context: Context, template: ReportTemplate, report: R
         buildQaReportHtml(template, data)
     } else {
         val meta = ReportMeta(officerName = officerName, status = report.status, submittedAt = report.submittedAt)
-        buildReportHtml(template, data, meta)
+        if (narrative) buildNarrativeReportHtml(template, data, meta) else buildReportHtml(template, data, meta)
     }
     val file = renderBillPdf(context, html, filePrefix = pdfFilePrefix(template, data))
     val uri = FileProvider.getUriForFile(context, FILE_PROVIDER_AUTHORITY, file)

@@ -91,12 +91,13 @@ class HomeViewModel(
     // template asset doesn't exist" (qa-v1.json, until the other agent's shared/ commit lands)
     // is exactly the null case this cache must be able to hold without throwing.
     private val templateCache = mutableMapOf<String, ReportTemplate?>()
-    private fun templateFor(type: String): ReportTemplate? {
+    private fun templateFor(type: String, version: Int): ReportTemplate? {
         val ctx = context ?: return null
+        val cacheKey = "$type-v$version"
         synchronized(templateCache) {
-            if (templateCache.containsKey(type)) return templateCache.getValue(type)
-            val loaded = runCatching { templateForType(ctx, type) }.getOrNull()
-            templateCache[type] = loaded
+            if (templateCache.containsKey(cacheKey)) return templateCache.getValue(cacheKey)
+            val loaded = runCatching { templateForType(ctx, type, version) }.getOrNull()
+            templateCache[cacheKey] = loaded
             return loaded
         }
     }
@@ -172,7 +173,7 @@ class HomeViewModel(
             // report and a surprise report on the same active tour render side by side correctly.
             val activeTripReports = visits.mapNotNull { v ->
                 val report = reports.firstOrNull { it.visitId == v.id } ?: return@mapNotNull null
-                val template = templateFor(report.type) ?: return@mapNotNull null
+                val template = templateFor(report.type, report.templateVersion) ?: return@mapNotNull null
                 v.id to VisitReportInfo(report, computeProgress(template, ReportData.parse(report.data)))
             }.toMap()
 

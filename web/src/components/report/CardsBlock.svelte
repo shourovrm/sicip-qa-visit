@@ -16,7 +16,7 @@
 <script>
   import { createEventDispatcher } from 'svelte'
   import FieldInput from './FieldInput.svelte'
-  import { isBlank } from '../../lib/reporttemplate.js'
+  import { compareMismatch, isBlank } from '../../lib/reporttemplate.js'
 
   export let block // {type:'cards', key, itemLabel, start, titleField, compare?, fields, linkFrom?, display?}
   export let cards = [] // data.cards[block.key]
@@ -86,6 +86,8 @@
     if (!block.compare) return null
     const present = block.compare.fields.map((k) => card[k]).filter((v) => v != null && String(v).trim() !== '')
     if (present.length < 2) return 'need'
+    // gap mode (surprise v2 headcount vs 7-day averages): only a large shortfall is a mismatch
+    if (block.compare.gapPct != null) return compareMismatch(block.compare, card) ? 'mismatch' : 'match'
     const nums = present.map(Number)
     return nums.every((n) => n === nums[0]) ? 'match' : 'mismatch'
   }
@@ -149,7 +151,7 @@
           {@const state = compareState(card)}
           <p class="compare" class:match={state === 'match'} class:mismatch={state === 'mismatch'}>
             {#if state === 'need'}Enter {block.compare.fields.length} figures to check for a mismatch.
-            {:else if state === 'match'}Figures match.
+            {:else if state === 'match'}{block.compare.gapPct != null ? 'Headcount is in line with the 7-day average.' : 'Figures match.'}
             {:else}{block.compare.message}{/if}
           </p>
         {/if}

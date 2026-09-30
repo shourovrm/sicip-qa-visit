@@ -37,6 +37,16 @@ export const INTERVIEW_TICK_COLUMNS = [
 
 // flags: narrow tick column + wide text column (CHANGE SET 2 shipped this as a 50/50 split by
 // mistake -- fixed here so both renderers share the same narrow tick width).
+// surprise v2 interviews: questions carry their own remarks box (`noteFor` fields)
+export const INTERVIEW_NOTE_COLUMNS = [
+  { label: 'Item', weight: 48 },
+  { label: 'Yes', weight: 6 },
+  { label: 'No', weight: 6 },
+  { label: 'Part', weight: 6 },
+  { label: 'N/A', weight: 6 },
+  { label: 'Remarks', weight: 28 },
+]
+
 export const FLAGS_COLUMNS = [
   { key: 'tick', label: '', weight: 6 },
   { key: 'text', label: '', weight: 94 },

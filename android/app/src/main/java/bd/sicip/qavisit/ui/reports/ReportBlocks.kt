@@ -112,6 +112,10 @@ fun AnswerButtons(options: List<AnswerOption>, selected: String, readOnly: Boole
 // value even if not in the list" (spec).
 fun courseRefOptions(data: ReportData, field: Field): List<String> {
     val sourceKey = field.optionsFrom ?: return emptyList()
+    // optionsPart "course": just the distinct course names (J: batch is its own box)
+    if (field.optionsPart == "course") {
+        return data.cards(sourceKey).mapNotNull { it["course"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf { name -> name.isNotEmpty() } }.distinct()
+    }
     return data.cards(sourceKey).mapNotNull { card ->
         val course = card["course"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
         val batch = card["batch"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
@@ -251,6 +255,7 @@ fun FieldsBlockView(block: ReportBlock.Fields, data: ReportData, readOnly: Boole
             when (field.draftFrom) {
                 null -> Unit
                 "weaknesses" -> FindingsDraftButton(field, template, data, readOnly, editor)
+                "findings" -> RecommendationsDraftButton(field, data, readOnly, editor)
                 else -> RecommendationsFromPlan(field, data, readOnly, editor)
             }
             FieldEditor(
@@ -576,9 +581,11 @@ private fun InterviewCardFields(
     val linkedKeys = block.linkFrom?.fields?.toSet() ?: emptySet()
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         block.fields.forEach { field ->
-            if (field.key in linkedKeys) return@forEach
+            // a question's remarks box renders inside that question's card below
+            if (field.key in linkedKeys || field.noteFor != null) return@forEach
             val value = data.cardField(block.key, index, field.key)
             if (looksLikeAnswerChoice(field, templateAnswers)) {
+                val note = block.fields.find { it.noteFor == field.key }
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(field.label, style = MaterialTheme.typography.bodyLarge)
@@ -588,6 +595,21 @@ private fun InterviewCardFields(
                             readOnly = readOnly,
                             onSelect = { v -> editor.editNow(data.withCardField(block.key, index, field.key, v)) },
                         )
+                        if (note != null) {
+                            val noteValue = data.cardField(block.key, index, note.key)
+                            OutlinedTextField(
+                                value = noteValue,
+                                onValueChange = { v -> editor.editDebounced(data.withCardField(block.key, index, note.key, v)) },
+                                label = { Text(note.label) },
+                                readOnly = readOnly,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            if (note.rewrite) {
+                                ImproveWordingButton(text = noteValue, label = field.label, readOnly = readOnly, onApply = { v ->
+                                    editor.editNow(data.withCardField(block.key, index, note.key, v))
+                                })
+                            }
+                        }
                     }
                 }
             } else {
@@ -754,6 +776,11 @@ fun ReportBlockView(
         is ReportBlock.Cards -> CardsBlockView(block, data, readOnly, editor, template, onOpenSection)
         is ReportBlock.Flags -> FlagsBlockView(block, data, readOnly, editor)
         is ReportBlock.Criteria -> CriteriaBlockView(block, data, readOnly, editor)
+        is ReportBlock.Remarks -> {
+            val section = template.sections.first { block in it.blocks }
+            RemarksBlockView(block, section, template, data, readOnly, editor)
+        }
+        is ReportBlock.Findings -> FindingsBlockView(block, template, data, readOnly, editor)
     }
 }
 

@@ -1,0 +1,519 @@
+{
+ "template": "surprise-v2.json",
+ "data": {
+  "fields": {
+   "ti_name": "Dhaka TTI",
+   "compliance": "partly"
+  },
+  "checks": {
+   "arrival_1": {
+    "answer": "",
+    "remarks": "",
+    "courses": {
+     "c1": "yes"
+    }
+   },
+   "arrival_3": {
+    "answer": "partial",
+    "remarks": "EIM batch on a later unit",
+    "courses": {
+     "c1": "yes",
+     "c2": "no"
+    }
+   },
+   "arrival_4": {
+    "answer": "no",
+    "remarks": "",
+    "courses": {
+     "c1": "no",
+     "c2": "no"
+    }
+   },
+   "identity_1": {
+    "answer": "no",
+    "remarks": ""
+   },
+   "identity_2": {
+    "answer": "na",
+    "remarks": "Not checked [today]"
+   },
+   "registers_2": {
+    "answer": "partial",
+    "remarks": "Last entry 12 Sep"
+   },
+   "followup_1": {
+    "answer": "partial",
+    "remarks": ""
+   },
+   "attendance_register_1": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "attendance_register_2": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "attendance_register_3": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "materials_1": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "materials_2": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "materials_3": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "materials_4": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "materials_5": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_1": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_2": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_3": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_4": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_5": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_7": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_8": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "delivery_9": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "assessment_1": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "assessment_2": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "assessment_3": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "assessment_4": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "assessment_5": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   },
+   "registers_1": {
+    "answer": "",
+    "remarks": "",
+    "courses": {}
+   }
+  },
+  "cards": {
+   "courses": [
+    {
+     "_id": "c1",
+     "course": "Welding (SMAW)",
+     "batch": "07"
+    },
+    {
+     "_id": "c2",
+     "course": "Electrical Installation",
+     "batch": "03"
+    }
+   ],
+   "attendance": [
+    {
+     "_link": "c1",
+     "enrolled_total": "25",
+     "present_total": "22",
+     "register_avg7": "23.4",
+     "tms_avg7": "23.1",
+     "_id": "attendance:c1",
+     "course": "Welding (SMAW)",
+     "batch": "07"
+    },
+    {
+     "_link": "c2",
+     "enrolled_total": "25",
+     "present_total": "14",
+     "register_avg7": "23.9",
+     "tms_avg7": "",
+     "remarks": "Rest at {industry}",
+     "_id": "attendance:c2",
+     "course": "Electrical Installation",
+     "batch": "03"
+    }
+   ],
+   "trainers": [
+    {
+     "_link": "c1",
+     "stipulated": "2",
+     "engaged": "2",
+     "present": "2",
+     "_id": "trainers:c1",
+     "course": "Welding (SMAW)",
+     "batch": "07"
+    },
+    {
+     "_link": "c2",
+     "stipulated": "2",
+     "engaged": "1",
+     "present": "1",
+     "_id": "trainers:c2",
+     "course": "Electrical Installation",
+     "batch": "03"
+    }
+   ],
+   "trainer_names": [
+    {
+     "_id": "t1",
+     "batch": "Welding (SMAW) · 07",
+     "name": "Jahangir Alam",
+     "designation": "Lead Trainer"
+    },
+    {
+     "_id": "t2",
+     "name": "Sohel Rana"
+    }
+   ],
+   "identity": [
+    {
+     "_id": "i1",
+     "name": "Rakib",
+     "batch": "Welding (SMAW) · 07",
+     "result": "absent",
+     "remarks": "sick"
+    },
+    {
+     "_id": "i2",
+     "name": "Mitu",
+     "result": "verified"
+    },
+    {
+     "_id": "i3",
+     "name": ""
+    }
+   ],
+   "equipment": [
+    {
+     "_id": "e1",
+     "batch": "Welding (SMAW) · 07",
+     "name": "Fume extraction unit",
+     "status": "unavailable",
+     "quantity": "1"
+    },
+    {
+     "_id": "e2",
+     "name": "Grinder",
+     "status": "damaged"
+    }
+   ],
+   "interviews": [
+    {
+     "_link": "c1",
+     "trainees_interviewed": "6",
+     "q1": "yes",
+     "q3": "partial",
+     "q3_note": "August stipend 3 weeks late",
+     "tech_topic": "Electrode holder",
+     "tech_result": "most",
+     "feedback": "Want more practice",
+     "_id": "interviews:c1",
+     "course": "Welding (SMAW)",
+     "batch": "07"
+    },
+    {
+     "_id": "interviews:c2",
+     "_link": "c2",
+     "course": "Electrical Installation",
+     "batch": "03"
+    }
+   ],
+   "graduate": [
+    {
+     "_id": "g1",
+     "name": "Shahin",
+     "course": "Welding (SMAW)",
+     "batch": "05",
+     "call": "reached",
+     "confirmed": "employed",
+     "position": "Welder",
+     "salary": "16,000"
+    },
+    {
+     "_id": "g2",
+     "name": "Jewel",
+     "call": "not_reached",
+     "remarks": "Phone off"
+    }
+   ],
+   "unresolved": [
+    {
+     "_id": "u1",
+     "issue": "Fume extraction not installed"
+    }
+   ]
+  },
+  "flags": [],
+  "remarks": {
+   "registers_remarks": {
+    "source": "stale",
+    "text": "Edited but stale"
+   },
+   "followup_remarks": {
+    "source": "Issues from the last visit were only partly complied with.\nThe monitoring logbook / visit register is available, but its findings were only partly complied with.\nIssue from the last visit still not resolved: Fume extraction not installed.",
+    "text": "Issues from the last visit were only partly complied with.\nMy own extra point"
+   }
+  }
+ },
+ "built": {
+  "arrival_remarks": [
+   {
+    "text": "Welding (SMAW) 07: The session being taught matched today's topic in the session plan / Training Delivery Plan.",
+    "neg": false
+   },
+   {
+    "text": "Electrical Installation 03: The session being taught did not match today's topic in the session plan / Training Delivery Plan. EIM batch on a later unit.",
+    "neg": true
+   },
+   {
+    "text": "The training calendar was not displayed, provided to trainees or followed.",
+    "neg": true
+   }
+  ],
+  "attendance_remarks": [
+   {
+    "text": "Welding (SMAW) 07: headcount 22 of 25 enrolled; 7-day average 23.4 in the register and 23.1 in TMS.",
+    "neg": false
+   },
+   {
+    "text": "Electrical Installation 03: headcount 14 of 25 enrolled; 7-day average 23.9 in the register. Rest at {industry}.",
+    "neg": true
+   },
+   {
+    "text": "Welding (SMAW) 07: 2 of 2 stipulated trainers present (2 engaged).",
+    "neg": false
+   },
+   {
+    "text": "Electrical Installation 03: 1 of 2 stipulated trainers present (1 engaged).",
+    "neg": true
+   },
+   {
+    "text": "Trainer present in Welding (SMAW) · 07: Jahangir Alam, Lead Trainer.",
+    "neg": false
+   },
+   {
+    "text": "Trainer present: Sohel Rana.",
+    "neg": false
+   }
+  ],
+  "identity_remarks": [
+   {
+    "text": "Rakib (Welding (SMAW) · 07) was absent. sick.",
+    "neg": true
+   },
+   {
+    "text": "Existing employees of the centre or partner industry were found enrolled as trainees.",
+    "neg": true
+   },
+   {
+    "text": "No trainees / students of other (non-SICIP) courses at the centre enrolled in SICIP courses: Not checked [today].",
+    "neg": false
+   }
+  ],
+  "materials_remarks": [],
+  "delivery_remarks": [
+   {
+    "text": "Welding (SMAW) · 07: Fume extraction unit unavailable (quantity 1).",
+    "neg": true
+   },
+   {
+    "text": "Grinder damaged.",
+    "neg": true
+   }
+  ],
+  "assessment_remarks": [],
+  "registers_remarks": [
+   {
+    "text": "The stock register is only partly up to date. Last entry 12 Sep.",
+    "neg": true
+   }
+  ],
+  "interview_remarks": [
+   {
+    "text": "Welding (SMAW) 07: 6 trainees interviewed; technical question on Electrode holder: most could answer. Complaints or other feedback: Want more practice.",
+    "neg": false
+   },
+   {
+    "text": "Welding (SMAW) 07: trainees said classes run on all scheduled days and hours.",
+    "neg": false
+   },
+   {
+    "text": "Welding (SMAW) 07: trainees said the stipend / allowance is sometimes late. August stipend 3 weeks late.",
+    "neg": true
+   }
+  ],
+  "graduates_remarks": [
+   {
+    "text": "Shahin (Welding (SMAW) batch 05): reached, employed as Welder, BDT 16,000 per month.",
+    "neg": false
+   },
+   {
+    "text": "Jewel: could not be reached. Phone off.",
+    "neg": true
+   }
+  ],
+  "followup_remarks": [
+   {
+    "text": "Issues from the last visit were only partly complied with.",
+    "neg": true
+   },
+   {
+    "text": "The monitoring logbook / visit register is available, but its findings were only partly complied with.",
+    "neg": true
+   },
+   {
+    "text": "Issue from the last visit still not resolved: Fume extraction not installed.",
+    "neg": true
+   }
+  ]
+ },
+ "candidates": [
+  {
+   "text": "Electrical Installation 03: The session being taught did not match today's topic in the session plan / Training Delivery Plan. EIM batch on a later unit.",
+   "neg": true
+  },
+  {
+   "text": "The training calendar was not displayed, provided to trainees or followed.",
+   "neg": true
+  },
+  {
+   "text": "Electrical Installation 03: headcount 14 of 25 enrolled; 7-day average 23.9 in the register. Rest at {industry}.",
+   "neg": true
+  },
+  {
+   "text": "Electrical Installation 03: 1 of 2 stipulated trainers present (1 engaged).",
+   "neg": true
+  },
+  {
+   "text": "Rakib (Welding (SMAW) · 07) was absent. sick.",
+   "neg": true
+  },
+  {
+   "text": "Existing employees of the centre or partner industry were found enrolled as trainees.",
+   "neg": true
+  },
+  {
+   "text": "Welding (SMAW) · 07: Fume extraction unit unavailable (quantity 1).",
+   "neg": true
+  },
+  {
+   "text": "Grinder damaged.",
+   "neg": true
+  },
+  {
+   "text": "The stock register is only partly up to date. Last entry 12 Sep.",
+   "neg": true
+  },
+  {
+   "text": "Welding (SMAW) 07: trainees said the stipend / allowance is sometimes late. August stipend 3 weeks late.",
+   "neg": true
+  },
+  {
+   "text": "Jewel: could not be reached. Phone off.",
+   "neg": true
+  },
+  {
+   "text": "Issues from the last visit were only partly complied with.",
+   "neg": true
+  },
+  {
+   "text": "Welding (SMAW) 07: The session being taught matched today's topic in the session plan / Training Delivery Plan.",
+   "neg": false
+  },
+  {
+   "text": "Welding (SMAW) 07: headcount 22 of 25 enrolled; 7-day average 23.4 in the register and 23.1 in TMS.",
+   "neg": false
+  },
+  {
+   "text": "Welding (SMAW) 07: 2 of 2 stipulated trainers present (2 engaged).",
+   "neg": false
+  },
+  {
+   "text": "Trainer present in Welding (SMAW) · 07: Jahangir Alam, Lead Trainer.",
+   "neg": false
+  },
+  {
+   "text": "Trainer present: Sohel Rana.",
+   "neg": false
+  },
+  {
+   "text": "No trainees / students of other (non-SICIP) courses at the centre enrolled in SICIP courses: Not checked [today].",
+   "neg": false
+  },
+  {
+   "text": "Welding (SMAW) 07: 6 trainees interviewed; technical question on Electrode holder: most could answer. Complaints or other feedback: Want more practice.",
+   "neg": false
+  },
+  {
+   "text": "Welding (SMAW) 07: trainees said classes run on all scheduled days and hours.",
+   "neg": false
+  },
+  {
+   "text": "Shahin (Welding (SMAW) batch 05): reached, employed as Welder, BDT 16,000 per month.",
+   "neg": false
+  },
+  {
+   "text": "My own extra point",
+   "neg": false
+  }
+ ]
+}

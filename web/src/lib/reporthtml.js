@@ -11,14 +11,15 @@
 // with one row per card; flags always list every fixed item (ticked or not) plus any custom
 // (countsAsFlags) flags as extra ticked rows.
 import {
-  CHECKLIST_COLUMNS, FLAGS_COLUMNS, INTERVIEW_TICK_COLUMNS, TICK_CHECKED, TICK_UNCHECKED,
+  CHECKLIST_COLUMNS, FLAGS_COLUMNS, INTERVIEW_NOTE_COLUMNS, INTERVIEW_TICK_COLUMNS, TICK_CHECKED, TICK_UNCHECKED,
   TONE_COLOR, isStandardAnswerChoice,
   displayTime,
 } from './reportlayout.js'
 import * as reportTemplateModule from './reporttemplate.js'
-import { sectionHasContent } from './reporttemplate.js'
+import { compareMismatch, sectionHasContent } from './reporttemplate.js'
+import { printedRemarkLines } from './sectionremarks.js'
 
-function esc(s) {
+export function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
@@ -42,7 +43,7 @@ function answerMapOf(template) {
 // namespace import so this file loads fine either way, falling back to syncLinks (CHANGE SET 2)
 // and finally to the data as given if neither has landed yet. Clone first: reportHtml is
 // documented as a pure fn and must not mutate the caller's data even if these mutate in place.
-function withNormalizedData(template, data) {
+export function withNormalizedData(template, data) {
   const normalize = reportTemplateModule.normalize
   const syncLinks = reportTemplateModule.syncLinks
   const step = typeof normalize === 'function' ? normalize : (typeof syncLinks === 'function' ? syncLinks : null)
@@ -64,7 +65,7 @@ function labelClass(label) {
   return String(label).trim().endsWith('?') ? 'label question' : 'label'
 }
 
-function fieldValueHtml(field, rawValue) {
+export function fieldValueHtml(field, rawValue) {
   if (field.kind === 'choice') {
     if (blank(rawValue)) return ''
     const opt = (field.options || []).find((o) => o.id === rawValue)
@@ -98,6 +99,7 @@ function inlineChoiceHtml(field, rawValue) {
 function fieldsListHtml(fields, values) {
   return fields
     .map((f) => {
+      if (f.draftFrom === 'findings') return numberedListHtml(f.label, String(values[f.key] ?? '').split('\n'))
       if (f.kind === 'longtext') {
         const body = blank(values[f.key]) ? '' : escMultiline(values[f.key])
         return `<div class="field-box"><div class="label">${esc(f.label)}</div><div class="box">${body}</div></div>`
@@ -106,6 +108,24 @@ function fieldsListHtml(fields, values) {
       return `<div class="line"><span class="${labelClass(f.label)}">${esc(f.label)}</span><span class="value">${fieldValueHtml(f, values[f.key])}</span></div>`
     })
     .join('')
+}
+
+// surprise v2 "Major findings" / "Recommendations": heading + numbered points
+export function numberedListHtml(heading, lines) {
+  const items = lines.map((l) => String(l).trim()).filter(Boolean)
+  const body = items.length ? `<ol class="findings">${items.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>` : '<p class="empty">None.</p>'
+  return `<h3>${esc(heading)}</h3>${body}`
+}
+
+// surprise v2 section remarks: bullets, issues marked (same list as the narrative report)
+export function remarkBulletsHtml(lines) {
+  return `<ul class="bul">${lines.map((l) => `<li${l.neg ? ' class="neg"' : ''}>${esc(l.text)}</li>`).join('')}</ul>`
+}
+
+function remarksBoxHtml(block, section, data, template) {
+  const lines = printedRemarkLines(template, section, block, data)
+  if (lines.length === 0) return ''
+  return `<div class="remark-box"><span class="label">${esc(block.heading ?? 'Remarks')}</span>${remarkBulletsHtml(lines)}</div>`
 }
 
 function fieldsBlockHtml(block, data) {
@@ -169,12 +189,9 @@ function checklistBlockHtml(block, data, template, answerMap) {
   return `${heading}<table class="checklist">${colgroupHtml(CHECKLIST_COLUMNS)}${tableHeadHtml(CHECKLIST_COLUMNS)}<tbody>${rows}</tbody></table>`
 }
 
-// true when >=2 of the compare fields are present and parse to unequal ints -- same rule
-// as the progress spec (shared/report-templates surprise-v1.json contract, section C).
+// same rule as progress (reporttemplate.js compareMismatch); print:false = app-only warning
 function cardMismatch(compare, entry) {
-  if (!compare) return false
-  const values = compare.fields.map((k) => entry[k]).filter((v) => !blank(v)).map(Number).filter((n) => !Number.isNaN(n))
-  return values.length >= 2 && !values.every((v) => v === values[0])
+  return Boolean(compare) && compare.print !== false && compareMismatch(compare, entry)
 }
 
 // one table per cards block, one row per card, columns = the block's fields in template order.
@@ -210,18 +227,24 @@ function tabsCardsBlockHtml(block, data, template, answerMap) {
   const linkedKeys = new Set((block.linkFrom && block.linkFrom.fields) || [])
   const tickFields = block.fields.filter((f) => !linkedKeys.has(f.key) && isStandardAnswerChoice(f, template))
   const tickFieldKeys = new Set(tickFields.map((f) => f.key))
-  const otherFields = block.fields.filter((f) => !linkedKeys.has(f.key) && !tickFieldKeys.has(f.key))
+  const noteFields = block.fields.filter((f) => f.noteFor)
+  const otherFields = block.fields.filter((f) => !linkedKeys.has(f.key) && !tickFieldKeys.has(f.key) && !f.noteFor)
   const answerIds = template.answers.map((a) => a.id)
+  const columns = noteFields.length ? INTERVIEW_NOTE_COLUMNS : INTERVIEW_TICK_COLUMNS
   return entries
     .map((entry) => {
       const linkedFields = (block.linkFrom && block.linkFrom.fields) || []
       const extra = linkedFields.filter((k) => k !== block.titleField).map((k) => entry[k]).filter((v) => !blank(v)).join(' ')
       const caption = `${esc(entry[block.titleField])}${extra ? ` &middot; Batch ${esc(extra)}` : ''}`
       const tickRows = tickFields
-        .map((f) => `<tr><td class="question">${esc(f.label)}</td>${answerIds.map((id) => tickCellHtml(entry[f.key] === id, answerMap[id]?.tone)).join('')}</tr>`)
+        .map((f) => {
+          const note = noteFields.find((n) => n.noteFor === f.key)
+          const noteCell = noteFields.length ? `<td>${escMultiline(note ? entry[note.key] ?? '' : '')}</td>` : ''
+          return `<tr><td class="question">${esc(f.label)}</td>${answerIds.map((id) => tickCellHtml(entry[f.key] === id, answerMap[id]?.tone)).join('')}${noteCell}</tr>`
+        })
         .join('')
       const tickTable = tickFields.length
-        ? `<table class="checklist interview-ticks">${colgroupHtml(INTERVIEW_TICK_COLUMNS)}${tableHeadHtml(INTERVIEW_TICK_COLUMNS)}<tbody>${tickRows}</tbody></table>`
+        ? `<table class="checklist interview-ticks">${colgroupHtml(columns)}${tableHeadHtml(columns)}<tbody>${tickRows}</tbody></table>`
         : ''
       const otherHtml = `<div class="details">${fieldsListHtml(otherFields, entry)}</div>`
       return `<div class="interview-card"><h3>${caption}</h3>${tickTable}${otherHtml}</div>`
@@ -256,10 +279,12 @@ function combinedFlagsHtml(section, data) {
   return `<table class="flags-table">${colgroupHtml(FLAGS_COLUMNS)}<tbody>${rows.join('')}</tbody></table>`
 }
 
-function blockHtml(block, data, template, answerMap) {
+function blockHtml(block, section, data, template, answerMap) {
   if (block.type === 'fields') return fieldsBlockHtml(block, data)
   if (block.type === 'checklist') return checklistBlockHtml(block, data, template, answerMap)
   if (block.type === 'cards') return block.display === 'tabs' ? tabsCardsBlockHtml(block, data, template, answerMap) : cardsBlockHtml(block, data)
+  if (block.type === 'remarks') return remarksBoxHtml(block, section, data, template)
+  if (block.type === 'findings') return numberedListHtml(block.heading ?? 'Major findings', (data.findings ?? []).map((f) => f.text))
   return '' // unknown block type (flags/countsAsFlags cards handled in sectionHtml) -- ignore
 }
 
@@ -275,7 +300,7 @@ function sectionHtml(section, data, template, answerMap) {
         flagsRendered = true
         return combinedFlagsHtml(section, data)
       }
-      return blockHtml(b, data, template, answerMap)
+      return blockHtml(b, section, data, template, answerMap)
     })
     .join('')
   return `<section><h2><span class="letter">${esc(section.letter)}</span>${esc(section.title)}${optionalTag}${note}</h2>${blocks}</section>`
@@ -291,7 +316,7 @@ function metaHtml(meta) {
   return `<div class="meta">Officer: ${esc(meta.officerName)} &middot; ${status}${submitted}</div>`
 }
 
-function headerHtml(template, meta) {
+export function headerHtml(template, meta) {
   return `<header>
     <div>
       <div class="program">${esc(template.program)}</div>
@@ -305,7 +330,7 @@ function headerHtml(template, meta) {
 // print CSS -- A4 portrait, margins top 10mm/sides 11mm/bottom 12mm (paper form geometry),
 // page numbers via @page counters. Column widths for checklist/interview-tick/flags tables come
 // from ./reportlayout.js (colgroupHtml), not hardcoded here.
-const CSS = `
+export const CSS = `
   @page {
     size: A4 portrait;
     margin: 10mm 11mm 12mm;
@@ -368,7 +393,12 @@ const CSS = `
 
   .ans { font-weight: 700; }
 
-  footer.legend { margin-top: 6pt; font-size: 7pt; color: #333; }
+
+  .remark-box { border: 0.6pt solid #666; border-left: 2.4pt solid #111; padding: 3pt 5pt; margin: 3pt 0 6pt; break-inside: avoid; }
+  .remark-box .label { font-weight: 700; font-size: 7.2pt; text-transform: uppercase; letter-spacing: .03em; color: #333; display: block; margin-bottom: 1pt; }
+  ol.findings, ul.bul { margin: 2pt 0 6pt; padding-left: 14pt; }
+  ol.findings li, ul.bul li { margin: 0 0 2pt; }
+  ul.bul li.neg::marker { color: #b3261e; }
 `
 
 // pure fn: template + report data + {officerName, submittedAt?, status} -> full print HTML.
@@ -382,14 +412,16 @@ export function reportHtml(template, data, meta) {
     .join('')
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(template.title)}</title><style>${CSS}</style></head><body>` +
     headerHtml(template, meta) + sections +
-    '<footer class="legend">T = total, F = female, TMS = Training Management System, TDP = training delivery plan, CS = competency standard, CBLM = competency-based learning material, PPE = personal protective equipment, OHS = occupational health and safety.</footer>' +
     '</body></html>'
 }
 
 // open the built HTML in a new tab and trigger the browser's print (save-as-PDF) dialog --
 // mirrors printBillHtml in billhtml.js.
 export function openReportPrint(template, data, meta) {
-  const html = reportHtml(template, data, meta)
+  return openPrintWindow(reportHtml(template, data, meta))
+}
+
+export function openPrintWindow(html) {
   const w = window.open('', '_blank')
   if (!w) return false
   w.document.write(html)

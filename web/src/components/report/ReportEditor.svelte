@@ -10,8 +10,10 @@
      so this component still renders standalone (e.g. in a test) without those wired up. -->
 <script>
   import { createEventDispatcher } from 'svelte'
-  import { computeProgress, normalize } from '../../lib/reporttemplate.js'
-  import { updateReportData, submitReport, softDeleteReport } from '../../lib/db.js'
+  import { computeProgress, normalize, needsConversion, TEMPLATES } from '../../lib/reporttemplate.js'
+  import { getReport, updateReport, updateReportIfUnchanged, submitReport, softDeleteReport } from '../../lib/db.js'
+  import { mergeReportData } from '../../lib/reportmerge.js'
+  import { convertSurpriseV1ToV2 } from '../../lib/reportconvert.js'
   import ReportSection from './ReportSection.svelte'
   import SectionChips from './SectionChips.svelte'
   import SectionIndex from './SectionIndex.svelte'
@@ -23,6 +25,8 @@
   export let readonly = false // owner viewing a submitted report; admins stay editable
   export let onPrint = null // (template, data, meta) => void, wired by Reports.svelte to openReportPrint
   export let onDocx = null // (template, data, meta) => void, wired by Reports.svelte to downloadReportDocx
+  export let onNarrative = null // (template, data, meta) => void: surprise v2 sentence-style print
+  export let onNarrativeDocx = null // same, as a Word file
 
   const dispatch = createEventDispatcher()
 
@@ -33,6 +37,7 @@
   // Reports.svelte's cached row) even for an item the user never touched this session.
   function ensureShape(raw) {
     return {
+      ...(raw ?? {}), // unknown/newer top-level keys (surprise v2 remarks, findings, ...) survive
       fields: { ...(raw?.fields ?? {}) },
       checks: Object.fromEntries(Object.entries(raw?.checks ?? {}).map(([id, check]) => [id, { ...check }])),
       cards: { ...(raw?.cards ?? {}) },
@@ -48,6 +53,9 @@
   // DB, may have stale linked cards or per-course answers; normalize is idempotent so this is
   // cheap either way.
   let data = normalize(template, ensureShape(report.data))
+  // the server copy this editor last saw -- merge base, so a save never overwrites what the
+  // phone (or another tab) wrote meanwhile (2026-09-30 lost-edits incident)
+  let base = structuredClone(report.data ?? {})
   let saveState = 'saved' // saved | saving | offline
   let autosaveTimer = null
   let unsaved = false // an edit exists that no save request has picked up yet
@@ -74,7 +82,12 @@
       if (!unsaved) return
       unsaved = false
       try {
-        report = await updateReportData(report.id, data)
+        const sent = structuredClone(data)
+        const saved = await saveMerged(sent)
+        report = saved.row
+        base = structuredClone(saved.row.data)
+        // show what the other platform wrote; edits typed while saving stay on top
+        data = normalize(template, mergeReportData(sent, data, saved.data))
         // a newer edit may have arrived while this request was in flight
         if (!unsaved) saveState = 'saved'
         dispatch('save', report)
@@ -84,6 +97,18 @@
       }
     })
     return saveChain
+  }
+
+  // write `local`, first three-way merging in anything the server got since `base`; the write
+  // is conditional on the row not moving again, retried (re-read + merge) if it did
+  async function saveMerged(local) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const server = await getReport(report.id)
+      const merged = server.updated_at === report.updated_at ? local : normalize(template, mergeReportData(base, local, server.data ?? {}))
+      const row = await updateReportIfUnchanged(report.id, { data: merged }, server.updated_at)
+      if (row) return { row, data: merged }
+    }
+    throw new Error('report kept changing on the server')
   }
 
   // flush a pending debounced edit now (close, submit, tab close).
@@ -122,6 +147,24 @@
     }
   }
 
+  // old-format surprise report -> v2 (lib/reportconvert.js); the parent re-opens the row so the
+  // editor restarts on the v2 template
+  async function convert() {
+    if (!confirm('Convert this report to the new format? Answers move to the new sections (e.g. key findings become major findings). Old answers the new format no longer asks for stay saved but are not shown.')) return
+    await flush()
+    if (saveState === 'offline') {
+      alert('Could not save the latest answers. Check the connection and try again.')
+      return
+    }
+    try {
+      const v2 = TEMPLATES.surprise
+      report = await updateReport(report.id, { data: convertSurpriseV1ToV2(v2, data), template_version: v2.version })
+      dispatch('converted', report)
+    } catch (e) {
+      alert('Convert failed: ' + (e.message ?? e))
+    }
+  }
+
   async function del() {
     if (!confirm('Delete this draft report? This cannot be undone.')) return
     await softDeleteReport(report.id)
@@ -142,6 +185,8 @@
   // comfortably (today only qa-v1's 15) gets the grouped vertical SectionIndex instead of
   // SectionChips (spec section 8: "> 13 sections").
   $: useSectionIndex = template.sections.length > 13
+  // surprise v2 has remarks blocks -> it also prints as a narrative report
+  $: hasNarrative = template.sections.some((s) => s.blocks.some((b) => b.type === 'remarks'))
 </script>
 
 <svelte:window on:beforeunload={beforeUnload} />
@@ -163,6 +208,12 @@
       {#if flagTotal > 0}<span class="flag-pill">{flagTotal} flag{flagTotal === 1 ? '' : 's'}</span>{/if}
       {#if report.status === 'submitted'}<span class="submitted-pill">Submitted {new Date(report.submitted_at).toLocaleString()}</span>{/if}
     </div>
+    {#if needsConversion(report) && !disabled}
+      <div class="convert">
+        <span><b>This report uses the old format.</b> Convert it to get templated remarks, the trainers table, the equipment list, major findings and recommendations. Your answers are kept.</span>
+        <button type="button" class="btn" on:click={convert}>Convert to new format</button>
+      </div>
+    {/if}
     {#if progress.customFlags.length > 0}
       <ul class="custom-flags">{#each progress.customFlags as text}<li>{text}</li>{/each}</ul>
     {/if}
@@ -192,8 +243,10 @@
       <button type="button" class="btn-link danger" on:click={del}>Delete</button>
       <button type="button" class="btn btn-primary" on:click={submit}>Submit</button>
     {/if}
-    <button type="button" class="btn" on:click={() => onPrint?.(template, data, meta)}>Print / PDF</button>
-    <button type="button" class="btn" on:click={() => onDocx?.(template, data, meta)}>Word</button>
+    <button type="button" class="btn" on:click={() => onPrint?.(template, data, meta)}>{hasNarrative ? 'Form PDF' : 'Print / PDF'}</button>
+    {#if hasNarrative}<button type="button" class="btn" on:click={() => onNarrative?.(template, data, meta)}>Narrative PDF</button>{/if}
+    <button type="button" class="btn" on:click={() => onDocx?.(template, data, meta)}>{hasNarrative ? 'Form Word' : 'Word'}</button>
+    {#if hasNarrative}<button type="button" class="btn" on:click={() => onNarrativeDocx?.(template, data, meta)}>Narrative Word</button>{/if}
   </div>
 </div>
 
@@ -226,4 +279,5 @@
   }
   .save-state { flex: 1; font-size: 12px; color: var(--muted); }
   .danger { color: var(--danger); }
+  .convert { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: 13px; background: var(--surface); border: 1px solid var(--outline); border-radius: 8px; padding: 10px 12px; margin: 0 0 8px; }
 </style>

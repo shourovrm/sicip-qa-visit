@@ -21,16 +21,25 @@ const PLAN_SYSTEM_PROMPT = `You are drafting an improvement plan for a training 
 
 const FINDINGS_SYSTEM_PROMPT = `You are writing the major findings of a quality-assurance visit to a training institute from the list of weaknesses found. Group related weaknesses and write at most 6 short findings in formal English, most serious first, one per line, with no bullets, numbering or markdown. Keep every fact, number, name and date exactly as given. Do not add anything that is not in the list. Return only the findings.`
 
+// surprise v2 "Major findings": input = the report's numbered remark lines (issues tagged
+// "(issue)"); the model only chooses, the client keeps the officer's own wording
+const MAJOR_SYSTEM_PROMPT = `You are reviewing the numbered remarks of an unannounced monitoring visit to a training institute. Choose the major findings: the points that show a real problem needing action by the institute or the project, most serious first. Ignore positive points unless they are critical. Choose at most 8. Answer with only the chosen numbers, comma separated, for example: 3, 1, 7`
+
+// surprise v2 "Recommendations": one per numbered major finding, in the project's voice
+const RECOMMEND_SYSTEM_PROMPT = `You are writing recommendations for a formal monitoring visit report on a training institute, one for each numbered major finding. Each recommendation is one sentence in formal English that starts with "The institute should", "The PIU should" or "SICIP should" (use the institute unless the finding needs the project to act), for example: The institute should take necessary measures to improve attendance. Keep every fact, number, name and course exactly as given, and do not invent people, amounts or deadlines. Answer with the same numbering, one line per finding, in the form "1. recommendation", with nothing before or after it.`
+
 const MODE_PROMPTS = {
   remarks: REMARKS_SYSTEM_PROMPT,
   strengths: STRENGTHS_SYSTEM_PROMPT,
   plan: PLAN_SYSTEM_PROMPT,
   findings: FINDINGS_SYSTEM_PROMPT,
+  major: MAJOR_SYSTEM_PROMPT,
+  recommend: RECOMMEND_SYSTEM_PROMPT,
 }
 
 // modes whose input is a whole component / weakness list, not one box -- rewrite.js gives them
 // a bigger length cap and answer budget
-export const DRAFT_MODES = ['strengths', 'plan', 'findings']
+export const DRAFT_MODES = ['strengths', 'plan', 'findings', 'major', 'recommend']
 
 export function isKnownMode(mode) {
   return Object.hasOwn(MODE_PROMPTS, mode)

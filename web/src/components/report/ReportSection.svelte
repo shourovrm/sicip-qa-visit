@@ -14,6 +14,8 @@
   import StrengthsPairs from './StrengthsPairs.svelte'
   import FieldDraft from './FieldDraft.svelte'
   import PlanDraft from './PlanDraft.svelte'
+  import SectionRemarks from './SectionRemarks.svelte'
+  import MajorFindings from './MajorFindings.svelte'
   import { isBlank } from '../../lib/reporttemplate.js'
 
   export let section // template section
@@ -41,6 +43,10 @@
   function courseRefOptionsFor(block) {
     const field = block.fields?.find((f) => f.kind === 'courseRef')
     if (!field) return []
+    // optionsPart "course": distinct course names only (J: batch is its own box)
+    if (field.optionsPart === 'course') {
+      return [...new Set((data.cards[field.optionsFrom] ?? []).map((card) => String(card.course ?? '').trim()).filter(Boolean))]
+    }
     return (data.cards[field.optionsFrom] ?? [])
       .filter((card) => !isBlank(card.course))
       .map((card) => (card.batch ? `${card.course} · ${card.batch}` : card.course))
@@ -91,6 +97,14 @@
         <div class="block">
           <FlagsBlock {block} ticked={data.flags ?? []} {disabled}
             on:change={(e) => { data.flags = e.detail; onChange() }} />
+        </div>
+      {:else if block.type === 'remarks'}
+        <div class="block">
+          <SectionRemarks {block} {section} {template} {data} {disabled} {onChange} />
+        </div>
+      {:else if block.type === 'findings'}
+        <div class="block">
+          <MajorFindings {block} {template} {data} {disabled} {onChange} />
         </div>
       {:else if block.type === 'criteria'}
         <div class="block">

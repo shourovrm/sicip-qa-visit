@@ -64,7 +64,7 @@ fun ReportSectionScreen(
     val reportFlow = remember(reportId) { db.reportDao().byIdFlow(reportId).filterNotNull() }
     val report by reportFlow.collectAsState(initial = null)
     val current = report ?: return
-    val template = remember(current.type) { templateForType(context, current.type) }
+    val template = remember(current.type, current.templateVersion) { templateForReport(context, current) }
 
     // reuses the SAME editor the hub (and any other section already visited) is using for this
     // report id -- see ReportEditorRegistry's comment for why that matters.

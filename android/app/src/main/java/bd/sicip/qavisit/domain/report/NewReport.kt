@@ -38,10 +38,16 @@ fun newReport(
                     if (block.linkFrom == null) {
                         repeat(block.start) { data = data.withCardAdded(block.key) }
                     }
+                    // surprise v2 visiting officers: the first card is the officer writing it
+                    if (block.prefill == "officers" && block.start > 0) {
+                        data = data.withCardField(block.key, 0, "name", officerName)
+                        if (!officerDesignation.isNullOrBlank()) data = data.withCardField(block.key, 0, "designation", officerDesignation)
+                    }
                 }
 
                 // checklist/flags/criteria start with nothing ticked/marked -- no seeding needed.
-                is ReportBlock.Checklist, is ReportBlock.Flags, is ReportBlock.Criteria -> Unit
+                is ReportBlock.Checklist, is ReportBlock.Flags, is ReportBlock.Criteria,
+                is ReportBlock.Remarks, is ReportBlock.Findings -> Unit
             }
         }
     }

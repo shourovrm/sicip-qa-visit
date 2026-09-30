@@ -27,7 +27,9 @@ import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportSection
 import bd.sicip.qavisit.domain.report.ReportTemplate
 import bd.sicip.qavisit.domain.report.cardCompareMismatch
+import bd.sicip.qavisit.domain.report.RemarkLine
 import bd.sicip.qavisit.domain.report.normalize
+import bd.sicip.qavisit.domain.report.printedRemarkLines
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
@@ -72,6 +74,16 @@ private val INTERVIEW_TICK_COLUMNS = listOf(
     LayoutColumn("No", 6),
     LayoutColumn("Part", 6),
     LayoutColumn("N/A", 6),
+)
+
+// surprise v2 interviews: questions carry their own remarks box (`noteFor` fields)
+private val INTERVIEW_NOTE_COLUMNS = listOf(
+    LayoutColumn("Item", 48),
+    LayoutColumn("Yes", 6),
+    LayoutColumn("No", 6),
+    LayoutColumn("Part", 6),
+    LayoutColumn("N/A", 6),
+    LayoutColumn("Remarks", 28),
 )
 
 // flags: narrow tick column + wide text column.
@@ -153,7 +165,9 @@ internal fun displayTime(value: String): String {
 // ReportData.field(key) or a raw card JsonObject's field, whichever the caller has.
 private fun fieldsListHtml(fields: List<Field>, value: (String) -> String?): String =
     fields.joinToString("") { f ->
-        if (f.kind == "longtext") {
+        if (f.draftFrom == "findings") {
+            numberedListHtml(f.label, value(f.key).orEmpty().lines())
+        } else if (f.kind == "longtext") {
             val raw = value(f.key)
             val body = if (blank(raw)) "" else escMultiline(raw!!)
             "<div class=\"field-box\"><div class=\"label\">${esc(f.label)}</div><div class=\"box\">$body</div></div>"
@@ -163,6 +177,23 @@ private fun fieldsListHtml(fields: List<Field>, value: (String) -> String?): Str
             "<div class=\"line\"><span class=\"${labelClass(f.label)}\">${esc(f.label)}</span><span class=\"value\">${fieldValueHtml(f, value(f.key))}</span></div>"
         }
     }
+
+// surprise v2 "Major findings" / "Recommendations": heading + numbered points
+internal fun numberedListHtml(heading: String, lines: List<String>): String {
+    val items = lines.map { it.trim() }.filter { it.isNotEmpty() }
+    val body = if (items.isEmpty()) "<p class=\"empty\">None.</p>" else "<ol class=\"findings\">${items.joinToString("") { "<li>${esc(it)}</li>" }}</ol>"
+    return "<h3>${esc(heading)}</h3>$body"
+}
+
+// surprise v2 section remarks: bullets, issues marked (same list as the narrative report)
+internal fun remarkBulletsHtml(lines: List<RemarkLine>): String =
+    "<ul class=\"bul\">${lines.joinToString("") { "<li${if (it.neg) " class=\"neg\"" else ""}>${esc(it.text)}</li>" }}</ul>"
+
+private fun remarksBoxHtml(block: ReportBlock.Remarks, section: ReportSection, data: ReportData, template: ReportTemplate): String {
+    val lines = printedRemarkLines(template, section, block, data)
+    if (lines.isEmpty()) return ""
+    return "<div class=\"remark-box\"><span class=\"label\">${esc(block.heading ?: "Remarks")}</span>${remarkBulletsHtml(lines)}</div>"
+}
 
 private fun fieldsBlockHtml(block: ReportBlock.Fields, data: ReportData): String =
     "<div class=\"details\">${fieldsListHtml(block.fields) { key -> data.field(key) }}</div>"
@@ -231,7 +262,7 @@ private fun cardsBlockHtml(block: ReportBlock.Cards, data: ReportData): String {
         "<tr>${block.fields.joinToString("") { f -> "<td>${fieldValueHtml(f, entry.stringOrNull(f.key))}</td>" }}</tr>"
     }.joinToString("")
     var warning = ""
-    if (mismatchedRows.isNotEmpty() && block.compare != null) {
+    if (mismatchedRows.isNotEmpty() && block.compare != null && block.compare.print) {
         val which = if (mismatchedRows.size == entries.size) "" else " (row${if (mismatchedRows.size > 1) "s" else ""} ${mismatchedRows.joinToString(", ")})"
         warning = "<p class=\"mismatch-msg\">${esc(block.compare.message)}$which</p>"
     }
@@ -249,8 +280,10 @@ private fun tabsCardsBlockHtml(block: ReportBlock.Cards, data: ReportData, templ
     val linkedKeys = block.linkFrom?.fields?.toSet() ?: emptySet()
     val tickFields = block.fields.filter { it.key !in linkedKeys && isStandardAnswerChoice(it, template) }
     val tickFieldKeys = tickFields.map { it.key }.toSet()
-    val otherFields = block.fields.filter { it.key !in linkedKeys && it.key !in tickFieldKeys }
+    val noteFields = block.fields.filter { it.noteFor != null }
+    val otherFields = block.fields.filter { it.key !in linkedKeys && it.key !in tickFieldKeys && it.noteFor == null }
     val answerIds = template.answers.map { it.id }
+    val columns = if (noteFields.isEmpty()) INTERVIEW_TICK_COLUMNS else INTERVIEW_NOTE_COLUMNS
     return entries.joinToString("") { entry ->
         val linkedFieldKeys = block.linkFrom?.fields ?: emptyList()
         val extra = linkedFieldKeys.filter { it != block.titleField }
@@ -259,10 +292,11 @@ private fun tabsCardsBlockHtml(block: ReportBlock.Cards, data: ReportData, templ
         val caption = "${esc(titleValue)}${if (extra.isNotBlank()) " &middot; Batch ${esc(extra)}" else ""}"
         val tickRows = tickFields.joinToString("") { f ->
             val value = entry.stringOrNull(f.key)
-            "<tr><td class=\"question\">${esc(f.label)}</td>${answerIds.joinToString("") { id -> tickCellHtml(value == id, answerMap[id]?.tone) }}</tr>"
+            val noteCell = if (noteFields.isEmpty()) "" else "<td>${escMultiline(noteFields.find { it.noteFor == f.key }?.let { entry.stringOrNull(it.key) }.orEmpty())}</td>"
+            "<tr><td class=\"question\">${esc(f.label)}</td>${answerIds.joinToString("") { id -> tickCellHtml(value == id, answerMap[id]?.tone) }}$noteCell</tr>"
         }
         val tickTable = if (tickFields.isNotEmpty()) {
-            "<table class=\"checklist interview-ticks\">${colgroupHtml(INTERVIEW_TICK_COLUMNS)}${tableHeadHtml(INTERVIEW_TICK_COLUMNS)}<tbody>$tickRows</tbody></table>"
+            "<table class=\"checklist interview-ticks\">${colgroupHtml(columns)}${tableHeadHtml(columns)}<tbody>$tickRows</tbody></table>"
         } else {
             ""
         }
@@ -295,7 +329,7 @@ private fun combinedFlagsHtml(section: ReportSection, data: ReportData): String 
     return "<table class=\"flags-table\">${colgroupHtml(FLAGS_COLUMNS)}<tbody>${rows.joinToString("")}</tbody></table>"
 }
 
-private fun blockHtml(block: ReportBlock, data: ReportData, template: ReportTemplate, answerMap: Map<String, AnswerOption>): String = when (block) {
+private fun blockHtml(block: ReportBlock, section: ReportSection, data: ReportData, template: ReportTemplate, answerMap: Map<String, AnswerOption>): String = when (block) {
     is ReportBlock.Fields -> fieldsBlockHtml(block, data)
     is ReportBlock.Checklist -> checklistBlockHtml(block, data, template, answerMap)
     is ReportBlock.Cards -> if (block.display == "tabs") tabsCardsBlockHtml(block, data, template, answerMap) else cardsBlockHtml(block, data)
@@ -303,6 +337,8 @@ private fun blockHtml(block: ReportBlock, data: ReportData, template: ReportTemp
     // this surprise-report layout never receives one -- qa-v1.json's criteria blocks render
     // through the separate pdf/QaReportHtml.kt (spec §7), never this file.
     is ReportBlock.Criteria -> ""
+    is ReportBlock.Remarks -> remarksBoxHtml(block, section, data, template)
+    is ReportBlock.Findings -> numberedListHtml(block.heading ?: "Major findings", data.findings().map { it.text })
 }
 
 private fun sectionHtml(section: ReportSection, data: ReportData, template: ReportTemplate, answerMap: Map<String, AnswerOption>): String {
@@ -319,7 +355,7 @@ private fun sectionHtml(section: ReportSection, data: ReportData, template: Repo
                 combinedFlagsHtml(section, data)
             }
         } else {
-            blockHtml(b, data, template, answerMap)
+            blockHtml(b, section, data, template, answerMap)
         }
     }
     return "<section class=\"keep\"><h2><span class=\"letter\">${esc(section.letter)}</span>${esc(section.title)}$optionalTag$note</h2>$blocks</section>"
@@ -414,12 +450,19 @@ private val CSS = """
   .ans { font-weight: 700; }
 
   .keep { break-inside: avoid; }
-  footer.legend { margin-top: 6pt; font-size: 7pt; color: #333; }
+
+  .remark-box { border: 0.6pt solid #666; border-left: 2.4pt solid #111; padding: 3pt 5pt; margin: 3pt 0 6pt; break-inside: avoid; }
+  .remark-box .label { font-weight: 700; font-size: 7.2pt; text-transform: uppercase; letter-spacing: .03em; color: #333; display: block; margin-bottom: 1pt; }
+  ol.findings, ul.bul { margin: 2pt 0 6pt; padding-left: 14pt; }
+  ol.findings li, ul.bul li { margin: 0 0 2pt; }
+  ul.bul li.neg::marker { color: #b3261e; }
 """.trimIndent()
 
-private const val LEGEND = "T = total, F = female, TMS = Training Management System, TDP = training delivery plan, " +
-    "CS = competency standard, CBLM = competency-based learning material, PPE = personal protective equipment, " +
-    "OHS = occupational health and safety."
+// shared with NarrativeHtml.kt: same page, header and helpers, different body
+internal val reportCss: String get() = CSS
+internal fun reportHeaderHtml(template: ReportTemplate, meta: ReportMeta): String = headerHtml(template, meta)
+internal fun reportEsc(s: String?): String = esc(s)
+internal fun reportFieldValueHtml(field: Field, rawValue: String?): String = fieldValueHtml(field, rawValue)
 
 // pure fn: template + report data + {officerName, status, submittedAt?} -> full print HTML.
 // mirrors web/src/lib/reporthtml.js's exported reportHtml(). caller renders this through
@@ -437,6 +480,5 @@ fun buildReportHtml(template: ReportTemplate, data: ReportData, meta: ReportMeta
     return "<!doctype html><html><head><meta charset=\"utf-8\"><title>${esc(template.title)}</title>" +
         "<style>$CSS</style></head><body>" +
         headerHtml(template, meta) + sections +
-        "<footer class=\"legend\">$LEGEND</footer>" +
         "</body></html>"
 }

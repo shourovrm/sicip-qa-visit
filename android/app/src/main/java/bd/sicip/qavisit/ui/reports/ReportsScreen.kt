@@ -171,7 +171,9 @@ fun ReportsScreen(officerId: String, db: AppDb, onOpenReport: (String) -> Unit) 
                 }
                 items(shown) { report ->
                     val visit = visitById[report.visitId]
-                    ReportCard(report, visit, templates[report.type], onClick = { onOpenReport(report.id) })
+                    // each row on its own template version (v1 reports keep v1)
+                    val template = remember(report.type, report.templateVersion) { runCatching { templateForReport(context, report) }.getOrNull() }
+                    ReportCard(report, visit, template, onClick = { onOpenReport(report.id) })
                 }
                 if (!showSubmitted && noReportVisits.isNotEmpty()) {
                     item {

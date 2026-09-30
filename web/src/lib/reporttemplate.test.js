@@ -9,20 +9,20 @@ const clone = (x) => JSON.parse(JSON.stringify(x))
 
 describe('normalize', () => {
   it('matches the shared fixture exactly (android parity): before_sync -> synced', () => {
-    const template = templateFor('surprise')
+    const template = templateFor('surprise', 1)
     const result = normalize(template, clone(fixture.before_sync))
     expect(result).toEqual(fixture.synced)
   })
 
   it('is idempotent -- normalizing an already-normalized report changes nothing', () => {
-    const template = templateFor('surprise')
+    const template = templateFor('surprise', 1)
     const once = normalize(template, clone(fixture.synced))
     const twice = normalize(template, clone(once))
     expect(twice).toEqual(once)
   })
 
   it('leaves a perCourse item as a plain single answer with 0-1 named courses', () => {
-    const template = templateFor('surprise')
+    const template = templateFor('surprise', 1)
     const data = normalize(template, {
       fields: {}, checks: { arrival_1: { answer: 'yes', remarks: '' } },
       cards: { courses: [{ _id: 'c1', course: 'Welding', batch: '07' }] }, flags: [],
@@ -32,7 +32,7 @@ describe('normalize', () => {
   })
 
   it('derives a mixed per-course answer as partial and flags no matter what the derived answer is', () => {
-    const template = templateFor('surprise')
+    const template = templateFor('surprise', 1)
     const data = normalize(template, {
       fields: {}, checks: { arrival_1: { answer: '', remarks: '', courses: { c1: 'no', c2: 'yes' } } },
       cards: { courses: [{ _id: 'c1', course: 'Welding', batch: '07' }, { _id: 'c2', course: 'Electrical', batch: '03' }] },
@@ -46,12 +46,12 @@ describe('normalize', () => {
 
 describe('computeProgress', () => {
   it('matches the shared fixture exactly (android parity), including customFlags', () => {
-    const template = templateFor('surprise')
+    const template = templateFor('surprise', 1)
     expect(computeProgress(template, fixture.data)).toEqual(fixture.expected)
   })
 
   it('an empty report has nothing answered and nothing flagged', () => {
-    const template = templateFor('surprise')
+    const template = templateFor('surprise', 1)
     const progress = computeProgress(template, { fields: {}, checks: {}, cards: {}, flags: [] })
     expect(progress.sectionsDone).toBe(0)
     expect(progress.unansweredCount).toBeGreaterThan(0)
@@ -61,7 +61,7 @@ describe('computeProgress', () => {
   })
 
   it('excludes an optional section (K, followup) from sectionsCounted/sectionsDone even when answered', () => {
-    const template = templateFor('surprise')
+    const template = templateFor('surprise', 1)
     const progress = computeProgress(template, fixture.data)
     expect(template.sections.find((s) => s.key === 'followup').optional).toBe(true)
     expect(progress.sections.followup.total).toBeGreaterThan(0) // has real questions...
@@ -73,7 +73,7 @@ describe('computeProgress', () => {
   })
 
   it('never hardcodes the checklist item count -- section I is cards-only, not a checklist', () => {
-    const template = templateFor('surprise')
+    const template = templateFor('surprise', 1)
     const interviewSection = template.sections.find((s) => s.key === 'interview')
     expect(interviewSection.blocks.every((b) => b.type !== 'checklist')).toBe(true)
     const checklistItemCount = template.sections
@@ -86,7 +86,7 @@ describe('computeProgress', () => {
 
 describe('newReportData', () => {
   it('prefills fields from the visit and officer, seeds cards with `start` blank rows carrying an _id', () => {
-    const template = templateFor('surprise')
+    const template = templateFor('surprise', 1)
     const visit = { institute: 'Bangladesh-Korea TTC', association: 'FLAXA', start_date: '2026-09-24' }
     const data = newReportData(template, visit, 'Jane Officer')
     expect(data.fields.ti_name).toBe('Bangladesh-Korea TTC')
@@ -105,7 +105,7 @@ describe('newReportData', () => {
   })
 
   it('a fresh report has no linked attendance/interviews cards yet (courses start blank)', () => {
-    const template = templateFor('surprise')
+    const template = templateFor('surprise', 1)
     const data = newReportData(template, { institute: 'X', start_date: '2026-01-01' }, 'Officer')
     expect(data.cards.attendance).toEqual([])
     expect(data.cards.interviews).toEqual([])

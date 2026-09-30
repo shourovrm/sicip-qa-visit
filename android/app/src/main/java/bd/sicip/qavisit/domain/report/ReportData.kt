@@ -30,6 +30,8 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.util.UUID
 
+data class Finding(val src: String, val text: String)
+
 data class ReportData(val root: JsonObject) {
     companion object {
         val EMPTY = ReportData(
@@ -234,6 +236,35 @@ data class ReportData(val root: JsonObject) {
     // ai={source,text}; Keep original -> store nothing").
     fun withCriteriaAiCleared(itemId: String): ReportData =
         withCriteriaEntry(itemId) { entry -> entry.remove("ai") }
+
+    // ============ surprise v2: section remarks + major findings ============
+    // data.remarks[blockKey] = {source, text}: officer's edit of a remarks block, fresh only
+    // while `source` still equals the built lines (SectionRemarks.kt printedRemarkLines).
+    private val remarksObj: JsonObject get() = (root["remarks"] as? JsonObject) ?: JsonObject(emptyMap())
+
+    fun remarksSource(blockKey: String): String = (remarksObj[blockKey] as? JsonObject)?.get("source")?.jsonPrimitive?.contentOrNull ?: ""
+    fun remarksText(blockKey: String): String = (remarksObj[blockKey] as? JsonObject)?.get("text")?.jsonPrimitive?.contentOrNull ?: ""
+
+    fun withRemarks(blockKey: String, source: String, text: String): ReportData =
+        withRoot("remarks", JsonObject(remarksObj.toMutableMap().apply { put(blockKey, buildJsonObject { put("source", source); put("text", text) }) }))
+
+    fun withRemarksCleared(blockKey: String): ReportData =
+        withRoot("remarks", JsonObject(remarksObj.toMutableMap().apply { remove(blockKey) }))
+
+    // data.findings = [{src, text}] in print order; src = the candidate line it was picked
+    // from ("" = typed by the officer), text = current (maybe reworded) wording.
+    fun findings(): List<Finding> =
+        ((root["findings"] as? JsonArray) ?: JsonArray(emptyList())).mapNotNull { element ->
+            val obj = element as? JsonObject ?: return@mapNotNull null
+            Finding(obj["src"]?.jsonPrimitive?.contentOrNull ?: "", obj["text"]?.jsonPrimitive?.contentOrNull ?: "")
+        }
+
+    fun withFindings(list: List<Finding>): ReportData =
+        withRoot("findings", JsonArray(list.map { buildJsonObject { put("src", it.src); put("text", it.text) } }))
+
+    // candidates joined -- the AI pre-select ran for exactly this list, don't auto-run it again
+    fun findingsAiSource(): String = root["findingsAi"]?.jsonPrimitive?.contentOrNull ?: ""
+    fun withFindingsAiSource(source: String): ReportData = withRoot("findingsAi", JsonPrimitive(source))
 
     private fun withRoot(key: String, value: JsonElement): ReportData =
         ReportData(JsonObject(root.toMutableMap().apply { put(key, value) }))

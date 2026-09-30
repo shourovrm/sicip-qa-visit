@@ -186,7 +186,7 @@ private fun blockHtml(block: ReportBlock, data: ReportData): String = when (bloc
     // qa-v1.json has neither of these block types (spec §2) -- nothing to print if one ever
     // sneaks in, rather than guessing at a layout for it.
     is ReportBlock.Checklist -> ""
-    is ReportBlock.Flags -> ""
+    is ReportBlock.Flags, is ReportBlock.Remarks, is ReportBlock.Findings -> ""
 }
 
 private fun sectionHtml(section: ReportSection, data: ReportData): String {

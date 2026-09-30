@@ -1,0 +1,1525 @@
+{
+ "id": "surprise",
+ "version": 2,
+ "title": "Surprise Visit Report: Quality Assurance",
+ "short": "Surprise visit",
+ "visitType": "surprise",
+ "program": "Skills for Industry Competitiveness and Innovation Program (SICIP)",
+ "subtitle": "Unannounced visit to partner TI/TC",
+ "purposes": [
+  "Monitoring Visit"
+ ],
+ "answers": [
+  {
+   "id": "yes",
+   "label": "Yes",
+   "tone": "yes"
+  },
+  {
+   "id": "no",
+   "label": "No",
+   "tone": "no"
+  },
+  {
+   "id": "partial",
+   "label": "Partial",
+   "tone": "partial"
+  },
+  {
+   "id": "na",
+   "label": "N/A",
+   "tone": "na"
+  }
+ ],
+ "sections": [
+  {
+   "letter": "A",
+   "key": "visit",
+   "short": "Visit",
+   "title": "Visit details",
+   "blocks": [
+    {
+     "type": "fields",
+     "fields": [
+      {
+       "key": "ti_name",
+       "label": "Name of TI/TC visited",
+       "kind": "text",
+       "prefill": "institute",
+       "required": true
+      },
+      {
+       "key": "provider",
+       "label": "Association / provider",
+       "kind": "text",
+       "prefill": "association"
+      },
+      {
+       "key": "address",
+       "label": "Address and contact",
+       "kind": "longtext"
+      },
+      {
+       "key": "visit_date",
+       "label": "Date of visit",
+       "kind": "date",
+       "prefill": "visit_date",
+       "required": true
+      },
+      {
+       "key": "arrival_time",
+       "label": "Arrival time",
+       "kind": "time",
+       "required": true
+      },
+      {
+       "key": "departure_time",
+       "label": "Departure time",
+       "kind": "time"
+      }
+     ]
+    },
+    {
+     "type": "cards",
+     "key": "officers",
+     "heading": "Visiting officers",
+     "itemLabel": "Officer",
+     "start": 1,
+     "titleField": "name",
+     "prefill": "officers",
+     "narrative": "table",
+     "fields": [
+      {
+       "key": "name",
+       "label": "Name",
+       "kind": "text"
+      },
+      {
+       "key": "designation",
+       "label": "Designation",
+       "kind": "text"
+      }
+     ]
+    },
+    {
+     "type": "cards",
+     "key": "persons",
+     "heading": "Persons met",
+     "itemLabel": "Person",
+     "start": 1,
+     "titleField": "name",
+     "fields": [
+      {
+       "key": "name",
+       "label": "Name",
+       "kind": "text"
+      },
+      {
+       "key": "designation",
+       "label": "Designation",
+       "kind": "text"
+      }
+     ]
+    },
+    {
+     "type": "cards",
+     "key": "courses",
+     "heading": "Courses / batches scheduled today (routine or Training Delivery Plan)",
+     "itemLabel": "Course",
+     "start": 1,
+     "titleField": "course",
+     "note": "One entry per running batch. Sections C, D and I pick these up automatically.",
+     "fields": [
+      {
+       "key": "course",
+       "label": "Course name",
+       "kind": "text",
+       "required": true
+      },
+      {
+       "key": "batch",
+       "label": "Batch no.",
+       "kind": "number",
+       "required": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "letter": "B",
+   "key": "arrival",
+   "short": "Arrival",
+   "title": "Status on arrival",
+   "blocks": [
+    {
+     "type": "checklist",
+     "key": "arrival",
+     "items": [
+      {
+       "id": "arrival_1",
+       "text": "Centre open and training in session at the scheduled time",
+       "perCourse": true,
+       "says": {
+        "yes": "The centre was open and training was in session at the scheduled time.",
+        "no": "The centre was closed or no training was in session at the scheduled time.",
+        "partial": "Training was only partly in session at the scheduled time."
+       }
+      },
+      {
+       "id": "arrival_3",
+       "text": "Session being taught matches today's topic in the session plan / Training Delivery Plan",
+       "perCourse": true,
+       "says": {
+        "yes": "The session being taught matched today's topic in the session plan / Training Delivery Plan.",
+        "no": "The session being taught did not match today's topic in the session plan / Training Delivery Plan.",
+        "partial": "The session being taught only partly matched today's topic in the session plan / Training Delivery Plan."
+       }
+      },
+      {
+       "id": "arrival_4",
+       "text": "Training calendar displayed, provided to trainees and followed",
+       "perCourse": true,
+       "says": {
+        "yes": "The training calendar was displayed, provided to trainees and followed.",
+        "no": "The training calendar was not displayed, provided to trainees or followed.",
+        "partial": "The training calendar was only partly displayed, provided to trainees and followed."
+       }
+      }
+     ]
+    },
+    {
+     "type": "remarks",
+     "key": "arrival_remarks",
+     "heading": "Remarks"
+    }
+   ]
+  },
+  {
+   "letter": "C",
+   "key": "attendance",
+   "short": "Attendance",
+   "title": "Attendance and trainers in each course",
+   "note": "Count heads in the room first. The register and TMS are updated after the session, so take the average presence of the last 7 days from each.",
+   "blocks": [
+    {
+     "type": "cards",
+     "key": "attendance",
+     "itemLabel": "Course",
+     "start": 0,
+     "titleField": "course",
+     "linkFrom": {
+      "cards": "courses",
+      "fields": [
+       "course",
+       "batch"
+      ]
+     },
+     "note": "One entry per course / batch from section A. Add courses there.",
+     "compare": {
+      "fields": [
+       "present_total",
+       "register_avg7",
+       "tms_avg7"
+      ],
+      "gapPct": 20,
+      "print": false,
+      "message": "Headcount is far below the 7-day average in the register / TMS"
+     },
+     "says": {
+      "text": "{course} {batch}: headcount {present_total} of {enrolled_total} enrolled[; 7-day average {register_avg7} in the register][ and {tms_avg7} in TMS][. {remarks}]",
+      "negWhen": [
+       {
+        "op": "gap",
+        "field": "present_total",
+        "others": [
+         "register_avg7",
+         "tms_avg7"
+        ],
+        "pct": 20
+       }
+      ]
+     },
+     "fields": [
+      {
+       "key": "course",
+       "label": "Course",
+       "kind": "text"
+      },
+      {
+       "key": "batch",
+       "label": "Batch no.",
+       "kind": "text"
+      },
+      {
+       "key": "enrolled_total",
+       "label": "Enrolled, total",
+       "kind": "number"
+      },
+      {
+       "key": "enrolled_female",
+       "label": "Enrolled, female",
+       "kind": "number"
+      },
+      {
+       "key": "present_total",
+       "label": "Headcount, total",
+       "kind": "number",
+       "required": true
+      },
+      {
+       "key": "present_female",
+       "label": "Headcount, female",
+       "kind": "number"
+      },
+      {
+       "key": "register_avg7",
+       "label": "Average presence in last 7 days (register)",
+       "kind": "number"
+      },
+      {
+       "key": "tms_avg7",
+       "label": "Average presence in last 7 days (TMS)",
+       "kind": "number"
+      },
+      {
+       "key": "remarks",
+       "label": "Remarks",
+       "kind": "longtext",
+       "rewrite": true
+      }
+     ]
+    },
+    {
+     "type": "cards",
+     "key": "trainers",
+     "heading": "Trainers",
+     "itemLabel": "Course",
+     "start": 0,
+     "titleField": "course",
+     "linkFrom": {
+      "cards": "courses",
+      "fields": [
+       "course",
+       "batch"
+      ]
+     },
+     "says": {
+      "text": "{course} {batch}: {present} of {stipulated} stipulated trainers present ({engaged} engaged)",
+      "negWhen": [
+       {
+        "op": "lt",
+        "field": "present",
+        "than": "stipulated"
+       },
+       {
+        "op": "lt",
+        "field": "engaged",
+        "than": "stipulated"
+       }
+      ]
+     },
+     "fields": [
+      {
+       "key": "course",
+       "label": "Course",
+       "kind": "text"
+      },
+      {
+       "key": "batch",
+       "label": "Batch no.",
+       "kind": "text"
+      },
+      {
+       "key": "stipulated",
+       "label": "No. of stipulated trainers",
+       "kind": "number",
+       "required": true
+      },
+      {
+       "key": "engaged",
+       "label": "No. of engaged trainers",
+       "kind": "number",
+       "required": true
+      },
+      {
+       "key": "present",
+       "label": "No. of trainers present",
+       "kind": "number",
+       "required": true
+      }
+     ]
+    },
+    {
+     "type": "cards",
+     "key": "trainer_names",
+     "heading": "Trainers present",
+     "itemLabel": "Trainer",
+     "start": 0,
+     "titleField": "name",
+     "says": {
+      "text": "Trainer present[ in {batch}]: {name}[, {designation}]"
+     },
+     "fields": [
+      {
+       "key": "batch",
+       "label": "Course / batch",
+       "kind": "courseRef",
+       "optionsFrom": "courses"
+      },
+      {
+       "key": "name",
+       "label": "Name",
+       "kind": "text"
+      },
+      {
+       "key": "designation",
+       "label": "Designation",
+       "kind": "text"
+      }
+     ]
+    },
+    {
+     "type": "checklist",
+     "key": "attendance_register",
+     "heading": "Attendance register",
+     "items": [
+      {
+       "id": "attendance_register_1",
+       "text": "Attendance register up to date (no blank days)",
+       "perCourse": true,
+       "says": {
+        "yes": "The attendance register is up to date with no blank days.",
+        "no": "The attendance register is not up to date (blank days found).",
+        "partial": "The attendance register is only partly up to date."
+       }
+      },
+      {
+       "id": "attendance_register_2",
+       "text": "No attendance marked in advance for later sessions",
+       "perCourse": true,
+       "says": {
+        "yes": "No attendance was marked in advance for later sessions.",
+        "no": "Attendance was marked in advance for later sessions.",
+        "partial": "Attendance was marked in advance for some later sessions."
+       }
+      },
+      {
+       "id": "attendance_register_3",
+       "text": "Long-absent trainees entered in the dropout register",
+       "perCourse": true,
+       "says": {
+        "yes": "Long-absent trainees are entered in the dropout register.",
+        "no": "Long-absent trainees are not entered in the dropout register.",
+        "partial": "Only some long-absent trainees are entered in the dropout register."
+       }
+      }
+     ]
+    },
+    {
+     "type": "remarks",
+     "key": "attendance_remarks",
+     "heading": "Remarks"
+    }
+   ]
+  },
+  {
+   "letter": "D",
+   "key": "identity",
+   "short": "Identity",
+   "title": "Trainee identity spot-check",
+   "note": "Pick 5 names at random from the TMS enrolment list and verify each person.",
+   "blocks": [
+    {
+     "type": "cards",
+     "key": "identity",
+     "itemLabel": "Trainee",
+     "start": 5,
+     "titleField": "name",
+     "fields": [
+      {
+       "key": "name",
+       "label": "Name (from TMS)",
+       "kind": "text"
+      },
+      {
+       "key": "batch",
+       "label": "Course / batch",
+       "kind": "courseRef",
+       "optionsFrom": "courses"
+      },
+      {
+       "key": "result",
+       "label": "Result",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "verified",
+         "label": "Present & verified",
+         "tone": "yes",
+         "say": "was present and verified"
+        },
+        {
+         "id": "absent",
+         "label": "Absent",
+         "tone": "partial",
+         "say": "was absent"
+        },
+        {
+         "id": "mismatch",
+         "label": "Doesn't match",
+         "tone": "no",
+         "say": "did not match the person present"
+        }
+       ]
+      },
+      {
+       "key": "remarks",
+       "label": "Remarks",
+       "kind": "longtext",
+       "rewrite": true,
+       "placeholder": "ID checked, entry qualification, reason for absence…"
+      }
+     ],
+     "says": {
+      "text": "{name} ({batch}) {result}[. {remarks}]"
+     }
+    },
+    {
+     "type": "checklist",
+     "key": "enrolment",
+     "heading": "Enrolment",
+     "items": [
+      {
+       "id": "identity_1",
+       "text": "No existing employees of the centre or partner industry enrolled as trainees",
+       "says": {
+        "yes": "No existing employees of the centre or partner industry were found enrolled as trainees.",
+        "no": "Existing employees of the centre or partner industry were found enrolled as trainees.",
+        "partial": "Some existing employees of the centre or partner industry may be enrolled as trainees."
+       }
+      },
+      {
+       "id": "identity_2",
+       "text": "No trainees / students of other (non-SICIP) courses at the centre enrolled in SICIP courses",
+       "says": {
+        "yes": "No trainees of other (non-SICIP) courses at the centre were found enrolled in SICIP courses.",
+        "no": "Trainees of other (non-SICIP) courses at the centre were found enrolled in SICIP courses.",
+        "partial": "Some trainees of other (non-SICIP) courses at the centre may be enrolled in SICIP courses."
+       }
+      }
+     ]
+    },
+    {
+     "type": "remarks",
+     "key": "identity_remarks",
+     "heading": "Remarks"
+    }
+   ]
+  },
+  {
+   "letter": "E",
+   "key": "materials",
+   "short": "Materials",
+   "title": "Materials & safety gear provided",
+   "blocks": [
+    {
+     "type": "checklist",
+     "key": "materials",
+     "items": [
+      {
+       "id": "materials_1",
+       "text": "Competency Standard (CS) available",
+       "perCourse": true,
+       "says": {
+        "yes": "The Competency Standard (CS) is available.",
+        "no": "The Competency Standard (CS) is not available.",
+        "partial": "The Competency Standard (CS) is only partly available."
+       }
+      },
+      {
+       "id": "materials_2",
+       "text": "CBLM provided to each trainee and available at their end",
+       "perCourse": true,
+       "says": {
+        "yes": "CBLM was provided to each trainee and is available at their end.",
+        "no": "CBLM was not provided to each trainee or is not available at their end.",
+        "partial": "CBLM was provided to only some trainees or is not available at their end."
+       }
+      },
+      {
+       "id": "materials_3",
+       "text": "Apron / T-shirt provided to each trainee",
+       "perCourse": true,
+       "says": {
+        "yes": "An apron / T-shirt was provided to each trainee.",
+        "no": "Aprons / T-shirts were not provided to the trainees.",
+        "partial": "Aprons / T-shirts were provided to only some trainees."
+       }
+      },
+      {
+       "id": "materials_4",
+       "text": "Required PPE provided to trainees",
+       "perCourse": true,
+       "says": {
+        "yes": "The required PPE was provided to trainees.",
+        "no": "The required PPE was not provided to trainees.",
+        "partial": "The required PPE was only partly provided to trainees."
+       }
+      },
+      {
+       "id": "materials_5",
+       "text": "PPE worn during practical session",
+       "perCourse": true,
+       "says": {
+        "yes": "PPE was worn during the practical session.",
+        "no": "PPE was not worn during the practical session.",
+        "partial": "PPE was only partly worn during the practical session."
+       }
+      }
+     ]
+    },
+    {
+     "type": "remarks",
+     "key": "materials_remarks",
+     "heading": "Remarks"
+    }
+   ]
+  },
+  {
+   "letter": "F",
+   "key": "delivery",
+   "short": "Delivery",
+   "title": "Training delivery observation",
+   "note": "Observe one class or workshop for about 15 minutes.",
+   "blocks": [
+    {
+     "type": "checklist",
+     "key": "delivery",
+     "items": [
+      {
+       "id": "delivery_1",
+       "text": "Job sheets / information sheets in use",
+       "perCourse": true,
+       "says": {
+        "yes": "Job sheets / information sheets are in use.",
+        "no": "Job sheets / information sheets are not in use.",
+        "partial": "Job sheets / information sheets are only partly in use."
+       }
+      },
+      {
+       "id": "delivery_2",
+       "text": "Trainees doing hands-on practice (80:20 practice to theory)",
+       "perCourse": true,
+       "says": {
+        "yes": "Trainees are doing hands-on practice (80:20 practice to theory).",
+        "no": "Trainees are not doing enough hands-on practice (80:20 practice to theory not met).",
+        "partial": "Trainees are doing some hands-on practice, below the 80:20 practice to theory ratio."
+       }
+      },
+      {
+       "id": "delivery_3",
+       "text": "All required major equipment according to lab standard is available and functional",
+       "perCourse": true,
+       "says": {
+        "yes": "All required major equipment according to lab standard is available and functional.",
+        "no": "Not all required major equipment according to lab standard is available and functional.",
+        "partial": "Some required major equipment according to lab standard is unavailable or not functional."
+       }
+      },
+      {
+       "id": "delivery_4",
+       "text": "Consumables available and being used",
+       "perCourse": true,
+       "says": {
+        "yes": "Consumables are available and being used.",
+        "no": "Consumables are not available or not being used.",
+        "partial": "Consumables are only partly available or used."
+       }
+      },
+      {
+       "id": "delivery_5",
+       "text": "Fire extinguisher available and inspection date valid",
+       "perCourse": true,
+       "says": {
+        "yes": "A fire extinguisher is available with a valid inspection date.",
+        "no": "No fire extinguisher with a valid inspection date is available.",
+        "partial": "A fire extinguisher is available, but its inspection date is not valid."
+       }
+      },
+      {
+       "id": "delivery_6",
+       "text": "First aid kit available and stocked",
+       "says": {
+        "yes": "A stocked first aid kit is available.",
+        "no": "No stocked first aid kit is available.",
+        "partial": "A first aid kit is available but not fully stocked."
+       }
+      },
+      {
+       "id": "delivery_7",
+       "text": "Safety and PPE signs displayed in workshop",
+       "perCourse": true,
+       "says": {
+        "yes": "Safety and PPE signs are displayed in the workshop.",
+        "no": "Safety and PPE signs are not displayed in the workshop.",
+        "partial": "Safety and PPE signs are only partly displayed in the workshop."
+       }
+      },
+      {
+       "id": "delivery_8",
+       "text": "Women and trainees with disabilities taking part equally",
+       "perCourse": true,
+       "says": {
+        "yes": "Women and trainees with disabilities are taking part equally.",
+        "no": "Women and trainees with disabilities are not taking part equally.",
+        "partial": "Women and trainees with disabilities are only partly taking part equally."
+       }
+      },
+      {
+       "id": "delivery_9",
+       "text": "Industry logbook filled up to date (industry-based centres only)",
+       "perCourse": true,
+       "says": {
+        "yes": "The industry logbook is filled up to date.",
+        "no": "The industry logbook is not filled up to date.",
+        "partial": "The industry logbook is only partly filled up to date."
+       }
+      }
+     ]
+    },
+    {
+     "type": "cards",
+     "key": "equipment",
+     "heading": "Major equipment damaged or unavailable",
+     "itemLabel": "Equipment",
+     "start": 0,
+     "titleField": "name",
+     "note": "Add each item of major equipment that is damaged or unavailable.",
+     "says": {
+      "text": "[{batch}: ]{name} {status}[ (quantity {quantity})][. {remarks}]",
+      "always": "neg"
+     },
+     "fields": [
+      {
+       "key": "batch",
+       "label": "Course / batch",
+       "kind": "courseRef",
+       "optionsFrom": "courses"
+      },
+      {
+       "key": "name",
+       "label": "Equipment name",
+       "kind": "text",
+       "required": true
+      },
+      {
+       "key": "status",
+       "label": "Damaged / unavailable",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "damaged",
+         "label": "Damaged",
+         "tone": "no",
+         "say": "damaged"
+        },
+        {
+         "id": "unavailable",
+         "label": "Unavailable",
+         "tone": "no",
+         "say": "unavailable"
+        }
+       ]
+      },
+      {
+       "key": "quantity",
+       "label": "Quantity",
+       "kind": "number"
+      }
+     ]
+    },
+    {
+     "type": "remarks",
+     "key": "delivery_remarks",
+     "heading": "Remarks"
+    }
+   ]
+  },
+  {
+   "letter": "G",
+   "key": "assessment",
+   "short": "Assessment",
+   "title": "Formative assessment",
+   "note": "Ask for the latest formative assessment paper and result sheet of each running batch.",
+   "blocks": [
+    {
+     "type": "checklist",
+     "key": "assessment",
+     "items": [
+      {
+       "id": "assessment_1",
+       "text": "Formative assessments held as per assessment plan",
+       "perCourse": true,
+       "says": {
+        "yes": "Formative assessments were held as per the assessment plan.",
+        "no": "Formative assessments were not held as per the assessment plan.",
+        "partial": "Formative assessments were only partly held as per the assessment plan."
+       }
+      },
+      {
+       "id": "assessment_2",
+       "text": "Formative assessment includes relevant technical questions for the unit of competency",
+       "perCourse": true,
+       "says": {
+        "yes": "The formative assessment includes relevant technical questions for the unit of competency.",
+        "no": "The formative assessment does not include relevant technical questions for the unit of competency.",
+        "partial": "The formative assessment includes only some relevant technical questions for the unit of competency."
+       }
+      },
+      {
+       "id": "assessment_3",
+       "text": "Practical assessment uses a demonstration / observation checklist",
+       "perCourse": true,
+       "says": {
+        "yes": "The practical assessment uses a demonstration / observation checklist.",
+        "no": "The practical assessment does not use a demonstration / observation checklist.",
+        "partial": "The practical assessment only partly uses a demonstration / observation checklist."
+       }
+      },
+      {
+       "id": "assessment_4",
+       "text": "OHS included in the assessment",
+       "perCourse": true,
+       "says": {
+        "yes": "OHS is included in the assessment.",
+        "no": "OHS is not included in the assessment.",
+        "partial": "OHS is only partly included in the assessment."
+       }
+      },
+      {
+       "id": "assessment_5",
+       "text": "Formative assessment results recorded",
+       "perCourse": true,
+       "says": {
+        "yes": "Formative assessment results are recorded.",
+        "no": "Formative assessment results are not recorded.",
+        "partial": "Formative assessment results are only partly recorded."
+       }
+      }
+     ]
+    },
+    {
+     "type": "remarks",
+     "key": "assessment_remarks",
+     "heading": "Remarks"
+    }
+   ]
+  },
+  {
+   "letter": "H",
+   "key": "registers",
+   "short": "Registers",
+   "title": "Daily registers",
+   "blocks": [
+    {
+     "type": "checklist",
+     "key": "registers",
+     "items": [
+      {
+       "id": "registers_1",
+       "text": "Daily consumption register updated",
+       "perCourse": true,
+       "says": {
+        "yes": "The daily consumption register is updated.",
+        "no": "The daily consumption register is not updated.",
+        "partial": "The daily consumption register is only partly updated."
+       }
+      },
+      {
+       "id": "registers_2",
+       "text": "Stock register up to date",
+       "says": {
+        "yes": "The stock register is up to date.",
+        "no": "The stock register is not up to date.",
+        "partial": "The stock register is only partly up to date."
+       }
+      }
+     ]
+    },
+    {
+     "type": "remarks",
+     "key": "registers_remarks",
+     "heading": "Remarks"
+    }
+   ]
+  },
+  {
+   "letter": "I",
+   "key": "interview",
+   "short": "Trainees",
+   "title": "Trainee interviews (no staff present)",
+   "note": "Talk with a group of trainees of each course away from centre staff. Ask one technical question from a unit they have covered.",
+   "blocks": [
+    {
+     "type": "cards",
+     "key": "interviews",
+     "itemLabel": "Course",
+     "start": 0,
+     "titleField": "course",
+     "display": "tabs",
+     "linkFrom": {
+      "cards": "courses",
+      "fields": [
+       "course",
+       "batch"
+      ]
+     },
+     "says": {
+      "text": "{course} {batch}: {trainees_interviewed} trainees interviewed[; technical question on {tech_topic}: {tech_result}][. Complaints or other feedback: {feedback}]"
+     },
+     "sayPrefix": "{course} {batch}: ",
+     "fields": [
+      {
+       "key": "course",
+       "label": "Course",
+       "kind": "text"
+      },
+      {
+       "key": "batch",
+       "label": "Batch no.",
+       "kind": "text"
+      },
+      {
+       "key": "trainees_interviewed",
+       "label": "Trainees interviewed",
+       "kind": "number",
+       "required": true
+      },
+      {
+       "key": "q1",
+       "label": "Classes run on all scheduled days and hours",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "yes",
+         "label": "Yes",
+         "tone": "yes"
+        },
+        {
+         "id": "no",
+         "label": "No",
+         "tone": "no"
+        },
+        {
+         "id": "partial",
+         "label": "Partial",
+         "tone": "partial"
+        },
+        {
+         "id": "na",
+         "label": "N/A",
+         "tone": "na"
+        }
+       ],
+       "required": true,
+       "says": {
+        "yes": "trainees said classes run on all scheduled days and hours",
+        "no": "trainees said classes do not run on all scheduled days and hours",
+        "partial": "trainees said classes do not always run on all scheduled days and hours"
+       }
+      },
+      {
+       "key": "q1_note",
+       "label": "Remarks",
+       "kind": "longtext",
+       "rewrite": true,
+       "noteFor": "q1"
+      },
+      {
+       "key": "q2",
+       "label": "No fee charged to trainees",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "yes",
+         "label": "Yes",
+         "tone": "yes"
+        },
+        {
+         "id": "no",
+         "label": "No",
+         "tone": "no"
+        },
+        {
+         "id": "partial",
+         "label": "Partial",
+         "tone": "partial"
+        },
+        {
+         "id": "na",
+         "label": "N/A",
+         "tone": "na"
+        }
+       ],
+       "required": true,
+       "says": {
+        "yes": "trainees said no fee is charged",
+        "no": "trainees said they are charged a fee",
+        "partial": "trainees said some fees are charged"
+       }
+      },
+      {
+       "key": "q2_note",
+       "label": "Remarks",
+       "kind": "longtext",
+       "rewrite": true,
+       "noteFor": "q2"
+      },
+      {
+       "key": "q3",
+       "label": "Trainees receive stipend / allowance on time",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "yes",
+         "label": "Yes",
+         "tone": "yes"
+        },
+        {
+         "id": "no",
+         "label": "No",
+         "tone": "no"
+        },
+        {
+         "id": "partial",
+         "label": "Partial",
+         "tone": "partial"
+        },
+        {
+         "id": "na",
+         "label": "N/A",
+         "tone": "na"
+        }
+       ],
+       "required": true,
+       "says": {
+        "yes": "trainees said they receive the stipend / allowance on time",
+        "no": "trainees said they do not receive the stipend / allowance on time",
+        "partial": "trainees said the stipend / allowance is sometimes late"
+       }
+      },
+      {
+       "key": "q3_note",
+       "label": "Remarks",
+       "kind": "longtext",
+       "rewrite": true,
+       "noteFor": "q3"
+      },
+      {
+       "key": "q4",
+       "label": "Trainees received CBLM and apron / T-shirt",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "yes",
+         "label": "Yes",
+         "tone": "yes"
+        },
+        {
+         "id": "no",
+         "label": "No",
+         "tone": "no"
+        },
+        {
+         "id": "partial",
+         "label": "Partial",
+         "tone": "partial"
+        },
+        {
+         "id": "na",
+         "label": "N/A",
+         "tone": "na"
+        }
+       ],
+       "required": true,
+       "says": {
+        "yes": "trainees said they received CBLM and apron / T-shirt",
+        "no": "trainees said they did not receive CBLM and apron / T-shirt",
+        "partial": "trainees said some of them did not receive CBLM or apron / T-shirt"
+       }
+      },
+      {
+       "key": "q4_note",
+       "label": "Remarks",
+       "kind": "longtext",
+       "rewrite": true,
+       "noteFor": "q4"
+      },
+      {
+       "key": "q5",
+       "label": "Trainees get enough hands-on practice with tools",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "yes",
+         "label": "Yes",
+         "tone": "yes"
+        },
+        {
+         "id": "no",
+         "label": "No",
+         "tone": "no"
+        },
+        {
+         "id": "partial",
+         "label": "Partial",
+         "tone": "partial"
+        },
+        {
+         "id": "na",
+         "label": "N/A",
+         "tone": "na"
+        }
+       ],
+       "required": true,
+       "says": {
+        "yes": "trainees said they get enough hands-on practice with tools",
+        "no": "trainees said they do not get enough hands-on practice with tools",
+        "partial": "trainees said they get some, but not enough, hands-on practice with tools"
+       }
+      },
+      {
+       "key": "q5_note",
+       "label": "Remarks",
+       "kind": "longtext",
+       "rewrite": true,
+       "noteFor": "q5"
+      },
+      {
+       "key": "q6",
+       "label": "Formative assessments have been held",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "yes",
+         "label": "Yes",
+         "tone": "yes"
+        },
+        {
+         "id": "no",
+         "label": "No",
+         "tone": "no"
+        },
+        {
+         "id": "partial",
+         "label": "Partial",
+         "tone": "partial"
+        },
+        {
+         "id": "na",
+         "label": "N/A",
+         "tone": "na"
+        }
+       ],
+       "required": true,
+       "says": {
+        "yes": "trainees said formative assessments have been held",
+        "no": "trainees said no formative assessments have been held",
+        "partial": "trainees said only some formative assessments have been held"
+       }
+      },
+      {
+       "key": "q6_note",
+       "label": "Remarks",
+       "kind": "longtext",
+       "rewrite": true,
+       "noteFor": "q6"
+      },
+      {
+       "key": "q7",
+       "label": "Job placement / career counselling provided",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "yes",
+         "label": "Yes",
+         "tone": "yes"
+        },
+        {
+         "id": "no",
+         "label": "No",
+         "tone": "no"
+        },
+        {
+         "id": "partial",
+         "label": "Partial",
+         "tone": "partial"
+        },
+        {
+         "id": "na",
+         "label": "N/A",
+         "tone": "na"
+        }
+       ],
+       "required": true,
+       "says": {
+        "yes": "trainees said job placement / career counselling has been provided",
+        "no": "trainees said no job placement / career counselling has been provided",
+        "partial": "trainees said job placement / career counselling has been provided only partly"
+       }
+      },
+      {
+       "key": "q7_note",
+       "label": "Remarks",
+       "kind": "longtext",
+       "rewrite": true,
+       "noteFor": "q7"
+      },
+      {
+       "key": "tech_topic",
+       "label": "Technical topic asked (from a unit already covered)",
+       "kind": "longtext",
+       "rewrite": true,
+       "required": true
+      },
+      {
+       "key": "tech_result",
+       "label": "Could the trainees answer it?",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "most",
+         "label": "Most could",
+         "tone": "yes",
+         "say": "most could answer"
+        },
+        {
+         "id": "some",
+         "label": "Some could",
+         "tone": "partial",
+         "say": "only some could answer"
+        },
+        {
+         "id": "none",
+         "label": "None could",
+         "tone": "no",
+         "say": "none could answer"
+        }
+       ]
+      },
+      {
+       "key": "feedback",
+       "label": "Complaints or other feedback",
+       "kind": "longtext",
+       "rewrite": true
+      }
+     ]
+    },
+    {
+     "type": "remarks",
+     "key": "interview_remarks",
+     "heading": "Remarks"
+    }
+   ]
+  },
+  {
+   "letter": "J",
+   "key": "graduates",
+   "short": "Job calls",
+   "title": "Job placement verification calls",
+   "note": "Pick 5 graduates at random from the TMS job-placed list and call them yourself, not through the centre.",
+   "blocks": [
+    {
+     "type": "cards",
+     "key": "graduate",
+     "itemLabel": "Graduate",
+     "start": 5,
+     "titleField": "name",
+     "says": {
+      "text": "{name}[ ({course}[ batch {batch}])]: {call}[, {confirmed}][ as {position}][, BDT {salary} per month][. {remarks}]"
+     },
+     "fields": [
+      {
+       "key": "name",
+       "label": "Name",
+       "kind": "text"
+      },
+      {
+       "key": "course",
+       "label": "Course",
+       "kind": "courseRef",
+       "optionsFrom": "courses",
+       "optionsPart": "course"
+      },
+      {
+       "key": "batch",
+       "label": "Batch no.",
+       "kind": "number"
+      },
+      {
+       "key": "phone",
+       "label": "Phone",
+       "kind": "phone"
+      },
+      {
+       "key": "employer_tms",
+       "label": "Employer as per TMS",
+       "kind": "text"
+      },
+      {
+       "key": "call",
+       "label": "Call",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "reached",
+         "label": "Reached",
+         "tone": "yes",
+         "say": "reached"
+        },
+        {
+         "id": "not_reached",
+         "label": "Not reached",
+         "tone": "no",
+         "say": "could not be reached"
+        },
+        {
+         "id": "other_person",
+         "label": "Other person received",
+         "tone": "partial",
+         "say": "call received by another person"
+        }
+       ]
+      },
+      {
+       "key": "confirmed",
+       "label": "Employment",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "employed",
+         "label": "Employed",
+         "tone": "yes",
+         "say": "employed"
+        },
+        {
+         "id": "not_employed",
+         "label": "Not employed",
+         "tone": "no",
+         "say": "not employed"
+        },
+        {
+         "id": "other_job",
+         "label": "Other job",
+         "tone": "partial",
+         "say": "in another job"
+        },
+        {
+         "id": "self_employed",
+         "label": "Self employed",
+         "tone": "yes",
+         "say": "self-employed"
+        },
+        {
+         "id": "others",
+         "label": "Others",
+         "tone": "partial",
+         "say": "other"
+        }
+       ]
+      },
+      {
+       "key": "position",
+       "label": "Position",
+       "kind": "text"
+      },
+      {
+       "key": "salary",
+       "label": "Monthly salary (BDT)",
+       "kind": "number"
+      },
+      {
+       "key": "remarks",
+       "label": "Remarks",
+       "kind": "longtext",
+       "rewrite": true,
+       "placeholder": "Job related to the trade? How long employed?"
+      }
+     ]
+    },
+    {
+     "type": "remarks",
+     "key": "graduates_remarks",
+     "heading": "Remarks"
+    }
+   ]
+  },
+  {
+   "letter": "K",
+   "key": "followup",
+   "short": "Follow-up",
+   "title": "Previous visit follow-up",
+   "optional": true,
+   "note": "Optional. Check whether the issues raised in the last visit have been complied with.",
+   "blocks": [
+    {
+     "type": "fields",
+     "fields": [
+      {
+       "key": "last_visit_date",
+       "label": "Date of last visit",
+       "kind": "date"
+      },
+      {
+       "key": "last_visit_type",
+       "label": "Type of last visit",
+       "kind": "text"
+      },
+      {
+       "key": "last_visit_by",
+       "label": "Person who visited",
+       "kind": "text"
+      },
+      {
+       "key": "last_visit_designation",
+       "label": "Designation",
+       "kind": "text"
+      },
+      {
+       "key": "compliance",
+       "label": "Issues from the last visit complied with?",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "all",
+         "label": "All complied",
+         "tone": "yes"
+        },
+        {
+         "id": "partly",
+         "label": "Partly",
+         "tone": "partial"
+        },
+        {
+         "id": "none",
+         "label": "Not complied",
+         "tone": "no"
+        }
+       ],
+       "says": {
+        "all": "All issues from the last visit were complied with.",
+        "partly": "Issues from the last visit were only partly complied with.",
+        "none": "Issues from the last visit were not complied with."
+       }
+      }
+     ]
+    },
+    {
+     "type": "checklist",
+     "key": "followup",
+     "items": [
+      {
+       "id": "followup_1",
+       "text": "Monitoring logbook / visit register available, used, and its findings complied with",
+       "says": {
+        "yes": "The monitoring logbook / visit register is available and used, and its findings were complied with.",
+        "no": "The monitoring logbook / visit register is not available or not used, or its findings were not complied with.",
+        "partial": "The monitoring logbook / visit register is available, but its findings were only partly complied with."
+       }
+      }
+     ]
+    },
+    {
+     "type": "cards",
+     "key": "unresolved",
+     "heading": "Unresolved issues",
+     "itemLabel": "Unresolved issue",
+     "start": 0,
+     "titleField": "issue",
+     "fields": [
+      {
+       "key": "issue",
+       "label": "Issue still not resolved",
+       "kind": "longtext",
+       "rewrite": true,
+       "required": true
+      },
+      {
+       "key": "remarks",
+       "label": "Remarks",
+       "kind": "longtext",
+       "rewrite": true
+      }
+     ],
+     "says": {
+      "text": "Issue from the last visit still not resolved: {issue}[. {remarks}]",
+      "always": "neg"
+     },
+     "narrative": "bullets"
+    },
+    {
+     "type": "remarks",
+     "key": "followup_remarks",
+     "heading": "Remarks"
+    }
+   ]
+  },
+  {
+   "letter": "L",
+   "key": "rating",
+   "short": "Findings",
+   "title": "Major findings and recommendations",
+   "blocks": [
+    {
+     "type": "fields",
+     "fields": [
+      {
+       "key": "overall_rating",
+       "label": "Overall rating",
+       "kind": "choice",
+       "options": [
+        {
+         "id": "satisfactory",
+         "label": "Satisfactory",
+         "tone": "yes"
+        },
+        {
+         "id": "needs_improvement",
+         "label": "Needs improvement",
+         "tone": "partial"
+        },
+        {
+         "id": "unsatisfactory",
+         "label": "Unsatisfactory",
+         "tone": "no"
+        }
+       ],
+       "required": true
+      }
+     ]
+    },
+    {
+     "type": "findings",
+     "key": "findings",
+     "heading": "Major findings",
+     "note": "Tick the findings that matter most. AI pre-selects the major ones; edit or improve the wording of any of them."
+    },
+    {
+     "type": "fields",
+     "fields": [
+      {
+       "key": "recommendations",
+       "label": "Recommendations",
+       "kind": "longtext",
+       "rewrite": true,
+       "required": true,
+       "draftFrom": "findings",
+       "placeholder": "One recommendation per line, e.g. The institute should ..."
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

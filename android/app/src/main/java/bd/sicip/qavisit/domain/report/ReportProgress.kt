@@ -85,7 +85,14 @@ fun cardCompareMismatch(compare: CardsCompare, card: JsonObject): Boolean {
     val presentInts = compare.fields.mapNotNull { key ->
         card[key]?.jsonPrimitive?.contentOrNull?.takeIf { !isBlank(it) }?.toIntOrNull()
     }
-    return presentInts.size >= 2 && presentInts.distinct().size > 1
+    val gapPct = compare.gapPct
+    if (gapPct == null) return presentInts.size >= 2 && presentInts.distinct().size > 1
+    // gap mode (surprise v2): fields[0] (today's headcount) more than gapPct% below any other
+    val first = card[compare.fields.first()]?.jsonPrimitive?.contentOrNull?.trim()?.toDoubleOrNull() ?: return false
+    return compare.fields.drop(1).any { key ->
+        val other = card[key]?.jsonPrimitive?.contentOrNull?.trim()?.toDoubleOrNull() ?: return@any false
+        other > 0 && first < other * (1 - gapPct / 100.0)
+    }
 }
 
 // QA report spec §5: optionsTotal/optionsMarked count every option of every non-heading item
@@ -207,6 +214,15 @@ private fun sectionProgress(
             // unreachable: a section carrying a Criteria block returns from
             // criteriaSectionProgress() above before this loop ever runs.
             is ReportBlock.Criteria -> Unit
+
+            // built from other blocks' answers -- nothing of its own to answer
+            is ReportBlock.Remarks -> Unit
+
+            // one item: at least one major finding picked
+            is ReportBlock.Findings -> {
+                total++
+                if (data.findings().any { it.text.isNotBlank() }) answered++
+            }
         }
     }
 
@@ -255,6 +271,8 @@ fun sectionHasContent(section: ReportSection, data: ReportData): Boolean = secti
             card.any { (key, value) -> !key.startsWith("_") && !isBlank(value.toString().trim('"')) }
         }
         is ReportBlock.Flags -> block.items.any { it.id in data.flags() }
+        is ReportBlock.Remarks -> data.remarksText(block.key).isNotBlank()
+        is ReportBlock.Findings -> data.findings().isNotEmpty()
         is ReportBlock.Criteria -> block.items.any { item ->
             !item.heading && item.options.any { option -> !isBlank(data.criteriaOptValue(item.id, option.id)) }
         }

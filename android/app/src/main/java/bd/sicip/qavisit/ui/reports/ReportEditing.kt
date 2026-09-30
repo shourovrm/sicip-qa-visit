@@ -99,7 +99,8 @@ class ReportEditor(initialReport: Report, private val db: AppDb, private val tem
 
     private suspend fun persist() = writeLock.withLock {
         val updated = report.copy(data = data.toJsonString(), updatedAt = Instant.now().toString(), dirty = true)
-        db.reportDao().upsert(updated)
+        // column update, not a row upsert: keeps base_data that sync may have moved meanwhile
+        db.reportDao().updateData(updated.id, updated.data, updated.updatedAt)
         report = updated
     }
 
@@ -117,7 +118,7 @@ class ReportEditor(initialReport: Report, private val db: AppDb, private val tem
         writeLock.withLock {
             val now = Instant.now().toString()
             val updated = report.copy(status = "submitted", submittedAt = now, updatedAt = now, dirty = true)
-            db.reportDao().upsert(updated)
+            db.reportDao().updateStatus(updated.id, updated.status, updated.submittedAt, updated.updatedAt)
             report = updated
         }
     }
@@ -126,7 +127,7 @@ class ReportEditor(initialReport: Report, private val db: AppDb, private val tem
 // templateFor resolves a report's own `type` ("surprise"/"qa") to its template -- there is no
 // single shared template anymore (ui/reports/ReportStart.kt's templateForType), so each editor
 // is built against whichever one its own report row actually needs.
-class ReportEditorRegistry(private val db: AppDb, private val templateFor: (String) -> ReportTemplate) {
+class ReportEditorRegistry(private val db: AppDb, private val templateFor: (Report) -> ReportTemplate) {
     private val editors = mutableMapOf<String, ReportEditor>()
 
     // reuse the open editor (one in-memory copy per report), but take the room row instead
@@ -134,10 +135,10 @@ class ReportEditorRegistry(private val db: AppDb, private val templateFor: (Stri
     fun forReport(report: Report): ReportEditor {
         val existing = editors[report.id]
         if (existing != null && (!existing.isIdle || existing.report.updatedAt == report.updatedAt)) return existing
-        return ReportEditor(report, db, templateFor(report.type)).also { editors[report.id] = it }
+        return ReportEditor(report, db, templateFor(report)).also { editors[report.id] = it }
     }
 }
 
 @Composable
-fun rememberReportEditorRegistry(db: AppDb, templateFor: (String) -> ReportTemplate): ReportEditorRegistry =
+fun rememberReportEditorRegistry(db: AppDb, templateFor: (Report) -> ReportTemplate): ReportEditorRegistry =
     remember(db) { ReportEditorRegistry(db, templateFor) }

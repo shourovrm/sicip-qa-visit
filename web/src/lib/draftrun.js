@@ -7,6 +7,7 @@ import {
   componentNotes, fallbackDraft, strengthsPromptText, parseStrengthsAnswer,
   allWeaknesses, cleanLines, numberedText, parseNumbered, planCards,
 } from './drafts.js'
+import { fallbackMajorFindings, fallbackRecommendations, parseMajorAnswer } from './sectionremarks.js'
 
 // any throw (offline, quota, auth, 5xx) or a changed number -> null, caller falls back
 async function askModel(input, mode) {
@@ -41,6 +42,22 @@ export async function draftPlan(template, data, existingCards) {
   const actions = parseNumbered(await askModel(numberedText(weaknesses), 'plan'), weaknesses.length)
   const cards = planCards(weaknesses, actions, existingCards, () => crypto.randomUUID())
   return { cards, usedFallback: actions === null }
+}
+
+// surprise v2: AI picks the major findings out of every remarks line (issues first) ->
+// {findings:[{src,text}], usedFallback}; fallback = every issue line
+export async function draftMajorFindings(candidates) {
+  const input = numberedText(candidates.map((l) => (l.neg ? `(issue) ${l.text}` : l.text)))
+  const picked = parseMajorAnswer(await askModel(input, 'major'), candidates.length)
+  if (picked) return { findings: picked.map((i) => ({ src: candidates[i].text, text: candidates[i].text })), usedFallback: false }
+  return { findings: fallbackMajorFindings(candidates), usedFallback: true }
+}
+
+// surprise v2: "The institute/PIU/SICIP should ..." per major finding
+export async function draftRecommendations(findings) {
+  const lines = cleanLines(await askModel(numberedText(findings), 'recommend'))
+  if (lines.length > 0) return { lines, usedFallback: false }
+  return { lines: fallbackRecommendations(findings), usedFallback: true }
 }
 
 export const FALLBACK_NOTICE = 'AI unavailable — drafted from your marks'

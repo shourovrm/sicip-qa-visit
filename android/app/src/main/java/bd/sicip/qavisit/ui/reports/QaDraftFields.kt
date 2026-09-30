@@ -55,7 +55,7 @@ private fun weaknessesSectionBadge(template: ReportTemplate): String =
     template.sections.firstOrNull { section -> section.blocks.any { it is ReportBlock.Fields && it.pairs.isNotEmpty() } }?.badge ?: ""
 
 @Composable
-private fun DraftButtonRow(label: String, enabled: Boolean, loading: Boolean, hint: String?, onClick: () -> Unit) {
+internal fun DraftButtonRow(label: String, enabled: Boolean, loading: Boolean, hint: String?, onClick: () -> Unit) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(enabled = enabled && !loading, onClick = onClick, modifier = Modifier.height(48.dp)) { Text(label) }
@@ -67,7 +67,7 @@ private fun DraftButtonRow(label: String, enabled: Boolean, loading: Boolean, hi
 
 // replace-this-text confirm: shows the draft, "Use draft" writes it
 @Composable
-private fun ReplaceTextDialog(title: String, draft: String, fromMarks: Boolean, onUse: () -> Unit, onDismiss: () -> Unit) {
+internal fun ReplaceTextDialog(title: String, draft: String, fromMarks: Boolean, onUse: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },

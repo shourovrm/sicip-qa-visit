@@ -27,7 +27,7 @@ const val REWRITE_MAX_CHARS = 1500
 
 // QA conclusions draft modes (spec 2026-09-26 §3): whole component / weakness list, bigger cap
 val DRAFT_MODES = setOf("strengths", "plan", "findings")
-const val DRAFT_MAX_CHARS = 6000
+const val DRAFT_MAX_CHARS = 12000
 
 internal fun maxCharsFor(mode: String?): Int = if (mode in DRAFT_MODES) DRAFT_MAX_CHARS else REWRITE_MAX_CHARS
 

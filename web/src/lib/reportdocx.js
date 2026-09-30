@@ -18,14 +18,15 @@ import {
   ShadingType, Tab, Table, TableCell, TableLayoutType, TableRow, TabStopType, TextRun, WidthType,
 } from 'docx'
 import {
-  CHECKLIST_COLUMNS, CONTENT_WIDTH_TWIPS, FLAGS_COLUMNS, INTERVIEW_TICK_COLUMNS,
+  CHECKLIST_COLUMNS, CONTENT_WIDTH_TWIPS, FLAGS_COLUMNS, INTERVIEW_NOTE_COLUMNS, INTERVIEW_TICK_COLUMNS,
   MARGIN_BOTTOM_TWIPS, MARGIN_LEFT_TWIPS, MARGIN_RIGHT_TWIPS, MARGIN_TOP_TWIPS, PAGE_HEIGHT_TWIPS,
   PAGE_WIDTH_TWIPS, TICK_CHECKED, TICK_UNCHECKED, TONE_COLOR, isStandardAnswerChoice,
   weightedWidths,
   displayTime,
 } from './reportlayout.js'
 import * as reportTemplateModule from './reporttemplate.js'
-import { sectionHasContent } from './reporttemplate.js'
+import { compareMismatch, sectionHasContent } from './reporttemplate.js'
+import { printedRemarkLines } from './sectionremarks.js'
 
 // -- fonts/colours/sizes, read from the reference docx (sizes are half-points, i.e. the same
 // numbers as the file's w:sz val -- docx's TextRun `size` option takes the same unit) --
@@ -48,7 +49,6 @@ const SUBHEAD_SIZE = 17 // 8.5pt (block heading, e.g. "Persons met")
 const TABLE_HEADER_SIZE = 15 // 7.5pt
 const BODY_SIZE = 17 // 8.5pt
 const SMALL_SIZE = 13 // 6.5pt (per-course line, tags, footer)
-const LEGEND_SIZE = 14 // 7pt
 
 function blank(v) {
   return v == null || String(v).trim() === ''
@@ -59,7 +59,7 @@ function blank(v) {
 // import so this file loads fine whichever has landed; falls back to syncLinks (CHANGE SET 2),
 // then to the data as given if neither exists yet. Clone first: buildReportDocx is documented
 // as a pure fn and must not mutate the caller's data even if these mutate their argument.
-function withNormalizedData(template, data) {
+export function withNormalizedData(template, data) {
   const normalize = reportTemplateModule.normalize
   const syncLinks = reportTemplateModule.syncLinks
   const step = typeof normalize === 'function' ? normalize : (typeof syncLinks === 'function' ? syncLinks : null)
@@ -92,7 +92,7 @@ const TABLE_BORDERS = {
 // content instead of respecting the per-cell widths below, which is what caused the CHANGE SET 2
 // bug report (Item column ~10% wide, tick columns huge): the per-cell widths were being computed
 // correctly but silently ignored at render time.
-function fixedTable(widths, rows) {
+export function fixedTable(widths, rows) {
   return new Table({
     width: { size: CONTENT_WIDTH_TWIPS, type: WidthType.DXA },
     columnWidths: widths,
@@ -102,7 +102,7 @@ function fixedTable(widths, rows) {
   })
 }
 
-function run(text, opts = {}) {
+export function run(text, opts = {}) {
   return new TextRun({ text, font: FONT, size: BODY_SIZE, ...opts })
 }
 
@@ -120,18 +120,21 @@ function multilineParagraph(value, opts = {}, paraOpts = {}) {
 // choice fields -> bold text in the option's tone colour (blank -> empty paragraph, never "Not
 // answered"); every other kind -> plain (possibly multi-line) text. Used inside card table
 // cells, where a tick-box row per option (see inlineChoiceParagraph) wouldn't fit.
-function fieldValueParagraph(field, rawValue) {
-  if (field.kind === 'choice') {
-    if (blank(rawValue)) return new Paragraph({ children: [run('')] })
-    const opt = (field.options || []).find((o) => o.id === rawValue)
-    const color = opt ? TONE_COLOR[opt.tone] : undefined
-    const label = opt ? opt.label : String(rawValue)
-    return new Paragraph({ children: [run(label, { bold: true, color })] })
-  }
+export function fieldValueParagraph(field, rawValue) {
+  if (field.kind === 'choice') return new Paragraph({ children: fieldValueRuns(field, rawValue) })
   return multilineParagraph(rawValue)
 }
 
-function headerCellDxa(text, widthTwips) {
+// one line of a value as runs (choice = its label, bold in its tone colour) -- for callers
+// that put the value inside a sentence of their own (narrativedocx.js)
+export function fieldValueRuns(field, rawValue) {
+  if (blank(rawValue)) return [run('')]
+  if (field.kind !== 'choice') return [run(String(rawValue))]
+  const opt = (field.options || []).find((o) => o.id === rawValue)
+  return [run(opt ? opt.label : String(rawValue), { bold: true, color: opt ? TONE_COLOR[opt.tone] : undefined })]
+}
+
+export function headerCellDxa(text, widthTwips) {
   return new TableCell({
     width: { size: widthTwips, type: WidthType.DXA },
     borders: CELL_BORDERS,
@@ -140,7 +143,7 @@ function headerCellDxa(text, widthTwips) {
   })
 }
 
-function bodyCellDxa(widthTwips, paragraphs) {
+export function bodyCellDxa(widthTwips, paragraphs) {
   return new TableCell({ width: { size: widthTwips, type: WidthType.DXA }, borders: CELL_BORDERS, children: paragraphs })
 }
 
@@ -151,7 +154,7 @@ function tickParagraph(checked, tone) {
 
 // block/subsection heading, e.g. "Persons met", "Attendance register" -- bold body-weight text,
 // smaller and lighter than the black-badge section heading.
-function subheadParagraph(text) {
+export function subheadParagraph(text) {
   return new Paragraph({ spacing: { before: 100, after: 40 }, children: [run(text, { bold: true, size: SUBHEAD_SIZE })] })
 }
 
@@ -207,7 +210,22 @@ function longtextBoxParagraphs(field, rawValue) {
 
 // shared by top-level fields blocks and the interview per-course "other fields" -- one field ->
 // one or more Paragraphs, dispatched by kind.
+// surprise v2 "Major findings" / "Recommendations" and section remarks: heading + one
+// paragraph per point, "1." numbered or "•" bulleted (issues' bullet in the "no" colour)
+export function listParagraphs(heading, lines, numbered) {
+  const out = [subheadParagraph(heading)]
+  const items = lines.filter((l) => !blank(l.text))
+  if (items.length === 0) return [...out, new Paragraph({ children: [run('None.', { italics: true, color: GRAY })] })]
+  items.forEach((line, i) => out.push(new Paragraph({
+    indent: { left: 280, hanging: 280 },
+    children: [run(numbered ? `${i + 1}.\t` : '•\t', { color: line.neg ? TONE_COLOR.no : undefined }), run(line.text)],
+    tabStops: [{ type: TabStopType.LEFT, position: 280 }],
+  })))
+  return out
+}
+
 function fieldParagraphs(field, rawValue) {
+  if (field.draftFrom === 'findings') return listParagraphs(field.label, String(rawValue ?? '').split('\n').map((text) => ({ text })), true)
   if (field.kind === 'choice' || field.kind === 'select') return [inlineChoiceParagraph(field, rawValue)]
   if (field.kind === 'longtext') return longtextBoxParagraphs(field, rawValue)
   return [plainFieldParagraph(field, rawValue)]
@@ -284,10 +302,9 @@ function checklistBlockDocx(block, data, template, answerMap) {
 
 // same mismatch rule as reporthtml.js / the progress spec: >=2 compare fields present, parse
 // to ints, not all equal.
+// print:false = app-only warning (surprise v2 headcount gap)
 function cardMismatch(compare, entry) {
-  if (!compare) return false
-  const values = compare.fields.map((k) => entry[k]).filter((v) => !blank(v)).map(Number).filter((n) => !Number.isNaN(n))
-  return values.length >= 2 && !values.every((v) => v === values[0])
+  return Boolean(compare) && compare.print !== false && compareMismatch(compare, entry)
 }
 
 function cardsBlockDocx(block, data) {
@@ -320,8 +337,8 @@ function cardsBlockDocx(block, data) {
 // every other field (trainees_interviewed, tech_topic, tech_result, feedback) renders through
 // the normal field renderer. Linked fields (course/batch) show in the caption, not twice. ----
 
-function interviewTickWidths() {
-  return weightedWidths(CONTENT_WIDTH_TWIPS, INTERVIEW_TICK_COLUMNS.map((c) => c.weight))
+function interviewTickWidths(columns) {
+  return weightedWidths(CONTENT_WIDTH_TWIPS, columns.map((c) => c.weight))
 }
 
 function tabsCardsBlockDocx(block, data, template, answerMap) {
@@ -330,9 +347,11 @@ function tabsCardsBlockDocx(block, data, template, answerMap) {
   const linkedKeys = new Set((block.linkFrom && block.linkFrom.fields) || [])
   const tickFields = block.fields.filter((f) => !linkedKeys.has(f.key) && isStandardAnswerChoice(f, template))
   const tickFieldKeys = new Set(tickFields.map((f) => f.key))
-  const otherFields = block.fields.filter((f) => !linkedKeys.has(f.key) && !tickFieldKeys.has(f.key))
+  const noteFields = block.fields.filter((f) => f.noteFor)
+  const otherFields = block.fields.filter((f) => !linkedKeys.has(f.key) && !tickFieldKeys.has(f.key) && !f.noteFor)
   const answerIds = template.answers.map((a) => a.id)
-  const widths = interviewTickWidths()
+  const columns = noteFields.length ? INTERVIEW_NOTE_COLUMNS : INTERVIEW_TICK_COLUMNS
+  const widths = interviewTickWidths(columns)
   const out = []
   for (const entry of entries) {
     const linkedFields = (block.linkFrom && block.linkFrom.fields) || []
@@ -340,13 +359,18 @@ function tabsCardsBlockDocx(block, data, template, answerMap) {
     const caption = `${entry[block.titleField] || ''}${extra ? ` · Batch ${extra}` : ''}`
     out.push(subheadParagraph(caption))
     if (tickFields.length > 0) {
-      const headerRow = new TableRow({ children: INTERVIEW_TICK_COLUMNS.map((c, i) => headerCellDxa(c.label, widths[i])) })
-      const rows = tickFields.map((f) => new TableRow({
-        children: [
-          bodyCellDxa(widths[0], [new Paragraph({ children: [run(f.label)] })]),
-          ...answerIds.map((id, ci) => bodyCellDxa(widths[1 + ci], [tickParagraph(entry[f.key] === id, answerMap[id]?.tone)])),
-        ],
-      }))
+      const headerRow = new TableRow({ children: columns.map((c, i) => headerCellDxa(c.label, widths[i])) })
+      const rows = tickFields.map((f) => {
+        const note = noteFields.find((n) => n.noteFor === f.key)
+        const noteCell = noteFields.length ? [bodyCellDxa(widths[1 + answerIds.length], [multilineParagraph(note ? entry[note.key] : '')])] : []
+        return new TableRow({
+          children: [
+            bodyCellDxa(widths[0], [new Paragraph({ children: [run(f.label)] })]),
+            ...answerIds.map((id, ci) => bodyCellDxa(widths[1 + ci], [tickParagraph(entry[f.key] === id, answerMap[id]?.tone)])),
+            ...noteCell,
+          ],
+        })
+      })
       out.push(fixedTable(widths, [headerRow, ...rows]))
     }
     out.push(...otherFields.flatMap((f) => fieldParagraphs(f, entry[f.key])))
@@ -391,10 +415,15 @@ function combinedFlagsDocx(section, data) {
   return [fixedTable(widths, rows)]
 }
 
-function blockDocx(block, data, template, answerMap) {
+function blockDocx(block, section, data, template, answerMap) {
   if (block.type === 'fields') return fieldsBlockDocx(block, data)
   if (block.type === 'checklist') return checklistBlockDocx(block, data, template, answerMap)
   if (block.type === 'cards') return block.display === 'tabs' ? tabsCardsBlockDocx(block, data, template, answerMap) : cardsBlockDocx(block, data)
+  if (block.type === 'remarks') {
+    const lines = printedRemarkLines(template, section, block, data)
+    return lines.length ? listParagraphs(block.heading ?? 'Remarks', lines, false) : []
+  }
+  if (block.type === 'findings') return listParagraphs(block.heading ?? 'Major findings', (data.findings ?? []).map((f) => ({ text: f.text })), true)
   return [] // unknown block type (flags/countsAsFlags cards handled in sectionDocx) -- ignore
 }
 
@@ -421,7 +450,7 @@ function sectionDocx(section, data, template, answerMap) {
       out.push(...combinedFlagsDocx(section, data))
       continue
     }
-    out.push(...blockDocx(block, data, template, answerMap))
+    out.push(...blockDocx(block, section, data, template, answerMap))
   }
   return out
 }
@@ -433,7 +462,7 @@ function statusLabel(status) {
 // program line + title/subtitle line (bottom border, subtitle right-tabbed to the content edge,
 // same as the reference docx) + a meta line (officer/status/submitted -- not in the paper form,
 // but useful on an exported copy).
-function headerParagraphs(template, meta) {
+export function headerParagraphs(template, meta) {
   const titleLine = new Paragraph({
     border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: BADGE_BG, space: 4 } },
     tabStops: [{ type: TabStopType.RIGHT, position: CONTENT_WIDTH_TWIPS }],
@@ -451,12 +480,6 @@ function headerParagraphs(template, meta) {
     titleLine,
     new Paragraph({ spacing: { after: 160 }, children: [run(metaText, { size: META_SIZE, color: NOTE_COLOR })] }),
   ]
-}
-
-function legendParagraph() {
-  const text = 'T = total, F = female, TMS = Training Management System, TDP = training delivery plan, CS = competency standard, ' +
-    'CBLM = competency-based learning material, PPE = personal protective equipment, OHS = occupational health and safety.'
-  return new Paragraph({ spacing: { before: 160 }, children: [run(text, { italics: true, size: LEGEND_SIZE, color: NOTE_COLOR })] })
 }
 
 // footer: "SICIP Surprise Visit Report" bottom-left, "Page x of y" bottom-right -- mirrors
@@ -489,8 +512,11 @@ export function buildReportDocx(template, data, meta) {
     if (section.optional && !sectionHasContent(section, normalizedData)) continue
     children.push(...sectionDocx(section, normalizedData, template, answerMap))
   }
-  children.push(legendParagraph())
+  return packDocx(children)
+}
 
+// A4 page, margins and footer shared by the form and narrative (narrativedocx.js) Word files
+export function packDocx(children) {
   const doc = new Document({
     styles: { default: { document: { run: { font: FONT, size: BODY_SIZE } } } },
     sections: [{
@@ -531,7 +557,7 @@ function todayIso() {
 
 // download filename: Surprise-visit-<institute>-<yyyy-mm-dd>.docx (sanitized institute name);
 // falls back to the visit date field, then submittedAt, then today if no date is on record.
-function reportFilename(template, data, meta) {
+export function reportFilename(template, data, meta) {
   const institute = sanitizeFilenamePart(prefillValue(template, data, 'institute'))
   const visitDate = prefillValue(template, data, 'visit_date')
   const date = !blank(visitDate) ? visitDate : (!blank(meta.submittedAt) ? String(meta.submittedAt).slice(0, 10) : todayIso())
@@ -541,8 +567,10 @@ function reportFilename(template, data, meta) {
 // build the docx and trigger a browser download -- object-URL + throwaway <a>, no extra
 // dependency (docx's own docs suggest file-saver, but that's one more package for one line).
 export async function downloadReportDocx(template, data, meta) {
-  const blob = await buildReportDocx(template, data, meta)
-  const filename = reportFilename(template, data, meta)
+  return saveDocx(await buildReportDocx(template, data, meta), reportFilename(template, data, meta))
+}
+
+export function saveDocx(blob, filename) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url

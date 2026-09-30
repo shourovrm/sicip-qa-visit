@@ -31,13 +31,16 @@ import kotlinx.serialization.json.jsonPrimitive
 // neutral colour for "" or any other unrecognised id, so this never renders as a crash or as a
 // stray flagged-red.
 @Serializable
-data class AnswerOption(val id: String, val label: String, val tone: String = "")
+// say: fragment used when this option fills a `{key}` in a cards block's `says` sentence
+// (surprise v2, SectionRemarks.kt), e.g. "was absent"; blank -> label
+data class AnswerOption(val id: String, val label: String, val tone: String = "", val say: String = "")
 
 // perCourse: with 2+ non-blank courses in section A, this item renders/answers ONE ROW PER
 // COURSE instead of a single answer row (spec CHANGE SET 3) -- see ReportLinks.kt's
 // syncPerCourse for how the per-course answers derive the item's overall `answer`.
 @Serializable
-data class ChecklistItem(val id: String, val text: String, val perCourse: Boolean = false)
+// says: answer id -> fixed remark sentence (surprise v2 remarks blocks, SectionRemarks.kt)
+data class ChecklistItem(val id: String, val text: String, val perCourse: Boolean = false, val says: Map<String, String> = emptyMap())
 
 @Serializable
 data class FlagItem(val id: String, val text: String)
@@ -76,7 +79,24 @@ data class CriteriaItem(
 )
 
 @Serializable
-data class CardsCompare(val fields: List<String>, val message: String)
+// gapPct: warn only when fields[0] is more than gapPct% below any other field (surprise v2:
+// headcount vs 7-day averages) instead of on any difference; print=false keeps it app-only.
+data class CardsCompare(val fields: List<String>, val message: String, val gapPct: Int? = null, val print: Boolean = true)
+
+// one card -> one remark sentence (surprise v2): `{key}` = card value (choice -> option say),
+// `[...]` = dropped when any key inside is blank; always="neg" or a matching negWhen rule marks
+// the line as an issue (SectionRemarks.kt).
+@Serializable
+data class NegRule(
+    val op: String, // "lt" (field < than) | "gap" (field more than pct% below any of others)
+    val field: String,
+    val than: String? = null,
+    val others: List<String> = emptyList(),
+    val pct: Int = 0,
+)
+
+@Serializable
+data class CardSays(val text: String, val always: String? = null, val negWhen: List<NegRule> = emptyList())
 
 // a `cards` block with `linkFrom` derives its rows from another cards block instead of the
 // officer adding/removing them directly (e.g. section C's attendance cards follow section A's
@@ -110,6 +130,12 @@ data class Field(
     val component: String? = null,
     // "weaknesses" (s14 findings) | "plan" (s15 recommendations): which draft button it gets
     val draftFrom: String? = null,
+    // surprise v2: choice option id -> fixed remark sentence (SectionRemarks.kt)
+    val says: Map<String, String> = emptyMap(),
+    // surprise v2 interviews: this longtext is the remarks box of choice field `noteFor`
+    val noteFor: String? = null,
+    // courseRef: "course" = offer course names only (not "course · batch"), still free text
+    val optionsPart: String? = null,
 ) {
     fun selectOptions(): List<String> =
         (options as? JsonArray)?.map { it.jsonPrimitive.content } ?: emptyList()
@@ -158,6 +184,13 @@ sealed class ReportBlock {
         val anonymous: Boolean = false,
         // "weaknesses" (QA s16 plan): cards rebuilt from s13 weaknesses (Drafts.kt planCards)
         val draftFrom: String? = null,
+        // surprise v2 remark sentence per card, prefix for its fields' own `says` sentences
+        val says: CardSays? = null,
+        val sayPrefix: String? = null,
+        // narrative PDF: "table" (default) | "bullets" (remarks lines only)
+        val narrative: String? = null,
+        // "officers": first seeded card gets the officer's name (NewReport.kt)
+        val prefill: String? = null,
         val fields: List<Field>,
     ) : ReportBlock()
 
@@ -167,6 +200,15 @@ sealed class ReportBlock {
     // QA report Annex-3 criteria table (spec §2/§3): one table per section (or per sub-heading,
     // e.g. section 8's own "8.1" block) -- `intro` is the italic description line under the
     // Annex-3 heading, printed once above the table (pdf/QaReportHtml.kt) and as a note in the UI.
+    // surprise v2: the section's templated remarks -- lines built from the blocks above it
+    // (back to the previous remarks block), editable (SectionRemarks.kt)
+    @Serializable
+    data class Remarks(val key: String, val heading: String? = null) : ReportBlock()
+
+    // surprise v2: major findings picked from every remarks line of the report
+    @Serializable
+    data class Findings(val key: String, val heading: String? = null, val note: String? = null) : ReportBlock()
+
     @Serializable
     data class Criteria(val key: String, val intro: String? = null, val items: List<CriteriaItem>) : ReportBlock()
 }
@@ -182,6 +224,8 @@ private object ReportBlockSerializer : JsonContentPolymorphicSerializer<ReportBl
             "cards" -> ReportBlock.Cards.serializer()
             "flags" -> ReportBlock.Flags.serializer()
             "criteria" -> ReportBlock.Criteria.serializer()
+            "remarks" -> ReportBlock.Remarks.serializer()
+            "findings" -> ReportBlock.Findings.serializer()
             else -> error("unknown report block type: $type")
         }
 }
@@ -255,5 +299,11 @@ fun parseReportTemplate(text: String): ReportTemplate =
 
 // runtime entry point: reads the asset build.gradle.kts points at shared/report-templates/,
 // so no copy of the template lives inside the app module.
-fun loadReportTemplate(context: Context, assetName: String = "surprise-v1.json"): ReportTemplate =
-    parseReportTemplate(context.assets.open(assetName).bufferedReader().use { it.readText() })
+// memoized per asset: templates never change at runtime and screens ask for them per row
+private val templateMemo = mutableMapOf<String, ReportTemplate>()
+
+fun loadReportTemplate(context: Context, assetName: String): ReportTemplate = synchronized(templateMemo) {
+    templateMemo.getOrPut(assetName) {
+        parseReportTemplate(context.assets.open(assetName).bufferedReader().use { it.readText() })
+    }
+}

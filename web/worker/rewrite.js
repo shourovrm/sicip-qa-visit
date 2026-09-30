@@ -4,8 +4,8 @@ import { buildMessages, cleanOutput, isKnownMode, DRAFT_MODES } from './prompt.j
 import { modelFor } from './models.js'
 
 const MAX_LEN = 1500
-// a whole component's notes or the full weakness list (~3k chars typical, see DECISIONS)
-const DRAFT_MAX_LEN = 6000
+// a whole component's notes, the full weakness list or a surprise report's remark lines
+const DRAFT_MAX_LEN = 12000
 const MAX_LABEL_LEN = 80
 
 function json(body, status) {

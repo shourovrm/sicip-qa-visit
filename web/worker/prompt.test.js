@@ -29,7 +29,8 @@ describe('buildMessages', () => {
     expect(buildMessages('x', '', 'strengths')[0].content).toMatch(/STRENGTHS:\n- point\nWEAKNESSES:/)
     expect(buildMessages('x', '', 'plan')[0].content).toMatch(/same numbering/)
     expect(buildMessages('x', '', 'findings')[0].content).toMatch(/at most 6/)
-    for (const mode of ['strengths', 'plan', 'findings']) expect(buildMessages('x', '', mode)[0].content).not.toBe(base)
+    for (const mode of ['strengths', 'plan', 'findings', 'major', 'recommend']) expect(buildMessages('x', '', mode)[0].content).not.toBe(base)
+    expect(buildMessages('x', '', 'recommend')[0].content).toMatch(/The institute should/)
   })
 
   it('an unknown mode (including undefined) uses the default prompt', () => {

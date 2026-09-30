@@ -61,6 +61,7 @@ import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportSection
 import bd.sicip.qavisit.domain.report.SectionProgress
 import bd.sicip.qavisit.domain.report.computeProgress
+import bd.sicip.qavisit.domain.report.convertSurpriseV1ToV2
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -85,6 +86,8 @@ fun ReportHub(
     var visit by remember { mutableStateOf<Visit?>(null) }
     var officerName by remember { mutableStateOf("") }
     var menuOpen by remember { mutableStateOf(false) }
+    var pdfMenuOpen by remember { mutableStateOf(false) }
+    var showConvertConfirm by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var pdfBusy by remember { mutableStateOf(false) }
 
@@ -95,7 +98,7 @@ fun ReportHub(
     }
 
     val current = report ?: return
-    val template = remember(current.type) { templateForType(context, current.type) }
+    val template = remember(current.type, current.templateVersion) { templateForReport(context, current) }
     val editor = registry.forReport(current)
     // read from the editor, not from `current` -- the editor may already be ahead of the last
     // Room row this Flow delivered (a debounced write from a section screen still in flight).
@@ -139,17 +142,27 @@ fun ReportHub(
         bottomBar = {
             // opaque bar: the list scrolls underneath it
             Row(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
-                    onClick = {
-                        if (pdfBusy) return@OutlinedButton
-                        pdfBusy = true
-                        scope.launch {
-                            shareReportPdf(context, template, editor.report, officerName)
-                            pdfBusy = false
-                        }
-                    },
-                    modifier = Modifier.weight(1f).height(48.dp),
-                ) { Text(if (pdfBusy) "Preparing…" else "Preview PDF") }
+                fun openPdf(narrative: Boolean) {
+                    pdfMenuOpen = false
+                    if (pdfBusy) return
+                    pdfBusy = true
+                    scope.launch {
+                        shareReportPdf(context, template, editor.report, officerName, narrative)
+                        pdfBusy = false
+                    }
+                }
+                // v2 surprise reports have two layouts: the form and the narrative
+                val hasNarrative = template.sections.any { section -> section.blocks.any { it is ReportBlock.Remarks } }
+                Box(Modifier.weight(1f)) {
+                    OutlinedButton(
+                        onClick = { if (hasNarrative) pdfMenuOpen = true else openPdf(narrative = false) },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                    ) { Text(if (pdfBusy) "Preparing…" else "Preview PDF") }
+                    DropdownMenu(expanded = pdfMenuOpen, onDismissRequest = { pdfMenuOpen = false }) {
+                        DropdownMenuItem(text = { Text("Form report (tick boxes)") }, onClick = { openPdf(narrative = false) })
+                        DropdownMenuItem(text = { Text("Narrative report (sentences)") }, onClick = { openPdf(narrative = true) })
+                    }
+                }
                 Button(onClick = onReview, colors = actionButtonColors(), modifier = Modifier.weight(1f).height(48.dp)) { Text("Review") }
             }
         },
@@ -170,6 +183,20 @@ fun ReportHub(
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            }
+            if (needsConversion(editor.report)) {
+                item(key = "convert") {
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("This report uses the old format", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                "Convert it to the new format: templated remarks, trainers table, equipment list, major findings and recommendations. Your answers are kept.",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            OutlinedButton(onClick = { showConvertConfirm = true }, modifier = Modifier.height(48.dp)) { Text("Convert to new format") }
+                        }
+                    }
                 }
             }
             // QA report spec §8: sections grouped by `group` under a labelled header ("Centre
@@ -200,6 +227,26 @@ fun ReportHub(
                 }
             }
         }
+    }
+
+    if (showConvertConfirm) {
+        AlertDialog(
+            onDismissRequest = { showConvertConfirm = false },
+            title = { Text("Convert to the new format?") },
+            text = { Text("Answers move to the new sections (e.g. key findings become major findings). Old answers the new format no longer asks for stay saved but are not shown. This can't be undone from the app.") },
+            confirmButton = {
+                Button(onClick = {
+                    showConvertConfirm = false
+                    scope.launch {
+                        editor.flush()
+                        val v2 = surpriseTemplate(context, SURPRISE_LATEST_VERSION)
+                        val converted = convertSurpriseV1ToV2(v2, editor.data)
+                        db.reportDao().updateDataAndVersion(editor.report.id, converted.toJsonString(), v2.version, Instant.now().toString())
+                    }
+                }) { Text("Convert") }
+            },
+            dismissButton = { TextButton(onClick = { showConvertConfirm = false }) { Text("Cancel") } },
+        )
     }
 
     if (showDeleteConfirm) {
