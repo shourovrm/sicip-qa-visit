@@ -41,9 +41,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.domain.report.ReportBlock
+import bd.sicip.qavisit.domain.report.shownFor
 import bd.sicip.qavisit.domain.report.computeProgress
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -130,17 +132,22 @@ fun ReportSectionScreen(
                 modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainer).padding(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                // previous + next side by side, so moving back is as easy as moving on
                 if (prevSection != null) {
-                    OutlinedButton(onClick = { leave { onOpenSection(prevSection.key) } }, modifier = Modifier.height(48.dp)) {
-                        Text(prevSection.badge)
+                    OutlinedButton(onClick = { leave { onOpenSection(prevSection.key) } }, modifier = Modifier.weight(1f).height(48.dp)) {
+                        Text("Previous: ${prevSection.badge}", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
                 Button(
                     onClick = { leave { if (nextSection != null) onOpenSection(nextSection.key) else onReview() } },
                     colors = actionButtonColors(),
-                    modifier = Modifier.weight(1f).height(48.dp),
+                    modifier = Modifier.weight(if (prevSection != null) 1.6f else 1f).height(48.dp),
                 ) {
-                    Text(if (nextSection != null) "Next: ${nextSection.badge}. ${nextSection.short}" else "Review")
+                    Text(
+                        if (nextSection != null) "Next: ${nextSection.badge}. ${nextSection.short}" else "Review",
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         },
@@ -155,7 +162,8 @@ fun ReportSectionScreen(
                     Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            items(section.blocks) { block ->
+            // qa-v2 showIf: a block hidden until its controlling answer is given (1.30 contracts)
+            items(section.blocks.filter { it.shownFor(editor.data) }) { block ->
                 ReportBlockView(
                     block = block,
                     answers = template.answers,

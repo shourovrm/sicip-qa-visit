@@ -61,6 +61,7 @@ import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportSection
 import bd.sicip.qavisit.domain.report.SectionProgress
 import bd.sicip.qavisit.domain.report.computeProgress
+import bd.sicip.qavisit.domain.report.convertQaV1ToV2
 import bd.sicip.qavisit.domain.report.convertSurpriseV1ToV2
 import bd.sicip.qavisit.domain.report.revertSurpriseV2ToV1
 import kotlinx.coroutines.flow.filterNotNull
@@ -198,10 +199,12 @@ fun ReportHub(
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("This report uses the old format", style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                "Convert it to the new format: templated remarks, trainers table, equipment list, major findings and recommendations. Your answers are kept.",
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
+                            val gains = if (editor.report.type == REPORT_TYPE_QA) {
+                                "officer, registration and MoU tables, numbered evidence and the new criteria"
+                            } else {
+                                "templated remarks, trainers table, equipment list, major findings and recommendations"
+                            }
+                            Text("Convert it to the new format: $gains. Your answers are kept.", style = MaterialTheme.typography.bodyMedium)
                             OutlinedButton(onClick = { showConvertConfirm = true }, modifier = Modifier.height(48.dp)) { Text("Convert to new format") }
                         }
                     }
@@ -241,15 +244,26 @@ fun ReportHub(
         AlertDialog(
             onDismissRequest = { showConvertConfirm = false },
             title = { Text("Convert to the new format?") },
-            text = { Text("Answers move to the new sections (e.g. key findings become major findings). Old answers the new format no longer asks for stay saved but are not shown. This can't be undone from the app.") },
+            text = {
+                val example = if (editor.report.type == REPORT_TYPE_QA) {
+                    "the MoU details become the MoU table, evidence gets numbers"
+                } else {
+                    "key findings become major findings"
+                }
+                Text("Answers move to the new sections (e.g. $example). Old answers the new format no longer asks for stay saved but are not shown. This can't be undone from the app.")
+            },
             confirmButton = {
                 Button(onClick = {
                     showConvertConfirm = false
                     scope.launch {
                         editor.flush()
-                        val v2 = surpriseTemplate(context, SURPRISE_LATEST_VERSION)
-                        val converted = convertSurpriseV1ToV2(v2, editor.data)
-                        db.reportDao().updateDataAndVersion(editor.report.id, converted.toJsonString(), v2.version, Instant.now().toString())
+                        val latest = templateForType(context, editor.report.type)
+                        val converted = if (editor.report.type == REPORT_TYPE_QA) {
+                            convertQaV1ToV2(latest, editor.data)
+                        } else {
+                            convertSurpriseV1ToV2(latest, editor.data)
+                        }
+                        db.reportDao().updateDataAndVersion(editor.report.id, converted.toJsonString(), latest.version, Instant.now().toString())
                     }
                 }) { Text("Convert") }
             },

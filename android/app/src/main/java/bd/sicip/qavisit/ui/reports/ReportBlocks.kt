@@ -73,6 +73,8 @@ import bd.sicip.qavisit.ui.common.showDatePicker
 import bd.sicip.qavisit.ui.theme.LocalToneColors
 import bd.sicip.qavisit.ui.theme.forToneId
 import kotlinx.serialization.json.JsonObject
+import bd.sicip.qavisit.domain.report.allWeaknesses
+import bd.sicip.qavisit.domain.report.shown
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -110,8 +112,18 @@ fun AnswerButtons(options: List<AnswerOption>, selected: String, readOnly: Boole
 // longer matches any option isn't this function's job: PickerDropdown already shows whatever
 // text it's given regardless of whether it's in `options`, which is exactly "keeps an existing
 // value even if not in the list" (spec).
-fun courseRefOptions(data: ReportData, field: Field): List<String> {
+fun courseRefOptions(data: ReportData, field: Field, card: JsonObject? = null): List<String> {
     val sourceKey = field.optionsFrom ?: return emptyList()
+    // qa-v2 optionsField: that key's distinct values (contracts' organisation, batches' batch),
+    // narrowed by filterBy to source cards matching this card (feedback Batch -> its Trade's batches)
+    field.optionsField?.let { key ->
+        val filter = field.filterBy
+        val wanted = filter?.let { card?.get(it.value)?.jsonPrimitive?.contentOrNull?.trim() }.orEmpty()
+        val sources = data.cards(sourceKey).filter { source ->
+            filter == null || wanted.isEmpty() || source[filter.field]?.jsonPrimitive?.contentOrNull?.trim() == wanted
+        }
+        return sources.mapNotNull { it[key]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf { value -> value.isNotEmpty() } }.distinct()
+    }
     // optionsPart "course": just the distinct course names (J: batch is its own box)
     if (field.optionsPart == "course") {
         return data.cards(sourceKey).mapNotNull { it["course"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf { name -> name.isNotEmpty() } }.distinct()
@@ -250,12 +262,20 @@ fun FieldEditor(
 fun FieldsBlockView(block: ReportBlock.Fields, data: ReportData, readOnly: Boolean, editor: ReportEditor, template: ReportTemplate, modifier: Modifier = Modifier) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         block.heading?.let { Text(it, style = MaterialTheme.typography.titleSmall) }
-        block.fields.forEach { field ->
+        // qa-v2 showIf: a box shows only while its controlling answer matches
+        block.fields.filter { field -> field.showIf.shown { data.field(it) } }.forEach { field ->
             // QA s14/s15 draft buttons sit above their box (QaDraftFields.kt)
             when (field.draftFrom) {
                 null -> Unit
                 "weaknesses" -> FindingsDraftButton(field, template, data, readOnly, editor)
                 "findings" -> RecommendationsDraftButton(field, data, readOnly, editor)
+                // QA v2: one recommendation per s13 weakness
+                "weaknessRecommendations" -> RecommendationsDraftButton(
+                    field, data, readOnly, editor,
+                    label = "Draft one per weakness",
+                    emptyHint = "Add weaknesses in section 13 first",
+                    sourcesOf = { d -> allWeaknesses(template, d) },
+                )
                 else -> RecommendationsFromPlan(field, data, readOnly, editor)
             }
             FieldEditor(
@@ -664,7 +684,9 @@ private fun CardEntryView(
     val hasContent = entry.values.any { it.toString().trim('"').isNotBlank() }
     // linked fields show read-only in the header (linkedCardHeader) instead of as an editable
     // row further down -- everything else on the card still edits normally.
-    val editableFields = if (link != null) block.fields.filterNot { it.key in link.fields } else block.fields
+    val linkedOut = if (link != null) block.fields.filterNot { it.key in link.fields } else block.fields
+    // qa-v2 showIf: a card field shows only while this card's controlling answer matches
+    val editableFields = linkedOut.filter { field -> field.showIf.shown { entry[it]?.jsonPrimitive?.contentOrNull.orEmpty() } }
     // mismatch = one warning line under the header, not a red card: a tinted card body
     // hurts contrast outdoors (DESIGN.md sunlight rule)
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -705,7 +727,7 @@ private fun CardEntryView(
                 onImmediate = { v -> editor.editNow(data.withCardField(block.key, index, field.key, v)) },
                 onDebounced = { v -> editor.editDebounced(data.withCardField(block.key, index, field.key, v)) },
                 modifier = modifier,
-                courseOptions = if (field.kind == "courseRef") courseRefOptions(data, field) else emptyList(),
+                courseOptions = if (field.kind == "courseRef") courseRefOptions(data, field, entry) else emptyList(),
             )
             // number fields two per row (total | female, register | TMS): halves the scroll per course
             pairNumberFields(editableFields).forEach { group ->
@@ -775,7 +797,10 @@ fun ReportBlockView(
         is ReportBlock.Checklist -> ChecklistBlockView(block, answers, data, readOnly, editor)
         is ReportBlock.Cards -> CardsBlockView(block, data, readOnly, editor, template, onOpenSection)
         is ReportBlock.Flags -> FlagsBlockView(block, data, readOnly, editor)
-        is ReportBlock.Criteria -> CriteriaBlockView(block, data, readOnly, editor)
+        is ReportBlock.Criteria -> {
+            val section = template.sections.first { block in it.blocks }
+            CriteriaBlockView(block, section, template, data, readOnly, editor)
+        }
         is ReportBlock.Remarks -> {
             val section = template.sections.first { block in it.blocks }
             RemarksBlockView(block, section, template, data, readOnly, editor)

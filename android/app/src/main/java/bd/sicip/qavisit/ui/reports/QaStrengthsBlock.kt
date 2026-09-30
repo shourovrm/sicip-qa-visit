@@ -1,6 +1,6 @@
 // QA s13 editor (spec 2026-09-26 §4): one card per component pair -- heading, Strengths box,
-// Weaknesses box (stacked on the phone), "Draft from remarks" with a preview before anything is
-// written. "Draft all empty" on top fills every pair whose boxes are both blank, one call at a
+// Weaknesses box (stacked on the phone), each box with its own "Draft from remarks" and a
+// preview before anything is written. "Draft all empty" on top fills every pair whose boxes are both blank, one call at a
 // time, writing directly (nothing to lose).
 package bd.sicip.qavisit.ui.reports
 
@@ -105,68 +105,84 @@ private fun PairCard(
     ai: QaDraftAi,
     busy: Boolean,
 ) {
-    val scope = rememberCoroutineScope()
-    var loading by remember { mutableStateOf(false) }
-    var preview by remember { mutableStateOf<Drafted<StrengthsDraft>?>(null) }
-    val undo = rememberDraftUndo<Pair<String, String>>()
     val notes = componentNotes(template, data, pair.source)
     val sourceBadge = template.sections.firstOrNull { it.key == pair.source }?.badge ?: pair.source
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(pair.component, style = MaterialTheme.typography.titleSmall)
-            listOf(pair.strength to "Strengths", pair.weakness to "Weaknesses").forEach { (key, label) ->
-                val field = block.fields.firstOrNull { it.key == key } ?: return@forEach
-                FieldEditor(
-                    field = field.copy(label = label),
-                    value = data.field(key),
-                    readOnly = readOnly,
-                    onImmediate = { v -> editor.editNow(editor.data.withField(key, v)) },
-                    onDebounced = { v -> editor.editDebounced(editor.data.withField(key, v)) },
-                )
+            if (!readOnly && !hasNotes(notes)) {
+                Text("Nothing marked in section $sourceBadge yet", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (!readOnly) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        enabled = hasNotes(notes) && !loading && !busy,
-                        onClick = {
-                            loading = true
-                            scope.launch {
-                                preview = ai.component(componentNotes(template, editor.data, pair.source))
-                                loading = false
-                            }
-                        },
-                        modifier = Modifier.height(48.dp),
-                    ) { Text("Draft from remarks") }
-                    if (loading) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                    UseMyWordsButton(undo, data.field(pair.strength) to data.field(pair.weakness)) { (strength, weakness) ->
-                        editor.editNow(editor.data.withField(pair.strength, strength).withField(pair.weakness, weakness))
+            DraftableBox(block, pair, "Strengths", pair.strength, { it.strengths }, template, data, readOnly, editor, ai, busy)
+            DraftableBox(block, pair, "Weaknesses", pair.weakness, { it.weaknesses }, template, data, readOnly, editor, ai, busy)
+        }
+    }
+}
+
+// one box of a pair with its own "Draft from remarks": the model drafts both lists in one
+// answer, this box keeps only its own half (preview first, "Use my words" after)
+@Composable
+private fun DraftableBox(
+    block: ReportBlock.Fields,
+    pair: ComponentPair,
+    label: String,
+    key: String,
+    halfOf: (StrengthsDraft) -> List<String>,
+    template: ReportTemplate,
+    data: ReportData,
+    readOnly: Boolean,
+    editor: ReportEditor,
+    ai: QaDraftAi,
+    busy: Boolean,
+) {
+    val field = block.fields.firstOrNull { it.key == key } ?: return
+    val scope = rememberCoroutineScope()
+    var loading by remember { mutableStateOf(false) }
+    var preview by remember { mutableStateOf<Drafted<List<String>>?>(null) }
+    val undo = rememberDraftUndo<String>()
+
+    FieldEditor(
+        field = field.copy(label = label),
+        value = data.field(key),
+        readOnly = readOnly,
+        onImmediate = { v -> editor.editNow(editor.data.withField(key, v)) },
+        onDebounced = { v -> editor.editDebounced(editor.data.withField(key, v)) },
+    )
+    if (!readOnly) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                enabled = hasNotes(componentNotes(template, data, pair.source)) && !loading && !busy,
+                onClick = {
+                    loading = true
+                    scope.launch {
+                        val result = ai.component(componentNotes(template, editor.data, pair.source))
+                        preview = Drafted(halfOf(result.value), result.fromMarks)
+                        loading = false
                     }
-                }
-                if (!hasNotes(notes)) {
-                    Text("Nothing marked in section $sourceBadge yet", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
+                },
+                modifier = Modifier.height(48.dp),
+            ) { Text("Draft from remarks") }
+            if (loading) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+            UseMyWordsButton(undo, data.field(key)) { editor.editNow(editor.data.withField(key, it)) }
         }
     }
 
     preview?.let { drafted ->
         AlertDialog(
             onDismissRequest = { preview = null },
-            title = { Text(pair.component) },
+            title = { Text("${pair.component}: $label") },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (drafted.fromMarks) DraftFallbackNotice()
-                    DraftList("STRENGTHS", drafted.value.strengths)
-                    DraftList("WEAKNESSES", drafted.value.weaknesses)
+                    DraftList(label.uppercase(), drafted.value)
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val before = editor.data.field(pair.strength) to editor.data.field(pair.weakness)
-                    val after = editor.data.withDraft(pair, drafted.value)
-                    undo.record(before, after.field(pair.strength) to after.field(pair.weakness))
-                    editor.editNow(after)
+                    val text = drafted.value.joinToString("\n")
+                    undo.record(editor.data.field(key), text)
+                    editor.editNow(editor.data.withField(key, text))
                     preview = null
                 }) { Text("Use draft") }
             },

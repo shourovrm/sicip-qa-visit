@@ -22,6 +22,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -38,6 +40,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -66,12 +69,22 @@ import bd.sicip.qavisit.domain.report.CriteriaOption
 import bd.sicip.qavisit.domain.report.ReportBlock
 import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportSection
+import bd.sicip.qavisit.domain.report.ReportTemplate
 import bd.sicip.qavisit.domain.report.buildRemarks
+import bd.sicip.qavisit.domain.report.criteriaPath
 import bd.sicip.qavisit.domain.report.printedRemarks
 import bd.sicip.qavisit.ui.theme.LocalToneColors
 
 @Composable
-fun CriteriaBlockView(block: ReportBlock.Criteria, data: ReportData, readOnly: Boolean, editor: ReportEditor, modifier: Modifier = Modifier) {
+fun CriteriaBlockView(
+    block: ReportBlock.Criteria,
+    section: ReportSection,
+    template: ReportTemplate,
+    data: ReportData,
+    readOnly: Boolean,
+    editor: ReportEditor,
+    modifier: Modifier = Modifier,
+) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         block.intro?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         block.items.forEach { item ->
@@ -82,40 +95,54 @@ fun CriteriaBlockView(block: ReportBlock.Criteria, data: ReportData, readOnly: B
                     modifier = Modifier.padding(top = 6.dp),
                 )
             } else {
-                CriteriaItemCard(item, data, readOnly, editor)
+                // qa-v2 numbered evidence (template.evidenceRegister): its number prefix, e.g. "7.1b"
+                val evidencePath = if (template.evidenceRegister) criteriaPath(section, block, item) else null
+                CriteriaItemCard(item, template, evidencePath, data, readOnly, editor)
             }
         }
     }
 }
 
 @Composable
-private fun CriteriaItemCard(item: CriteriaItem, data: ReportData, readOnly: Boolean, editor: ReportEditor) {
+private fun CriteriaItemCard(
+    item: CriteriaItem,
+    template: ReportTemplate,
+    evidencePath: String?,
+    data: ReportData,
+    readOnly: Boolean,
+    editor: ReportEditor,
+) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("${item.no.orEmpty()} ${item.text}".trim(), style = MaterialTheme.typography.bodyLarge)
             item.evidence?.takeIf { it.isNotBlank() }?.let { evidence ->
                 Text(
-                    buildString { append("Evidence (Annex-3): "); append(evidence) },
+                    buildString { append("Evidence: "); append(evidence) },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            if (item.ticks.isNotEmpty()) TickBoxes(item, data, readOnly, editor)
             item.options.forEach { option ->
                 OptionRow(item.id, option, data, readOnly, editor)
             }
-            OutlinedTextField(
-                value = data.criteriaEvidence(item.id),
-                onValueChange = { v -> editor.editDebounced(data.withCriteriaEvidence(item.id, v)) },
-                label = { Text("Evidence seen (documents, photos)") },
-                readOnly = readOnly,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            ImproveWordingButton(
-                text = data.criteriaEvidence(item.id),
-                label = "Evidence seen: ${item.text}",
-                readOnly = readOnly,
-                onApply = { v -> editor.editNow(editor.data.withCriteriaEvidence(item.id, v)) },
-            )
+            if (evidencePath != null) {
+                EvidencePicker(template, data, item.id, evidencePath, readOnly, editor)
+            } else {
+                OutlinedTextField(
+                    value = data.criteriaEvidence(item.id),
+                    onValueChange = { v -> editor.editDebounced(data.withCriteriaEvidence(item.id, v)) },
+                    label = { Text("Evidence seen (documents, photos)") },
+                    readOnly = readOnly,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                ImproveWordingButton(
+                    text = data.criteriaEvidence(item.id),
+                    label = "Evidence seen: ${item.text}",
+                    readOnly = readOnly,
+                    onApply = { v -> editor.editNow(editor.data.withCriteriaEvidence(item.id, v)) },
+                )
+            }
             OutlinedTextField(
                 value = data.criteriaNote(item.id),
                 onValueChange = { v -> editor.editDebounced(data.withCriteriaNote(item.id, v)) },
@@ -134,6 +161,30 @@ private fun CriteriaItemCard(item: CriteriaItem, data: ReportData, readOnly: Boo
     }
 }
 
+// qa-v2 tick boxes ("Available: CBLM, Lesson plan, ..."), kept in template order
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TickBoxes(item: CriteriaItem, data: ReportData, readOnly: Boolean, editor: ReportEditor) {
+    val ticked = data.criteriaTicks(item.id).toSet()
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text("${item.ticksLabel ?: "Available"}:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            item.ticks.forEach { tick ->
+                val isOn = tick.id in ticked
+                FilterChip(
+                    selected = isOn,
+                    enabled = !readOnly,
+                    onClick = {
+                        val next = if (isOn) ticked - tick.id else ticked + tick.id
+                        editor.editNow(editor.data.withCriteriaTicks(item.id, item.ticks.map { it.id }.filter { it in next }))
+                    },
+                    label = { Text(tick.label) },
+                )
+            }
+        }
+    }
+}
+
 // one Annex-3 evidence point (an option) -- 3-way Seen/Not seen/N/A (tap-the-chosen-one-again
 // clears it, same convention as AnswerButtons elsewhere in this app), a detail box that only
 // shows once Seen is chosen AND the template defines a detail placeholder for this option, and a
@@ -147,7 +198,7 @@ private fun OptionRow(itemId: String, option: CriteriaOption, data: ReportData, 
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(option.label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-            option.src.forEach { SourceTag(it) }
+            option.src.mapNotNull { SOURCE_NAMES[it] }.forEach { SourceTag(it) }
         }
         ThreeWayButtons(
             selected = value,
@@ -187,6 +238,8 @@ private fun OptionRow(itemId: String, option: CriteriaOption, data: ReportData, 
 // small "A3"/"CL"/"FC" source tag next to an option's label (spec §2's src list, mockup's
 // ".obs-src" pills) -- purely informational, tells the officer which paper document this point
 // came from.
+private val SOURCE_NAMES = mapOf("A3" to "Report", "CL" to "Checklist", "FC" to "Flow chart")
+
 @Composable
 private fun SourceTag(src: String, modifier: Modifier = Modifier) {
     Text(

@@ -223,9 +223,19 @@ fun FindingsBlockView(block: ReportBlock.Findings, template: ReportTemplate, dat
     }
 }
 
-// Recommendations: "Draft from major findings"; a filled box is only replaced after a preview
+// Recommendations, one "The institute should ..." per source line: surprise v2 drafts from the
+// picked major findings, QA v2 from the s13 weaknesses. A filled box is only replaced after a
+// preview.
 @Composable
-fun RecommendationsDraftButton(field: Field, data: ReportData, readOnly: Boolean, editor: ReportEditor) {
+fun RecommendationsDraftButton(
+    field: Field,
+    data: ReportData,
+    readOnly: Boolean,
+    editor: ReportEditor,
+    label: String = "Draft from major findings",
+    emptyHint: String = "Select major findings above first",
+    sourcesOf: (ReportData) -> List<String> = { d -> d.findings().map { it.text }.filter { it.isNotBlank() } },
+) {
     if (readOnly) return
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -234,18 +244,18 @@ fun RecommendationsDraftButton(field: Field, data: ReportData, readOnly: Boolean
     var notice by remember { mutableStateOf(false) }
     var preview by remember { mutableStateOf<Drafted<String>?>(null) }
     val undo = rememberDraftUndo<String>()
-    val findings = data.findings().map { it.text }.filter { it.isNotBlank() }
+    val sources = sourcesOf(data)
 
     DraftButtonRow(
-        label = "Draft from major findings",
-        enabled = findings.isNotEmpty(),
+        label = label,
+        enabled = sources.isNotEmpty(),
         loading = loading,
-        hint = if (findings.isEmpty()) "Select major findings above first" else null,
+        hint = if (sources.isEmpty()) emptyHint else null,
     ) {
         loading = true
         notice = false
         scope.launch {
-            val result = ai.recommendations(editor.data.findings().map { it.text }.filter { it.isNotBlank() })
+            val result = ai.recommendations(sourcesOf(editor.data))
             val text = result.value.joinToString("\n")
             loading = false
             if (editor.data.field(field.key).isBlank()) {

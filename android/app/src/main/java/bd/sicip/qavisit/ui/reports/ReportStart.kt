@@ -24,24 +24,29 @@ const val REPORT_TYPE_SURPRISE = "surprise"
 // place the two ids ("monitoring" the stored type vs "qa" the template file/id) meet is right here.
 const val REPORT_TYPE_QA = "monitoring"
 
-// new surprise reports use the latest version; older rows keep the version they were made with
+// new reports use the latest version; older rows keep the version they were made with
 const val SURPRISE_LATEST_VERSION = 2
+const val QA_LATEST_VERSION = 2
 
 fun surpriseTemplate(context: Context, version: Int = SURPRISE_LATEST_VERSION): ReportTemplate =
     loadReportTemplate(context, "surprise-v$version.json")
-fun qaTemplate(context: Context): ReportTemplate = loadReportTemplate(context, "qa-v1.json")
+fun qaTemplate(context: Context, version: Int = QA_LATEST_VERSION): ReportTemplate = loadReportTemplate(context, "qa-v$version.json")
 
 // the one place a report `type` string picks its template -- every screen that opens a report
 // (hub/section/review/PDF) calls this instead of hardcoding which loader to use, so adding a
 // third report type later is a one-line change here, not a find-and-replace across the UI.
 // version null = the latest (a new report); an existing row passes its own template_version
 fun templateForType(context: Context, type: String, version: Int? = null): ReportTemplate = when (type) {
-    REPORT_TYPE_QA -> qaTemplate(context)
+    REPORT_TYPE_QA -> qaTemplate(context, version ?: QA_LATEST_VERSION)
     else -> surpriseTemplate(context, version ?: SURPRISE_LATEST_VERSION)
 }
 
-// an old-format surprise report the hub offers to convert
-fun needsConversion(report: Report): Boolean = report.type == REPORT_TYPE_SURPRISE && report.templateVersion < SURPRISE_LATEST_VERSION
+// an old-format report the hub offers to convert (surprise: ReportConvert.kt, QA: QaConvert.kt)
+fun needsConversion(report: Report): Boolean = when (report.type) {
+    REPORT_TYPE_SURPRISE -> report.templateVersion < SURPRISE_LATEST_VERSION
+    REPORT_TYPE_QA -> report.templateVersion < QA_LATEST_VERSION
+    else -> false
+}
 
 // a new-format surprise report the hub offers to switch back to v1 (ReportConvert.kt)
 fun canRevertToOldFormat(report: Report): Boolean = report.type == REPORT_TYPE_SURPRISE && report.templateVersion == SURPRISE_LATEST_VERSION

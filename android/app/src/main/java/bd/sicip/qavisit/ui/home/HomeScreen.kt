@@ -526,6 +526,7 @@ private fun OngoingVisitCard(
             }
             // capacity assessment etc. get no report line: reports are for monitoring visits
             if (reportInfo != null || reportable) ReportLine(reportInfo, onOpenReport, onStartReport)
+            if (visit.visitType == "qa") VisitKitLine()
         }
     }
 }
@@ -572,45 +573,48 @@ private fun ReportLine(reportInfo: VisitReportInfo?, onOpenReport: (String) -> U
 @Composable
 private fun UpcomingVisitCard(visit: Visit, onClick: () -> Unit, onAddAnother: () -> Unit, onStart: () -> Unit) {
     Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth(), onClick = onClick) {
-        Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // weighted + ellipsized so a long institute name can never squeeze the pill offscreen.
-            Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                Text(visit.institute, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "${visit.purpose} · ${visit.district} · ${visit.startDate}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    StatusPill("SCHEDULED", LocalStatusColors.current.onVisit)
+        Column(Modifier.padding(16.dp).fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // weighted + ellipsized so a long institute name can never squeeze the pill offscreen.
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                    Text(visit.institute, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "${visit.purpose} · ${visit.district} · ${visit.startDate}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    OutlinedButton(
-                        onClick = onAddAnother,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                        shape = RoundedCornerShape(99),
-                        modifier = Modifier.height(32.dp),
-                    ) { Text("+ Visit", style = MaterialTheme.typography.labelMedium) }
-                    Button(
-                        onClick = onStart,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.tertiary,
-                            contentColor = MaterialTheme.colorScheme.onTertiary,
-                        ),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
-                        shape = RoundedCornerShape(99),
-                        modifier = Modifier.height(32.dp),
-                    ) { Text("Start", style = MaterialTheme.typography.labelMedium) }
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        StatusPill("SCHEDULED", LocalStatusColors.current.onVisit)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedButton(
+                            onClick = onAddAnother,
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            shape = RoundedCornerShape(99),
+                            modifier = Modifier.height(32.dp),
+                        ) { Text("+ Visit", style = MaterialTheme.typography.labelMedium) }
+                        Button(
+                            onClick = onStart,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.tertiary,
+                                contentColor = MaterialTheme.colorScheme.onTertiary,
+                            ),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                            shape = RoundedCornerShape(99),
+                            modifier = Modifier.height(32.dp),
+                        ) { Text("Start", style = MaterialTheme.typography.labelMedium) }
+                    }
                 }
             }
+            if (visit.visitType == "qa") VisitKitLine()
         }
     }
 }
