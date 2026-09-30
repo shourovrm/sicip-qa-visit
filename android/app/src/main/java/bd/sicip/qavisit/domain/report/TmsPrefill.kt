@@ -26,13 +26,19 @@ data class TmsSuggestion(
     val tmsValue: String,
 )
 
-data class TmsPrefillResult(val data: ReportData, val suggestions: List<TmsSuggestion>)
+// matched = filled fields whose current value already equals TMS (the editor's "TMS" marker).
+data class TmsPrefillResult(
+    val data: ReportData,
+    val suggestions: List<TmsSuggestion>,
+    val matched: List<TmsSuggestion> = emptyList(),
+)
 
 // one card the snapshot wants to see; batchNumber == null for course-level blocks.
 private class WantedCard(val course: String, val batchNumber: String?, val values: Map<String, String>)
 
 fun prefillFromTms(snapshot: TmsSnapshot, data: ReportData): TmsPrefillResult {
     val suggestions = mutableListOf<TmsSuggestion>()
+    val matched = mutableListOf<TmsSuggestion>()
     var result = data
     val blocks = listOf(
         MOU_COURSES to snapshot.courses.map(::mouCourseCard),
@@ -40,11 +46,12 @@ fun prefillFromTms(snapshot: TmsSnapshot, data: ReportData): TmsPrefillResult {
         BATCHES to snapshot.runningBatches.map(::batchCard),
     )
     for ((cardsKey, wanted) in blocks) {
-        val (updated, blockSuggestions) = applyBlock(result.cards(cardsKey), cardsKey, wanted)
-        result = result.withCardsReplaced(cardsKey, updated)
-        suggestions += blockSuggestions
+        val block = applyBlock(result.cards(cardsKey), cardsKey, wanted)
+        result = result.withCardsReplaced(cardsKey, block.cards)
+        suggestions += block.suggestions
+        matched += block.matched
     }
-    return TmsPrefillResult(result, suggestions)
+    return TmsPrefillResult(result, suggestions, matched)
 }
 
 // TMS present count on the visit date, shown next to tms_mismatch as a reference.
@@ -103,14 +110,21 @@ private fun sameValue(a: String, b: String): Boolean {
     return if (numberA != null && numberB != null) numberA == numberB else sameText(a, b)
 }
 
+private class BlockResult(
+    val cards: List<JsonObject>,
+    val suggestions: List<TmsSuggestion>,
+    val matched: List<TmsSuggestion>,
+)
+
 private fun applyBlock(
     existing: List<JsonObject>,
     cardsKey: String,
     wantedCards: List<WantedCard>,
-): Pair<List<JsonObject>, List<TmsSuggestion>> {
+): BlockResult {
     val cards = existing.toMutableList()
     val claimedBlankCards = mutableSetOf<Int>()
     val suggestions = mutableListOf<TmsSuggestion>()
+    val matched = mutableListOf<TmsSuggestion>()
 
     for (wanted in wantedCards) {
         var index = cards.indexOfFirst { matches(it, wanted) }
@@ -129,13 +143,14 @@ private fun applyBlock(
             val current = cards[index].text(fieldKey)
             if (current.isBlank()) {
                 card[fieldKey] = JsonPrimitive(tmsValue)
-            } else if (!sameValue(current, tmsValue)) {
-                suggestions += TmsSuggestion(cardsKey, index, cards[index].text("_id"), fieldKey, tmsValue)
+            } else {
+                val entry = TmsSuggestion(cardsKey, index, cards[index].text("_id"), fieldKey, tmsValue)
+                if (sameValue(current, tmsValue)) matched += entry else suggestions += entry
             }
         }
         cards[index] = JsonObject(card)
     }
-    return cards to suggestions
+    return BlockResult(cards, suggestions, matched)
 }
 
 private fun matches(card: JsonObject, wanted: WantedCard): Boolean {

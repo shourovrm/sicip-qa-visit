@@ -20,6 +20,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -36,6 +39,7 @@ import bd.sicip.qavisit.data.auth.SessionStore
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.settings.ThemePrefs
 import bd.sicip.qavisit.ui.bill.BillScreen
+import bd.sicip.qavisit.ui.common.LocalOpenTmsSettings
 import bd.sicip.qavisit.ui.home.HomeScreen
 import bd.sicip.qavisit.ui.home.StartTrip
 import bd.sicip.qavisit.ui.home.TripScreen
@@ -76,6 +80,16 @@ fun AppShell(context: Context, officerId: String) {
     val reportEditorRegistry = rememberReportEditorRegistry(db) { report -> templateForReport(context, report) }
 
     val navController = rememberNavController()
+    // banners / report bars ask for the TMS card; Profile scrolls to it once, then clears this
+    var showTmsCard by remember { mutableStateOf(false) }
+    val openTmsSettings: () -> Unit = {
+        showTmsCard = true
+        navController.navigate("profile") {
+            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: NAV_ITEMS.first().route
     val currentTitle = NAV_ITEMS.firstOrNull { it.route == currentRoute }?.label ?: "SICIP QA Visit"
@@ -118,6 +132,7 @@ fun AppShell(context: Context, officerId: String) {
             }
         },
     ) { innerPadding ->
+      CompositionLocalProvider(LocalOpenTmsSettings provides openTmsSettings) {
         NavHost(
             navController = navController,
             startDestination = NAV_ITEMS.first().route,
@@ -158,7 +173,14 @@ fun AppShell(context: Context, officerId: String) {
                 )
             }
             composable("profile") {
-                ProfileScreen(officerId = officerId, db = db, themePrefs = themePrefs, sessionStore = sessionStore)
+                ProfileScreen(
+                    officerId = officerId,
+                    db = db,
+                    themePrefs = themePrefs,
+                    sessionStore = sessionStore,
+                    scrollToTmsCard = showTmsCard,
+                    onTmsCardShown = { showTmsCard = false },
+                )
             }
 
             composable(
@@ -275,6 +297,7 @@ fun AppShell(context: Context, officerId: String) {
                 )
             }
         }
+      }
     }
 }
 

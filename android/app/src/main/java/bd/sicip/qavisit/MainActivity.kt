@@ -17,6 +17,7 @@ import bd.sicip.qavisit.data.auth.SessionStore
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.reminder.ReminderScheduler
 import bd.sicip.qavisit.data.sync.SyncNow
+import bd.sicip.qavisit.data.tms.TmsServices
 import bd.sicip.qavisit.data.sync.SyncWorker
 import bd.sicip.qavisit.settings.ThemePrefs
 import bd.sicip.qavisit.ui.login.LoginScreen
@@ -40,6 +41,8 @@ class MainActivity : ComponentActivity() {
             val notificationLauncher = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission(),
             ) { /* ignored */ }
+            // TMS: show LoggedIn when credentials are stored (token fetched lazily)
+            LaunchedEffect(Unit) { TmsServices.get(applicationContext).auth.restore() }
             LaunchedEffect(Unit) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)

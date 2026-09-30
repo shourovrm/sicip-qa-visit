@@ -94,6 +94,11 @@ class SupabaseClient(
             Unit
         }
 
+    // POST /rest/v1/rpc/<function> with a json body; returns the raw response text (e.g. "true").
+    suspend fun rpc(function: String, body: String, accessToken: String): String = withContext(Dispatchers.IO) {
+        request("POST", "$baseUrl/rest/v1/rpc/$function", body, authToken = accessToken)
+    }
+
     // blocking http call, always run from withContext(Dispatchers.IO) above.
     // returns body text on 2xx; throws SupabaseException otherwise, IOException on network failure.
     private fun request(

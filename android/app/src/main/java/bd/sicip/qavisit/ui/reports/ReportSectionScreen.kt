@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.domain.report.ReportBlock
+import bd.sicip.qavisit.domain.report.hasTmsBlocks
 import bd.sicip.qavisit.domain.report.shownFor
 import bd.sicip.qavisit.domain.report.computeProgress
 import kotlinx.coroutines.flow.filterNotNull
@@ -157,6 +158,9 @@ fun ReportSectionScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
+            if (section.hasTmsBlocks()) {
+                item { TmsReportBar(editor, template) }
+            }
             section.note?.let { note ->
                 item {
                     Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

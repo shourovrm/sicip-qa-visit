@@ -98,6 +98,25 @@ class TmsProtocolTest {
     }
 
     @Test
+    fun `display name is user_info employee name, else username`() = runBlocking {
+        val live = TmsRawResponse(
+            200,
+            """{"status":"success","data":{"token":"$goodToken","user_info":{"id":1,"email":"a@b.c","username":"rina01","employee":{"name":"Rina Akter"}}}}""",
+        )
+        val auth = TmsAuth(FakeVault(), ScriptedTransport(mutableListOf({ live })), { 1_000L }, { })
+        auth.bearer()
+        assertEquals(TmsAuthState.LoggedIn("Rina Akter", 4102444800L), auth.state.value)
+
+        val noEmployee = TmsRawResponse(
+            200,
+            """{"status":"success","data":{"token":"$goodToken","user_info":{"id":1,"username":"rina01"}}}""",
+        )
+        val second = TmsAuth(FakeVault(), ScriptedTransport(mutableListOf({ noEmployee })), { 1_000L }, { })
+        second.bearer()
+        assertEquals(TmsAuthState.LoggedIn("rina01", 4102444800L), second.state.value)
+    }
+
+    @Test
     fun `three transient failures end in Failed`() {
         val transport = ScriptedTransport(mutableListOf({ serverDown }, { serverDown }, { serverDown }))
         val auth = TmsAuth(FakeVault(), transport, { 1_000L }, { })

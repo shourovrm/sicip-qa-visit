@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
@@ -67,6 +68,7 @@ import bd.sicip.qavisit.domain.rank
 import bd.sicip.qavisit.settings.RewriteModelPrefs
 import bd.sicip.qavisit.settings.ThemePrefs
 import bd.sicip.qavisit.ui.common.StatusPill
+import bd.sicip.qavisit.ui.settings.TmsAccountCard
 import bd.sicip.qavisit.ui.shell.syncChipText
 import bd.sicip.qavisit.ui.theme.LocalStatusColors
 import bd.sicip.qavisit.ui.theme.ThemeMode
@@ -81,6 +83,9 @@ private const val VISIT_SCORES_URL = "https://docs.google.com/spreadsheets/d/1MI
 private const val WEB_APP_URL = "https://sicip-qa-visit.shourovrm.workers.dev"
 private const val GITHUB_URL = "https://github.com/shourovrm/sicip-qa-visit"
 
+// position of the TMS card in the list below (header, stats, theme, writing helper, password, TMS)
+private const val TMS_CARD_INDEX = 5
+
 private data class MyStats(val points: Int = 0, val position: Int = 0, val officerCount: Int = 0, val visitCount: Int = 0)
 
 @Composable
@@ -90,6 +95,9 @@ fun ProfileScreen(
     themePrefs: ThemePrefs,
     sessionStore: SessionStore,
     client: SupabaseClient = SupabaseClient(),
+    // set by the TMS banners / report bars: scroll to the TMS card once, then call onTmsCardShown
+    scrollToTmsCard: Boolean = false,
+    onTmsCardShown: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -119,7 +127,16 @@ fun ProfileScreen(
 
     var showLogoutConfirm by remember { mutableStateOf(false) }
 
+    val listState = rememberLazyListState()
+    LaunchedEffect(scrollToTmsCard) {
+        if (scrollToTmsCard) {
+            listState.animateScrollToItem(TMS_CARD_INDEX)
+            onTmsCardShown()
+        }
+    }
+
     LazyColumn(
+        state = listState,
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxSize(),
@@ -129,6 +146,7 @@ fun ProfileScreen(
         item { ThemeCard(themeMode) { mode -> scope.launch { themePrefs.set(mode) } } }
         item { RewriteModelCard(rewriteModelPrefs) }
         item { ChangePasswordCard(sessionStore, client) }
+        item { TmsAccountCard() }
         item { VisitScoresRow { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(VISIT_SCORES_URL))) } }
         item { SyncCard(lastSyncAt, lastError) { SyncNow.enqueue(context) } }
         item { AboutCard { url -> context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) } }

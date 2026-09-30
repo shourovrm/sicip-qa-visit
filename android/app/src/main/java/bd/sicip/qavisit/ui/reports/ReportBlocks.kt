@@ -62,6 +62,7 @@ import bd.sicip.qavisit.domain.report.ChecklistItem
 import bd.sicip.qavisit.domain.report.Field
 import bd.sicip.qavisit.domain.report.ReportBlock
 import bd.sicip.qavisit.domain.report.ReportData
+import bd.sicip.qavisit.domain.report.TMS_BLOCK_KEYS
 import bd.sicip.qavisit.domain.report.ReportSection
 import bd.sicip.qavisit.domain.report.ReportTemplate
 import bd.sicip.qavisit.domain.report.cardCompareMismatch
@@ -474,6 +475,7 @@ fun CardsBlockView(
         // a section can hold several card blocks (A: persons + courses) -- the heading says which
         block.heading?.let { Text(it, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp)) }
         block.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        if (block.key in TMS_BLOCK_KEYS) TmsFillControl(editor, template, origin = block.key)
         // QA s16 plan: rebuilt from s13 weaknesses (QaDraftFields.kt)
         if (block.draftFrom != null) PlanDraftButton(block, template, data, readOnly, editor)
         if (block.display == "tabs") {
@@ -720,7 +722,7 @@ private fun CardEntryView(
                 }
             }
             @Composable
-            fun CardField(field: Field, modifier: Modifier = Modifier) = FieldEditor(
+            fun PlainCardField(field: Field, modifier: Modifier = Modifier) = FieldEditor(
                 field = field,
                 value = data.cardField(block.key, index, field.key),
                 readOnly = readOnly,
@@ -729,6 +731,18 @@ private fun CardEntryView(
                 modifier = modifier,
                 courseOptions = if (field.kind == "courseRef") courseRefOptions(data, field, entry) else emptyList(),
             )
+            // qa-v2 TMS cards: "Use"/marker/present-count notes under each field
+            @Composable
+            fun CardField(field: Field, modifier: Modifier = Modifier) {
+                if (block.key !in TMS_BLOCK_KEYS) {
+                    PlainCardField(field, modifier)
+                } else {
+                    Column(modifier) {
+                        PlainCardField(field)
+                        TmsFieldNote(editor, block.key, index, field.key)
+                    }
+                }
+            }
             // number fields two per row (total | female, register | TMS): halves the scroll per course
             pairNumberFields(editableFields).forEach { group ->
                 if (group.size == 2) {

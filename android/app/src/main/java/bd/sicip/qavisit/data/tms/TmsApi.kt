@@ -39,6 +39,7 @@ class TmsApi(
     suspend fun report(error: TmsApiChangeException) {
         if (error.reported) return
         error.reported = true
+        TmsLinkHealth.markBroken() // this phone hit it: warn the officer without waiting for the server
         reporter?.report(error)
     }
 }

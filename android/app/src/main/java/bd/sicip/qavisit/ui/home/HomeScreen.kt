@@ -58,6 +58,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.auth.SessionStore
 import bd.sicip.qavisit.data.db.AppDb
+import bd.sicip.qavisit.ui.common.LocalOpenTmsSettings
+import bd.sicip.qavisit.ui.common.TmsBanners
+import bd.sicip.qavisit.ui.common.rememberTmsBannerState
 import bd.sicip.qavisit.data.db.Visit
 import bd.sicip.qavisit.data.remote.SupabaseClient
 import bd.sicip.qavisit.data.sync.SyncNow
@@ -102,6 +105,8 @@ fun HomeScreen(
     val vm = remember(officerId, db) { HomeViewModel(officerId, db, sessionStore, client, context = context) }
     val state by vm.state.collectAsState(initial = HomeUiState())
     val updateNotice by vm.updateNotice.collectAsState()
+    val tmsBanners = rememberTmsBannerState(officerId, db)
+    val openTmsSettings = LocalOpenTmsSettings.current
     val scope = rememberCoroutineScope()
     // set only for a legacy Monitoring Visit row with no visit_type yet (QA report spec §1) --
     // reportTypeForVisit(visit) returns null for those, so "Start report" must ask which report
@@ -162,6 +167,10 @@ fun HomeScreen(
                         onDismiss = { vm.dismissUpdateNotice() },
                     )
                 }
+            }
+
+            if (tmsBanners.any) {
+                item { TmsBanners(tmsBanners, onOpenSettings = openTmsSettings) }
             }
 
             item {

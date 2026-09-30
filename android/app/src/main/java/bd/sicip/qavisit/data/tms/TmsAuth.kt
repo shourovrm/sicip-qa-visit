@@ -28,7 +28,7 @@ sealed interface TmsLoginResult {
 
 private const val MIN_TOKEN_LIFE_SECONDS = 600L
 private val RETRY_DELAYS_MS = listOf(5_000L, 30_000L)
-private val DISPLAY_NAME_KEYS = listOf("full_name", "name", "user_name", "username")
+private val DISPLAY_NAME_KEYS = listOf("username", "full_name", "name", "user_name")
 
 class TmsAuth(
     private val vault: TmsCredentialStore,
@@ -127,9 +127,12 @@ class TmsAuth(
         return newToken
     }
 
+    // live TMS puts the person's name at user_info.employee.name; older shapes/keys are the fallback.
     private fun displayNameOf(data: JsonObject, fallback: String): String {
         val info = data["user_info"] as? JsonObject ?: return fallback
-        return DISPLAY_NAME_KEYS.firstNotNullOfOrNull { key ->
+        val employee = info["employee"] as? JsonObject
+        val employeeName = (employee?.get("name") as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+        return employeeName ?: DISPLAY_NAME_KEYS.firstNotNullOfOrNull { key ->
             (info[key] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
         } ?: fallback
     }
