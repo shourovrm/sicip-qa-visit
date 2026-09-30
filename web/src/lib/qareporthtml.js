@@ -6,6 +6,7 @@
 import { buildRemarks, printedRemarks } from './remarks.js'
 import * as reportTemplateModule from './reporttemplate.js'
 import { feedbackGrid } from './feedbackgrid.js'
+import { SIGNOFF_CSS, signoffHtml } from './signoff.js'
 
 function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -256,21 +257,6 @@ function sectionHtml(section, data) {
   return `${heading}${body}`
 }
 
-// officer signature block: one row per officer named in the free-text "officers" field
-// (one per line, or "; "-separated), minimum one blank row.
-function officerLines(text) {
-  const raw = String(text ?? '').split(/\n|;/).map((s) => s.trim()).filter(Boolean)
-  return raw.length ? raw : ['']
-}
-function signatureHtml(data) {
-  const names = officerLines(fieldsMap(data).officers)
-  const left = names.map((n, i) => `<div>${i + 1}) ${esc(n)}</div>`).join('')
-  const right = names.map(() => '<div>……………………………</div>').join('')
-  return `<div class="sign">
-    <div>Name (s) of the Visiting Officer(s) with designation${left}</div>
-    <div class="sign-right">Signatures${right}</div>
-  </div>`
-}
 
 const CSS = `
   @page {
@@ -303,8 +289,6 @@ const CSS = `
   .field-box { margin: 4pt 0; }
   .fb-label { font-weight: 700; }
   .fb-body { border: 0.75pt solid #666; min-height: 14pt; padding: 2pt 4pt; }
-  .sign { display: flex; justify-content: space-between; margin-top: 18pt; gap: 20pt; }
-  .sign-right { text-align: right; }
   ul { margin: 2pt 0; padding-left: 16pt; }
   .empty-li { list-style: none; }
 `
@@ -313,13 +297,13 @@ const CSS = `
 export function qaReportHtml(template, data, meta) {
   const normalizedData = withNormalizedData(template, data)
   const sections = (template.sections || []).map((s) => sectionHtml(s, normalizedData)).join('')
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(template.title)}</title><style>${CSS}</style></head><body>` +
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(template.title)}</title><style>${CSS}\n${SIGNOFF_CSS}</style></head><body>` +
     `<div class="annex">${esc(template.annex || 'Annex-3')}</div>` +
     `<div class="t1">${esc(template.program)}</div>` +
     `<div class="t2">${esc(template.title)}</div>` +
     headerKvHtml(normalizedData) +
     sections +
-    signatureHtml(normalizedData) +
+    signoffHtml(normalizedData) +
     '</body></html>'
 }
 

@@ -27,6 +27,7 @@ import {
 import * as reportTemplateModule from './reporttemplate.js'
 import { compareMismatch, sectionHasContent } from './reporttemplate.js'
 import { printedRemarkLines } from './sectionremarks.js'
+import { signoffDocx } from './signoffdocx.js'
 
 // -- fonts/colours/sizes, read from the reference docx (sizes are half-points, i.e. the same
 // numbers as the file's w:sz val -- docx's TextRun `size` option takes the same unit) --
@@ -512,6 +513,7 @@ export function buildReportDocx(template, data, meta) {
     if (section.optional && !sectionHasContent(section, normalizedData)) continue
     children.push(...sectionDocx(section, normalizedData, template, answerMap))
   }
+  children.push(...signoffDocx(normalizedData))
   return packDocx(children)
 }
 

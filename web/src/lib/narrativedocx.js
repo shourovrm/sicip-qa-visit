@@ -8,6 +8,7 @@ import {
   packDocx, reportFilename, run, saveDocx, subheadParagraph, withNormalizedData,
 } from './reportdocx.js'
 import { answeredCards, sectionHasContent } from './reporttemplate.js'
+import { signoffDocx } from './signoffdocx.js'
 import { courseBatchLabel, printedRemarkLines } from './sectionremarks.js'
 
 const value = (obj, key) => String(obj?.[key] ?? '').trim()
@@ -91,6 +92,7 @@ export function buildNarrativeDocx(template, data, meta) {
     if (section.optional && !sectionHasContent(section, normalized)) continue
     children.push(sectionHeading(section), ...section.blocks.flatMap((b) => blockDocx(b, section, normalized, template)))
   }
+  children.push(...signoffDocx(normalized))
   return packDocx(children)
 }
 

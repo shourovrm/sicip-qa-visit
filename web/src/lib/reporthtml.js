@@ -18,6 +18,7 @@ import {
 import * as reportTemplateModule from './reporttemplate.js'
 import { compareMismatch, sectionHasContent } from './reporttemplate.js'
 import { printedRemarkLines } from './sectionremarks.js'
+import { SIGNOFF_CSS, signoffHtml } from './signoff.js'
 
 export function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -410,8 +411,8 @@ export function reportHtml(template, data, meta) {
     .filter((s) => !s.optional || sectionHasContent(s, normalizedData))
     .map((s) => sectionHtml(s, normalizedData, template, answerMap))
     .join('')
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(template.title)}</title><style>${CSS}</style></head><body>` +
-    headerHtml(template, meta) + sections +
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(template.title)}</title><style>${CSS}\n${SIGNOFF_CSS}</style></head><body>` +
+    headerHtml(template, meta) + sections + signoffHtml(normalizedData) +
     '</body></html>'
 }
 

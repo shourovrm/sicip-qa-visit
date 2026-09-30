@@ -6,6 +6,7 @@ import {
   CSS, esc, fieldValueHtml, headerHtml, numberedListHtml, openPrintWindow, remarkBulletsHtml, withNormalizedData,
 } from './reporthtml.js'
 import { answeredCards, sectionHasContent } from './reporttemplate.js'
+import { SIGNOFF_CSS, signoffHtml } from './signoff.js'
 import { courseBatchLabel, printedRemarkLines } from './sectionremarks.js'
 
 const NARRATIVE_CSS = `
@@ -79,8 +80,8 @@ export function narrativeHtml(template, data, meta) {
     .filter((s) => !s.optional || sectionHasContent(s, normalized))
     .map((s) => `<h2><span class="letter">${esc(s.letter)}</span>${esc(s.title)}</h2>${s.blocks.map((b) => blockHtml(b, s, normalized, template)).join('')}`)
     .join('')
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(template.title)}</title><style>${CSS}\n${NARRATIVE_CSS}</style></head><body>` +
-    headerHtml(template, meta) + sections + '</body></html>'
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(template.title)}</title><style>${CSS}\n${NARRATIVE_CSS}\n${SIGNOFF_CSS}</style></head><body>` +
+    headerHtml(template, meta) + sections + signoffHtml(normalized) + '</body></html>'
 }
 
 export function openNarrativePrint(template, data, meta) {

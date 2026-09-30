@@ -12,6 +12,7 @@ import {
 } from './reportlayout.js'
 import { printedRemarks } from './remarks.js'
 import { feedbackGrid } from './feedbackgrid.js'
+import { signoffDocx } from './signoffdocx.js'
 import * as reportTemplateModule from './reporttemplate.js'
 
 const FONT = 'Times New Roman'
@@ -341,34 +342,6 @@ function sectionDocx(section, data) {
   return out
 }
 
-function officerLines(text) {
-  const raw = String(text ?? '').split(/\n|;/).map((s) => s.trim()).filter(Boolean)
-  return raw.length ? raw : ['']
-}
-
-function signatureTable(data) {
-  const names = officerLines(fieldsMap(data).officers)
-  const widths = weightedWidths(CONTENT_WIDTH_TWIPS, [70, 30])
-  const leftLines = [
-    new Paragraph({ children: [run('Name (s) of the Visiting Officer(s) with designation', { bold: true })] }),
-    ...names.map((n, i) => new Paragraph({ children: [run(`${i + 1}) ${n}`)] })),
-  ]
-  const rightLines = [
-    new Paragraph({ alignment: AlignmentType.RIGHT, children: [run('Signatures', { bold: true })] }),
-    ...names.map(() => new Paragraph({ alignment: AlignmentType.RIGHT, children: [run('……………………………')] })),
-  ]
-  return new Table({
-    width: { size: CONTENT_WIDTH_TWIPS, type: WidthType.DXA }, columnWidths: widths, layout: TableLayoutType.FIXED,
-    borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE }, insideHorizontal: { style: BorderStyle.NONE }, insideVertical: { style: BorderStyle.NONE } },
-    rows: [new TableRow({
-      children: [
-        new TableCell({ width: { size: widths[0], type: WidthType.DXA }, children: leftLines }),
-        new TableCell({ width: { size: widths[1], type: WidthType.DXA }, children: rightLines }),
-      ],
-    })],
-  })
-}
-
 function pageFooter() {
   return new Footer({
     children: [
@@ -397,7 +370,7 @@ export function buildQaReportDocx(template, data, _meta) {
     ...headerParagraphs(normalizedData),
   ]
   for (const section of template.sections || []) children.push(...sectionDocx(section, normalizedData))
-  children.push(signatureTable(normalizedData))
+  children.push(...signoffDocx(normalizedData))
 
   const doc = new Document({
     styles: { default: { document: { run: { font: FONT, size: BODY_SIZE } } } },

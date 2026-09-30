@@ -86,16 +86,16 @@ class QaReportHtmlTest {
     }
 
     @Test
-    fun `signature block lists every officer named in the header line`() {
+    fun `submitted-by block lists every officer named in the header line`() {
         val template = loadQaTemplate()
         var data = ReportData.EMPTY
         data = data.withField("officers", "R. M. Shourov, Program Officer (QA)\nS. Akter, Program Officer")
 
         val html = buildQaReportHtml(template, data)
 
-        assertTrue(html.contains("1) R. M. Shourov, Program Officer (QA)"))
-        assertTrue(html.contains("2) S. Akter, Program Officer"))
-        assertTrue(html.contains("Signatures"))
+        assertTrue(html.contains("Submitted by-"))
+        assertTrue(html.contains("<div class=\"signoff-name\">R. M. Shourov</div><div>Program Officer (QA)</div><div>SICIP</div>"))
+        assertTrue(html.contains("<div class=\"signoff-name\">S. Akter</div><div>Program Officer</div><div>SICIP</div>"))
     }
 
     @Test

@@ -82,8 +82,6 @@ private val CSS = """
 
   ul.points { margin: 2pt 0; padding-left: 16pt; }
 
-  .sign { display: flex; justify-content: space-between; margin-top: 16pt; }
-  .sign .officers div { margin: 2pt 0; }
 """.trimIndent()
 
 // header block: top-right "Annex-3", centred bold program line, centred bold title, then the
@@ -195,22 +193,6 @@ private fun sectionHtml(section: ReportSection, data: ReportData): String {
     return heading + blocks
 }
 
-// spec §7's signature block: one row per officer named in the header's "officers" field
-// (newline- or semicolon-separated, same free text the header line already prints), left column
-// names+designations, right column a dotted signature line each.
-private fun signatureHtml(data: ReportData): String {
-    val officers = data.field("officers").split(Regex("[\n;]")).map { it.trim() }.filter { it.isNotBlank() }
-    if (officers.isEmpty()) return ""
-    val names = officers.mapIndexed { i, name -> "<div>${i + 1}) ${esc(name)}</div>" }.joinToString("")
-    val lines = officers.joinToString("") { "<div>&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;&hellip;</div>" }
-    return """
-      <div class="sign">
-        <div class="officers"><b>Name (s) of the Visiting Officer(s) with designation</b>$names</div>
-        <div style="text-align:right"><b>Signatures</b>$lines</div>
-      </div>
-    """.trimIndent()
-}
-
 // pure fn: template + report data -> full print HTML, Annex-3 layout (spec §7). Only ever called
 // for template.id == "qa" (ui/reports/ReportPdf.kt's shareReportPdf branches on that); a surprise
 // report never reaches this file.
@@ -218,7 +200,7 @@ fun buildQaReportHtml(template: ReportTemplate, data: ReportData): String {
     val normalizedData = normalize(template, data)
     val sections = template.sections.joinToString("") { sectionHtml(it, normalizedData) }
     return "<!doctype html><html><head><meta charset=\"utf-8\"><title>${esc(template.title)}</title>" +
-        "<style>$CSS</style></head><body>" +
-        headerHtml(template, normalizedData) + sections + signatureHtml(normalizedData) +
+        "<style>$CSS\n$SIGNOFF_CSS</style></head><body>" +
+        headerHtml(template, normalizedData) + sections + signoffHtml(normalizedData) +
         "</body></html>"
 }

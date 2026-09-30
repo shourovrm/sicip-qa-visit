@@ -98,7 +98,7 @@ fun buildNarrativeReportHtml(template: ReportTemplate, data: ReportData, meta: R
         .filter { !it.optional || sectionHasContent(it, normalized) }
         .joinToString("") { sectionHtml(it, normalized, template) }
     return "<!doctype html><html><head><meta charset=\"utf-8\"><title>${reportEsc(template.title)}</title>" +
-        "<style>$reportCss\n$NARRATIVE_CSS</style></head><body>" +
-        reportHeaderHtml(template, meta) + sections +
+        "<style>$reportCss\n$NARRATIVE_CSS\n$SIGNOFF_CSS</style></head><body>" +
+        reportHeaderHtml(template, meta) + sections + signoffHtml(normalized) +
         "</body></html>"
 }

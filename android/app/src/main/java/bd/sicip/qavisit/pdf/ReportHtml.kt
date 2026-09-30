@@ -478,7 +478,7 @@ fun buildReportHtml(template: ReportTemplate, data: ReportData, meta: ReportMeta
         .filter { !it.optional || sectionHasContent(it, normalizedData) }
         .joinToString("") { sectionHtml(it, normalizedData, template, answerMap) }
     return "<!doctype html><html><head><meta charset=\"utf-8\"><title>${esc(template.title)}</title>" +
-        "<style>$CSS</style></head><body>" +
-        headerHtml(template, meta) + sections +
+        "<style>$CSS\n$SIGNOFF_CSS</style></head><body>" +
+        headerHtml(template, meta) + sections + signoffHtml(normalizedData) +
         "</body></html>"
 }
