@@ -13,6 +13,9 @@ import {
 import { printedRemarks } from './remarks.js'
 import { feedbackGrid } from './feedbackgrid.js'
 import { signoffDocx } from './signoffdocx.js'
+import {
+  contractsTable, criteriaCardsTable, evidenceIndexTable, evidenceLines, mouTable, officersLine, registrationTable,
+} from './qatables.js'
 import * as reportTemplateModule from './reporttemplate.js'
 
 const FONT = 'Times New Roman'
@@ -102,13 +105,15 @@ function fieldsMap(data) {
 
 function headerParagraphs(data) {
   const f = fieldsMap(data)
+  // qa-v2 keeps officers as cards; v1 as one text box
+  const officers = (data.cards?.officers ?? []).length ? officersLine(data) : f.officers
   const dateLine = `from ${ddmmyyyy(f.date_from) || '__/__/____'} to ${ddmmyyyy(f.date_to) || '__/__/____'}`
   return [
     kvParagraph('Name of Training TI/TC Visited', f.ti_name),
     kvParagraph('Name of the Association/Provider', f.provider),
     kvParagraph('Address of Training Institute and Contact', f.address),
     kvParagraph('Date(s) of Visit', dateLine),
-    kvParagraph("Name(s) & Designation(s) of Visiting Officer(s)", f.officers),
+    kvParagraph("Name(s) & Designation(s) of Visiting Officer(s)", officers),
   ]
 }
 
@@ -193,6 +198,53 @@ function romanParagraphs(text) {
   return lines.map((line, i) => new Paragraph({ indent: { left: 240 }, children: [run(`${ROMAN[i] ?? i + 1}) `, {}), run(line)] }))
 }
 
+// qatables.js {heading?, headers, rows} -> [heading?, table]; null -> nothing
+function tableDocx(table, headingOverride) {
+  if (!table) return []
+  const heading = headingOverride ?? table.heading
+  const widths = weightedWidths(CONTENT_WIDTH_TWIPS, table.headers.map((h) => (h === 'S.N.' || h === 'No.' ? 6 : 20)))
+  const headerRow = new TableRow({ children: table.headers.map((h, i) => headerCell(h, widths[i])) })
+  const bodyRows = table.rows.map((row) => new TableRow({ children: row.map((cell, i) => bodyCell(widths[i], [multilineParagraph(cell)])) }))
+  return [...(heading ? [subheadParagraph(heading)] : []), fixedTable(widths, [headerRow, ...bodyRows])]
+}
+
+// qa-v2 section 1: registration table, officers as team members, MoU + contracts tables
+function sectionOneV2Docx(section, template, data) {
+  const f = fieldsMap(data)
+  const out = [new Paragraph({ spacing: { after: 40 }, children: [run('i) Status of the Training Institute :', { bold: true })] })]
+  out.push(...tableDocx(registrationTable(template, data)))
+  if (!blank(f.other_registration)) out.push(kvParagraph('Other registration', f.other_registration))
+  out.push(kvParagraph('ii) Purpose(s) of this Monitoring Visit', f.purposes))
+  out.push(kvParagraph('iii) Monitoring Team Members with Designations', officersLine(data)))
+  for (const block of section.blocks) {
+    if (block.key === 'persons') out.push(...personsDocx(block, data))
+    else if (block.key === 'mous') {
+      const table = tableDocx(mouTable(template, data), block.heading)
+      out.push(...(table.length ? table : [subheadParagraph(block.heading)]))
+    } else if (block.fields?.some((field) => field.key === 'other_contract')) {
+      const answer = block.fields[0].options.find((o) => o.id === f.other_contract)?.label ?? ''
+      out.push(subheadParagraph(`${block.heading}: ${answer}`))
+      if (f.other_contract === 'yes') {
+        out.push(...tableDocx(contractsTable(template, data)))
+        if (!blank(f.comments)) {
+          out.push(new Paragraph({ spacing: { before: 60, after: 20 }, children: [run('Comments of the Visiting Officer', { bold: true })] }))
+          out.push(multilineParagraph(f.comments, {}, { spacing: { after: 80 } }))
+        }
+      }
+    } else if (block.key === 'mou_courses') { out.push(subheadParagraph(block.heading)); out.push(cardsTableDocx(block.fields, (data.cards && data.cards[block.key]) || [], block.start || 1)) }
+    else if (block.key === 'cumulative') out.push(...cumulativeDocx(block, data))
+    else if (block.key === 'batches') out.push(...batchesDocx(block, data))
+    else if (block.fields?.some((field) => field.key === 'dropout_reasons')) {
+      for (const key of ['dropout_reasons', 'dropout_steps']) {
+        const field = block.fields.find((fl) => fl.key === key)
+        out.push(new Paragraph({ spacing: { before: 60 }, children: [run(field.label, { bold: true })] }))
+        out.push(...romanParagraphs(f[key]))
+      }
+    }
+  }
+  return out
+}
+
 function sectionOneDocx(section, data) {
   const f = fieldsMap(data)
   const out = [
@@ -221,7 +273,7 @@ function sectionOneDocx(section, data) {
 
 // ---- sections 2-10 + 8.1: criteria blocks ----
 
-function criteriaRowDocx(item, data, widths) {
+function criteriaRowDocx(item, data, widths, template) {
   if (item.heading) {
     return new TableRow({
       children: [
@@ -243,19 +295,22 @@ function criteriaRowDocx(item, data, widths) {
     children: [
       bodyCell(widths[0], [new Paragraph({ children: [run(item.no)] })]),
       bodyCell(widths[1], [new Paragraph({ children: [run(item.text)] })]),
-      bodyCell(widths[2], [multilineParagraph(item.evidence)]),
+      // qa-v2: the numbered evidence the officer saw; v1: the form's own evidence text
+      bodyCell(widths[2], [multilineParagraph(template.evidenceRegister ? evidenceLines(data, item.id).join('\n') : item.evidence)]),
       bodyCell(widths[3], remarksParagraphs),
     ],
   })
 }
 
-function criteriaBlockDocx(block, data) {
+function criteriaBlockDocx(block, data, template) {
+  // qa-v2 tables that sit under a criteria table (4.2 sample check, 8 rooms, damaged equipment)
+  if (block.type === 'cards') return tableDocx(criteriaCardsTable(block, data))
   const out = []
   if (block.heading) out.push(subheadParagraph(block.heading))
   if (block.intro) out.push(new Paragraph({ spacing: { after: 60 }, children: [run(`(${block.intro})`, { italics: true })] }))
   const widths = weightedWidths(CONTENT_WIDTH_TWIPS, [7, 31, 31, 31])
   const headerRow = new TableRow({ children: ['Sl.', 'QUALITY CRITERIA', 'EVIDENCE', 'REMARKS'].map((t, i) => headerCell(t, widths[i])) })
-  const rows = block.items.map((item) => criteriaRowDocx(item, data, widths))
+  const rows = block.items.map((item) => criteriaRowDocx(item, data, widths, template))
   out.push(fixedTable(widths, [headerRow, ...rows]))
   return out
 }
@@ -322,12 +377,13 @@ function bulletParagraphs(text) {
   return lines.map((line) => new Paragraph({ bullet: { level: 0 }, children: [run(line)] }))
 }
 
-function sectionDocx(section, data) {
+function sectionDocx(section, data, template) {
   const out = [new Paragraph({ keepNext: true, spacing: { before: 200, after: 60 }, children: [run(`${section.number}. ${section.title}`, { bold: true, size: SECTION_SIZE })] })]
   if (section.key === 's1') {
-    out.push(...sectionOneDocx(section, data))
+    const v2 = section.blocks.some((b) => b.key === 'officers')
+    out.push(...(v2 ? sectionOneV2Docx(section, template, data) : sectionOneDocx(section, data)))
   } else if (section.blocks.some((b) => b.type === 'criteria')) {
-    for (const block of section.blocks) out.push(...criteriaBlockDocx(block, data))
+    for (const block of section.blocks) out.push(...criteriaBlockDocx(block, data, template))
   } else if (section.key === 's11' || section.key === 's12') {
     out.push(...feedbackDocx(section.blocks[0], data))
   } else if (section.key === 's13') {
@@ -364,12 +420,13 @@ function pageFooter() {
 export function buildQaReportDocx(template, data, _meta) {
   const normalizedData = withNormalizedData(template, data)
   const children = [
-    new Paragraph({ alignment: AlignmentType.RIGHT, children: [run(template.annex || 'Annex-3', { bold: true })] }),
+    ...(template.annex ? [new Paragraph({ alignment: AlignmentType.RIGHT, children: [run(template.annex, { bold: true })] })] : []),
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 20 }, children: [run(template.program, { bold: true, size: PROGRAM_SIZE })] }),
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 160 }, children: [run(template.title, { bold: true, size: TITLE_SIZE })] }),
     ...headerParagraphs(normalizedData),
   ]
-  for (const section of template.sections || []) children.push(...sectionDocx(section, normalizedData))
+  for (const section of template.sections || []) children.push(...sectionDocx(section, normalizedData, template))
+  children.push(...tableDocx(evidenceIndexTable(template, normalizedData)))
   children.push(...signoffDocx(normalizedData))
 
   const doc = new Document({

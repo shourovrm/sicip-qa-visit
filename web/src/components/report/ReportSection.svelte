@@ -16,7 +16,7 @@
   import PlanDraft from './PlanDraft.svelte'
   import SectionRemarks from './SectionRemarks.svelte'
   import MajorFindings from './MajorFindings.svelte'
-  import { isBlank } from '../../lib/reporttemplate.js'
+  import { isBlank, isShown, refOptions } from '../../lib/reporttemplate.js'
 
   export let section // template section
   export let template // full template -- CardsBlock needs it to jump to a linked block's source
@@ -38,19 +38,9 @@
   // decides whether a given item actually renders per-course (needs item.perCourse + 2+ here).
   $: namedCourses = (data.cards?.courses ?? []).filter((c) => !isBlank(c.course))
 
-  // dropdown suggestions for a courseRef field: "course · batch" (or just course), courses with
-  // no course name yet excluded. Only the identity block's `batch` field uses this today.
-  function courseRefOptionsFor(block) {
-    const field = block.fields?.find((f) => f.kind === 'courseRef')
-    if (!field) return []
-    // optionsPart "course": distinct course names only (J: batch is its own box)
-    if (field.optionsPart === 'course') {
-      return [...new Set((data.cards[field.optionsFrom] ?? []).map((card) => String(card.course ?? '').trim()).filter(Boolean))]
-    }
-    return (data.cards[field.optionsFrom] ?? [])
-      .filter((card) => !isBlank(card.course))
-      .map((card) => (card.batch ? `${card.course} · ${card.batch}` : card.course))
-  }
+  // per card: a courseRef field's suggestions can depend on the card itself (Batch by Trade)
+  // reactive so a new function (and a CardsBlock re-render) follows every data change
+  $: optionsFor = (field, card) => refOptions(field, data, card)
 </script>
 
 <details class="section" id="section-{section.key}" class:done={progress.done} class:flagged={progress.flagged} bind:open>
@@ -64,13 +54,15 @@
   <div class="body">
     {#if section.note}<p class="note">{section.note}</p>{/if}
     {#each section.blocks as block, blockIndex (blockIndex)}
-      {#if block.type === 'fields' && block.pairs}
+      {#if !isShown(block, data.fields)}
+        <!-- hidden until its showIf answer is given (qa-v2 1.30 contracts) -->
+      {:else if block.type === 'fields' && block.pairs}
         <div class="block">
           <StrengthsPairs {block} {template} {data} {disabled} {onChange} />
         </div>
       {:else if block.type === 'fields'}
         <div class="block">
-          {#each block.fields as field (field.key)}
+          {#each block.fields.filter((f) => isShown(f, data.fields)) as field (field.key)}
             {#if field.draftFrom}<FieldDraft {field} {template} {data} {disabled} {onChange} />{/if}
             <FieldInput {field} value={data.fields[field.key] ?? ''} {disabled}
               on:change={(e) => { data.fields[field.key] = e.detail; onChange() }} />
@@ -90,7 +82,7 @@
           {#if block.note}<p class="note">{block.note}</p>{/if}
           {#if block.draftFrom}<PlanDraft {block} {template} {data} {disabled} {onChange} />{/if}
           <CardsBlock {block} {template} cards={data.cards[block.key] ?? []} {disabled}
-            courseOptions={courseRefOptionsFor(block)}
+            {optionsFor}
             on:change={(e) => { data.cards[block.key] = e.detail; onChange() }} />
         </div>
       {:else if block.type === 'flags'}
@@ -108,7 +100,7 @@
         </div>
       {:else if block.type === 'criteria'}
         <div class="block">
-          <CriteriaBlock {block} criteriaData={data.criteria ?? (data.criteria = {})} {disabled} {onChange} />
+          <CriteriaBlock {block} {section} {template} {data} {disabled} {onChange} />
         </div>
       {/if}
     {/each}

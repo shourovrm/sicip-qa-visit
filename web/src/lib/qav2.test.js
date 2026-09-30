@@ -106,3 +106,45 @@ describe('qa v1 -> v2 convert', () => {
     expect(data.cards.plan).toHaveLength(1)
   })
 })
+
+describe('qa-v2 print', async () => {
+  const { qaReportHtml } = await import('./qareporthtml.js')
+  const { buildQaReportDocx } = await import('./qareportdocx.js')
+  const newId = counter()
+  let data = {
+    fields: { bteb_registered: 'yes', bteb_reg_no: 'B-77', bteb_courses: '3', bteb_uptodate: 'no', nsda_registered: 'no', other_contract: 'yes' },
+    cards: {
+      officers: [{ _id: 'o1', name: 'R. M. Shourov', designation: 'Program Officer (QA)' }],
+      mous: [{ _id: 'm1', partner: 'Others', partner_other: 'Local chamber', target: '120' }],
+      contracts: [{ _id: 'c1', organisation: 'ILO' }, { _id: 'c2', organisation: 'GIZ' }],
+      contract_courses: [{ _id: 'k1', contract: 'ILO', course: 'Welding', overlap: 'yes', facilities: 'same' }],
+      selection: [{ _id: 's1', course: 'Welding', applicants: '85', selected: '25' }],
+      rooms: [{ _id: 'r1', course: 'Welding', layout: 'separate', classroom_sft: '300', workshop_sft: '800', trainees: '25' }],
+      damaged: [{ _id: 'd1', course: 'Welding', equipment: 'Grinder', count: '2' }],
+    },
+    criteria: { s6_2: { opts: { learning_materials: { v: 'seen' } }, ticks: ['cblm', 'lesson_plan'] } },
+  }
+  data = withEvidenceAdded(data, '7.1a', 's7_1a', 'Trainers list', newId)
+  data = withEvidenceAdded(data, '8.2', 's8_2', 'Trainers list', newId)
+  const html = qaReportHtml(qaV2, data, {})
+
+  it('prints the v2 tables and no Annex-3', () => {
+    expect(html).not.toContain('Annex-3')
+    expect(html).toContain('<td>BTEB</td><td>Yes</td><td>B-77</td><td>3</td><td>No</td>')
+    expect(html).toContain('<td>Local chamber</td>')
+    expect(html).toContain('<td>ILO</td><td>Welding</td><td>Yes</td><td>Same as SICIP</td>')
+    expect(html).toContain('<td>GIZ</td><td></td>')
+    expect(html).toContain('Classroom - 300 sft and workshop/lab - 800 sft')
+    expect(html).toContain('<td>Grinder</td><td>2</td>')
+    expect(html).toContain('R. M. Shourov, Program Officer (QA)')
+    expect(html).toContain('Available CBLM and lesson plan indicate they cover every unit of competency.')
+  })
+  it('numbers evidence in the column and lists it at the end', () => {
+    expect(html.split('7.1a.a – Trainers list').length - 1).toBe(2)
+    expect(html).toContain('<td>7.1a.a</td><td>Trainers list</td><td>7.1a, 8.2</td>')
+  })
+  it('builds the Word file', async () => {
+    const blob = await buildQaReportDocx(qaV2, data, {})
+    expect(blob.size).toBeGreaterThan(5000)
+  })
+})

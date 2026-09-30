@@ -1,6 +1,7 @@
 <!-- draft button above a field with `draftFrom`: findings <- s13 weaknesses (AI, preview first),
-     recommendations <- s16 plan actions (no AI; pre-filled on load when blank), surprise v2
-     recommendations <- picked major findings (AI, preview first). -->
+     QA v1 recommendations <- s16 plan actions (no AI; pre-filled on load when blank), QA v2
+     recommendations <- one per s13 weakness (AI, preview first), surprise v2 recommendations <-
+     picked major findings (AI, preview first). -->
 <script>
   import { onMount } from 'svelte'
   import DraftPreview from './DraftPreview.svelte'
@@ -8,7 +9,7 @@
   import { allWeaknesses, recommendationsFromPlan } from '../../lib/drafts.js'
   import { draftFindings, draftRecommendations } from '../../lib/draftrun.js'
 
-  export let field // {key, draftFrom: 'weaknesses' | 'plan' | 'findings'}
+  export let field // {key, draftFrom: 'weaknesses' | 'plan' | 'findings' | 'weaknessRecommendations'}
   export let template
   export let data // mutated in place, then onChange()
   export let disabled = false
@@ -19,10 +20,14 @@
 
   $: fromPlan = field.draftFrom === 'plan'
   $: fromFindings = field.draftFrom === 'findings'
+  $: perWeakness = field.draftFrom === 'weaknessRecommendations'
+  // what each recommendation is written for: picked major findings (surprise) or weaknesses (QA v2)
   $: pickedFindings = (data.findings ?? []).map((f) => f.text).filter((t) => !isBlank(t))
+  $: weaknesses = allWeaknesses(template, data)
   $: sourceText = fromPlan
     ? recommendationsFromPlan(data.cards?.plan ?? [])
-    : fromFindings ? pickedFindings.join('\n') : allWeaknesses(template, data).join('\n')
+    : fromFindings ? pickedFindings.join('\n') : weaknesses.join('\n')
+  $: writesRecommendations = fromFindings || perWeakness
   $: current = data.fields[field.key]
 
   function write(text) {
@@ -46,7 +51,9 @@
     }
     busy = true
     try {
-      preview = fromFindings ? await draftRecommendations(pickedFindings) : await draftFindings(template, data)
+      if (fromFindings) preview = await draftRecommendations(pickedFindings)
+      else if (perWeakness) preview = await draftRecommendations(weaknesses)
+      else preview = await draftFindings(template, data)
     } finally {
       busy = false
     }
@@ -68,7 +75,7 @@
 
 <div class="field-draft">
   <button type="button" class="btn-link" on:click={draft} disabled={disabled || busy || !sourceText}>
-    {#if busy}Drafting…{:else if fromPlan}Fill from improvement plan{:else if fromFindings}Draft from major findings{:else}Draft from weaknesses{/if}
+    {#if busy}Drafting…{:else if fromPlan}Fill from improvement plan{:else if fromFindings}Draft from major findings{:else if perWeakness}Draft one per weakness{:else}Draft from weaknesses{/if}
   </button>
   {#if canUndo && !disabled}<button type="button" class="btn-link" on:click={useMine}>Use my words</button>{/if}
   {#if !sourceText}
@@ -76,7 +83,7 @@
   {/if}
 </div>
 {#if preview}
-  <DraftPreview columns={[{ label: fromFindings ? 'Recommendations' : 'Major findings', lines: preview.lines }]} usedFallback={preview.usedFallback}
+  <DraftPreview columns={[{ label: writesRecommendations ? 'Recommendations' : 'Major findings', lines: preview.lines }]} usedFallback={preview.usedFallback}
     replaces={!isBlank(current)} on:use={usePreview} on:discard={() => (preview = null)} />
 {/if}
 

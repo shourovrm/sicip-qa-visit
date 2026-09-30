@@ -16,12 +16,12 @@
 <script>
   import { createEventDispatcher } from 'svelte'
   import FieldInput from './FieldInput.svelte'
-  import { compareMismatch, isBlank } from '../../lib/reporttemplate.js'
+  import { compareMismatch, isBlank, isShown } from '../../lib/reporttemplate.js'
 
   export let block // {type:'cards', key, itemLabel, start, titleField, compare?, fields, linkFrom?, display?}
   export let cards = [] // data.cards[block.key]
   export let disabled = false
-  export let courseOptions = [] // for a courseRef field among block.fields, if any
+  export let optionsFor = () => [] // (field, card) -> suggestions for a courseRef field
   export let template = null // only needed for a linked block's "jump to the source section" link
 
   const dispatch = createEventDispatcher()
@@ -75,7 +75,7 @@
     return Boolean(field.required) || field.kind === 'choice'
   }
   function cardProgress(card) {
-    const counted = block.fields.filter(countsField)
+    const counted = block.fields.filter((f) => countsField(f) && isShown(f, card))
     const answered = counted.filter((f) => !isBlank(card[f.key])).length
     return { answered, total: counted.length, done: counted.length > 0 && answered === counted.length }
   }
@@ -124,9 +124,9 @@
     {#if cards[activeTab]}
       {@const card = cards[activeTab]}
       <div class="card entry">
-        {#each editableFields as field (field.key)}
+        {#each editableFields.filter((f) => isShown(f, card)) as field (field.key)}
           <FieldInput {field} value={card[field.key] ?? ''} {disabled} compact={Boolean(block.anonymous)}
-            courseOptions={field.kind === 'courseRef' ? courseOptions : undefined}
+            courseOptions={field.kind === 'courseRef' ? optionsFor(field, card) : undefined}
             on:change={(e) => setField(activeTab, field.key, e.detail)} />
         {/each}
       </div>
@@ -142,9 +142,9 @@
             {#if !disabled}<button type="button" class="btn-link remove" on:click={() => removeCard(index)}>Remove</button>{/if}
           {/if}
         </div>
-        {#each editableFields as field (field.key)}
+        {#each editableFields.filter((f) => isShown(f, card)) as field (field.key)}
           <FieldInput {field} value={card[field.key] ?? ''} {disabled} compact={Boolean(block.anonymous)}
-            courseOptions={field.kind === 'courseRef' ? courseOptions : undefined}
+            courseOptions={field.kind === 'courseRef' ? optionsFor(field, card) : undefined}
             on:change={(e) => setField(index, field.key, e.detail)} />
         {/each}
         {#if block.compare}

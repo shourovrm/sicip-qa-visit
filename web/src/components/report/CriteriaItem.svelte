@@ -11,10 +11,14 @@
   import AnswerSegmented from './AnswerSegmented.svelte'
   import ImproveWording from './ImproveWording.svelte'
   import RemarksEditor from './RemarksEditor.svelte'
+  import EvidencePicker from './EvidencePicker.svelte'
 
   export let item // {id, no, text, evidence?, options:[{id,label,short?,src?,detail?,seen,not,na}]}
   export let entry = undefined // data.criteria[item.id] or undefined (nothing touched yet)
   export let disabled = false
+  // qa-v2 numbered evidence (template.evidenceRegister): chips + suggestions instead of the free box
+  export let evidenceEntries = null // itemEvidence(...) or null for the v1 free "Evidence seen" box
+  export let evidenceSuggestions = []
 
   const dispatch = createEventDispatcher()
 
@@ -47,6 +51,14 @@
     const current = opts[optId] ?? {}
     emit({ ...entry, opts: { ...opts, [optId]: { ...current, remark } } })
   }
+  // tick boxes in template order, whatever order they were clicked in
+  function setTick(tickId, ticked) {
+    const current = new Set(entry?.ticks ?? [])
+    if (ticked) current.add(tickId)
+    else current.delete(tickId)
+    emit({ ...entry, ticks: item.ticks.map((t) => t.id).filter((id) => current.has(id)) })
+  }
+  const SOURCE_NAMES = { A3: 'Report', CL: 'Checklist', FC: 'Flow chart' }
   function setEvidence(value) {
     emit({ ...entry, evidence: value })
   }
@@ -57,14 +69,24 @@
 
 <div class="criterion">
   <div class="q"><span class="no">{item.no}</span>{item.text}</div>
-  {#if item.evidence}<div class="ev-hint"><b>Evidence (Annex-3):</b> {item.evidence}</div>{/if}
+  {#if item.evidence}<div class="ev-hint"><b>Evidence:</b> {item.evidence}</div>{/if}
+
+  {#if item.ticks}
+    <div class="ticks">
+      <span class="ticks-label">{item.ticksLabel ?? 'Available'}:</span>
+      {#each item.ticks as tick (tick.id)}
+        <label class="tick"><input type="checkbox" checked={(entry?.ticks ?? []).includes(tick.id)} {disabled}
+          on:change={(e) => setTick(tick.id, e.target.checked)} /> {tick.label}</label>
+      {/each}
+    </div>
+  {/if}
 
   {#each item.options as option (option.id)}
     {@const state = opts[option.id] ?? {}}
     <div class="opt-row">
       <div class="opt-label">
         {option.label}
-        {#each option.src ?? [] as src}<span class="src-tag src-{src.toLowerCase()}">{src}</span>{/each}
+        {#each (option.src ?? []).filter((src) => SOURCE_NAMES[src]) as src}<span class="src-tag src-{src.toLowerCase()}">{SOURCE_NAMES[src]}</span>{/each}
       </div>
       <AnswerSegmented options={STATES} value={state.v ?? ''} {disabled} compact
         on:change={(e) => setOptState(option.id, e.detail)} />
@@ -82,11 +104,15 @@
     </div>
   {/each}
 
-  <div class="item-box">
-    <label class="item-box-label" for="ev-{item.id}">Evidence seen</label>
-    <textarea id="ev-{item.id}" rows="1" placeholder="Documents, photos seen" value={evidence} {disabled} on:input={(e) => setEvidence(e.target.value)}></textarea>
-    <ImproveWording text={evidence} label={'Evidence seen: ' + item.text} {disabled} on:change={(e) => setEvidence(e.detail)} />
-  </div>
+  {#if evidenceEntries}
+    <EvidencePicker entries={evidenceEntries} suggestions={evidenceSuggestions} {disabled} on:add on:remove />
+  {:else}
+    <div class="item-box">
+      <label class="item-box-label" for="ev-{item.id}">Evidence seen</label>
+      <textarea id="ev-{item.id}" rows="1" placeholder="Documents, photos seen" value={evidence} {disabled} on:input={(e) => setEvidence(e.target.value)}></textarea>
+      <ImproveWording text={evidence} label={'Evidence seen: ' + item.text} {disabled} on:change={(e) => setEvidence(e.detail)} />
+    </div>
+  {/if}
   <div class="item-box">
     <label class="item-box-label" for="note-{item.id}">Other remarks</label>
     <textarea id="note-{item.id}" rows="1" placeholder="Anything else about this point" value={note} {disabled} on:input={(e) => setNote(e.target.value)}></textarea>
@@ -113,6 +139,9 @@
   .detail-in, .remark-in { width: 100%; margin-top: 6px; font-size: 13px; }
   .add-remark { margin-top: 6px; font-size: 12px; }
   .item-box { margin-top: 10px; }
+  .ticks { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 4px 0 8px; font-size: 13px; }
+  .ticks-label { font-weight: 700; color: var(--muted); }
+  .tick { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
   .item-box-label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 3px; }
   .item-box textarea { width: 100%; font-size: 13px; }
   .preview { margin-top: 12px; padding: 10px; border: 1px solid var(--outline); border-radius: var(--radius-card); background: var(--canvas); }

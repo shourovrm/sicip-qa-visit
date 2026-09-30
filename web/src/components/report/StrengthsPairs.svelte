@@ -1,6 +1,6 @@
 <!-- s13 component-wise strengths & weaknesses: one row per block.pairs entry, the two boxes side
-     by side on wide screens (stacked when narrow), each row with "Draft from remarks" plus one
-     "Draft all empty" for the section. Data stays in the plain str_n / weak_n fields. -->
+     by side on wide screens (stacked when narrow), each box with its own "Draft from remarks",
+     plus one "Draft all empty" for the section. Data stays in the plain str_n / weak_n fields. -->
 <script>
   import FieldInput from './FieldInput.svelte'
   import DraftPreview from './DraftPreview.svelte'
@@ -14,9 +14,16 @@
   export let disabled = false
   export let onChange = () => {}
 
-  let busyKey = '' // pair.source being drafted, or 'all'
-  let previews = {} // pair.source -> {strengths, weaknesses, usedFallback}
+  // one draft per box: key = `${pair.source}:strengths` | `${pair.source}:weaknesses`
+  let busyKey = '' // box key being drafted, or 'all'
+  let previews = {} // box key -> {lines, usedFallback}
   let summary = ''
+
+  const SIDES = [
+    { side: 'strengths', label: 'Strengths', fieldOf: (pair) => pair.strength },
+    { side: 'weaknesses', label: 'Weaknesses', fieldOf: (pair) => pair.weakness },
+  ]
+  const boxKey = (pair, side) => `${pair.source}:${side}`
 
   $: fieldByKey = Object.fromEntries(block.fields.map((field) => [field.key, field]))
   // recomputed on every data change (data = data upstream) so buttons enable as marks arrive
@@ -32,49 +39,35 @@
     data.fields[key] = value
     onChange()
   }
-  function apply(pair, draft) {
-    data.fields[pair.strength] = draft.strengths.join('\n')
-    data.fields[pair.weakness] = draft.weaknesses.join('\n')
-    onChange()
-  }
 
-  async function draftOne(pair) {
-    busyKey = pair.source
+  // the model drafts both lists in one answer; a box keeps only its own half
+  async function draftBox(pair, side) {
+    busyKey = boxKey(pair, side)
     summary = ''
     try {
-      previews = { ...previews, [pair.source]: await draftComponent(template, data, pair) }
+      const draft = await draftComponent(template, data, pair)
+      previews = { ...previews, [boxKey(pair, side)]: { lines: draft[side], usedFallback: draft.usedFallback } }
     } finally {
       busyKey = ''
     }
   }
-  function closePreview(pair) {
-    const { [pair.source]: _closed, ...rest } = previews
+  function closePreview(key) {
+    const { [key]: _closed, ...rest } = previews
     previews = rest
   }
-  // "Use my words": per component, the text a previewed draft replaced (while still untouched)
+  // "Use my words": per box, the text a previewed draft replaced (while still untouched)
   let undo = {}
-  function useMine(pair) {
-    const { strength, weakness } = undo[pair.source]
-    data.fields[pair.strength] = strength
-    data.fields[pair.weakness] = weakness
-    undo = { ...undo, [pair.source]: undefined }
+  function useMine(key, fieldKey) {
+    data.fields[fieldKey] = undo[key].before
+    undo = { ...undo, [key]: undefined }
     onChange()
   }
-  const canUndo = (pair, fields) => {
-    const u = undo[pair.source]
-    return Boolean(u) && fields[pair.strength] === u.appliedStrength && fields[pair.weakness] === u.appliedWeakness
-  }
-  function usePreview(pair) {
-    const preview = previews[pair.source]
-    undo = {
-      ...undo,
-      [pair.source]: {
-        strength: data.fields[pair.strength] ?? '', weakness: data.fields[pair.weakness] ?? '',
-        appliedStrength: preview.strengths.join('\n'), appliedWeakness: preview.weaknesses.join('\n'),
-      },
-    }
-    apply(pair, preview)
-    closePreview(pair)
+  const canUndo = (key, value) => Boolean(undo[key]) && value === undo[key].after
+  function usePreview(key, fieldKey) {
+    const drafted = previews[key].lines.join('\n')
+    if (!isBlank(data.fields[fieldKey])) undo = { ...undo, [key]: { before: data.fields[fieldKey], after: drafted } }
+    setField(fieldKey, drafted)
+    closePreview(key)
   }
 
   // one request at a time (free Workers AI quota + keeps the phone/web behaviour identical);
@@ -88,7 +81,9 @@
       for (const pair of block.pairs) {
         if (!available[pair.source] || !bothBlank(pair)) continue
         const draft = await draftComponent(template, data, pair)
-        apply(pair, draft)
+        data.fields[pair.strength] = draft.strengths.join('\n')
+        data.fields[pair.weakness] = draft.weaknesses.join('\n')
+        onChange()
         drafted += 1
         if (draft.usedFallback) fromMarks += 1
       }
@@ -111,30 +106,29 @@
 
 {#each block.pairs as pair, index (pair.source)}
   <section class="pair">
-    <div class="pair-head">
-      <h4><span class="pair-no">{index + 1}.</span>{pair.component}</h4>
-      <button type="button" class="btn-link" on:click={() => draftOne(pair)}
-        disabled={disabled || busyKey !== '' || !available[pair.source]}>
-        {busyKey === pair.source ? 'Drafting…' : 'Draft from remarks'}
-      </button>
-      {#if !disabled && canUndo(pair, data.fields)}<button type="button" class="btn-link" on:click={() => useMine(pair)}>Use my words</button>{/if}
-    </div>
+    <h4><span class="pair-no">{index + 1}.</span>{pair.component}</h4>
     {#if !available[pair.source]}<p class="hint">Nothing marked in section {sectionNumber(pair.source)} yet</p>{/if}
-    {#if previews[pair.source]}
-      <DraftPreview
-        columns={[{ label: 'Strengths', lines: previews[pair.source].strengths }, { label: 'Weaknesses', lines: previews[pair.source].weaknesses }]}
-        usedFallback={previews[pair.source].usedFallback} replaces={!bothBlank(pair)}
-        on:use={() => usePreview(pair)} on:discard={() => closePreview(pair)} />
-    {/if}
     <div class="pair-boxes">
-      <div>
-        <FieldInput field={{ ...fieldByKey[pair.strength], label: 'Strengths' }} value={data.fields[pair.strength] ?? ''} {disabled}
-          on:change={(e) => setField(pair.strength, e.detail)} />
-      </div>
-      <div>
-        <FieldInput field={{ ...fieldByKey[pair.weakness], label: 'Weaknesses' }} value={data.fields[pair.weakness] ?? ''} {disabled}
-          on:change={(e) => setField(pair.weakness, e.detail)} />
-      </div>
+      {#each SIDES as { side, label, fieldOf } (side)}
+        {@const key = boxKey(pair, side)}
+        {@const fieldKey = fieldOf(pair)}
+        <div>
+          <div class="box-actions">
+            <button type="button" class="btn-link" on:click={() => draftBox(pair, side)}
+              disabled={disabled || busyKey !== '' || !available[pair.source]}>
+              {busyKey === key ? 'Drafting…' : 'Draft from remarks'}
+            </button>
+            {#if !disabled && canUndo(key, data.fields[fieldKey])}<button type="button" class="btn-link" on:click={() => useMine(key, fieldKey)}>Use my words</button>{/if}
+          </div>
+          {#if previews[key]}
+            <DraftPreview columns={[{ label, lines: previews[key].lines }]} usedFallback={previews[key].usedFallback}
+              replaces={!isBlank(data.fields[fieldKey])}
+              on:use={() => usePreview(key, fieldKey)} on:discard={() => closePreview(key)} />
+          {/if}
+          <FieldInput field={{ ...fieldByKey[fieldKey], label }} value={data.fields[fieldKey] ?? ''} {disabled}
+            on:change={(e) => setField(fieldKey, e.detail)} />
+        </div>
+      {/each}
     </div>
   </section>
 {/each}
@@ -143,7 +137,7 @@
   .pairs-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
   .summary { font-size: 12px; color: var(--muted); }
   .pair { padding-top: 12px; margin-top: 12px; border-top: 1px solid var(--outline); }
-  .pair-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .box-actions { display: flex; gap: 10px; justify-content: flex-end; }
   h4 { margin: 0 0 6px; font-size: 14px; }
   .pair-no { color: var(--muted); margin-right: 6px; }
   .btn-link { font-size: 12px; white-space: nowrap; }

@@ -152,6 +152,27 @@ function counts(field) {
   return Boolean(field.required) || field.kind === 'choice'
 }
 
+// suggestions for a courseRef field, from its `optionsFrom` cards block:
+// - optionsField: that key's distinct values (qa-v2 contracts' organisation, batches' batch),
+//   narrowed by filterBy {field, value} to source cards whose `field` equals this card's `value`
+//   (feedback Batch -> only the batches of the card's Trade)
+// - optionsPart "course": distinct course names only
+// - otherwise "course · batch" per source card with a course name
+export function refOptions(field, data, card = {}) {
+  let sources = data.cards?.[field.optionsFrom] ?? []
+  const distinct = (values) => [...new Set(values.map((v) => String(v ?? '').trim()).filter(Boolean))]
+  if (field.optionsField) {
+    const filter = field.filterBy
+    const wanted = filter ? String(card[filter.value] ?? '').trim() : ''
+    if (filter && wanted) sources = sources.filter((source) => String(source[filter.field] ?? '').trim() === wanted)
+    return distinct(sources.map((source) => source[field.optionsField]))
+  }
+  if (field.optionsPart === 'course') return distinct(sources.map((source) => source.course))
+  return sources
+    .filter((source) => !isBlank(source.course))
+    .map((source) => (source.batch ? `${source.course} · ${source.batch}` : source.course))
+}
+
 // qa-v2 "showIf": {field, in:[...]} -- a field/block only shows (and only counts) while the
 // named value (top-level field, or the same card's field) is one of `in`
 export function isShown(thing, values) {

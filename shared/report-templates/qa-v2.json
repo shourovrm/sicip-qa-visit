@@ -3226,13 +3226,14 @@
        "label": "Recommendations (one point per line)",
        "kind": "longtext",
        "rewrite": true,
-       "draftFrom": "weaknesses"
+       "draftFrom": "weaknessRecommendations"
       }
      ]
     }
    ]
   }
  ],
+ "evidenceRegister": true,
  "evidenceSuggestions": [
   "Trainers list",
   "List of equipment",

@@ -14,6 +14,7 @@
   import { getReport, updateReport, updateReportIfUnchanged, submitReport, softDeleteReport } from '../../lib/db.js'
   import { mergeReportData } from '../../lib/reportmerge.js'
   import { convertSurpriseV1ToV2, revertSurpriseV2ToV1 } from '../../lib/reportconvert.js'
+  import { convertQaV1ToV2 } from '../../lib/qaconvert.js'
   import ReportSection from './ReportSection.svelte'
   import SectionChips from './SectionChips.svelte'
   import SectionIndex from './SectionIndex.svelte'
@@ -147,18 +148,23 @@
     }
   }
 
-  // old-format surprise report -> v2 (lib/reportconvert.js); the parent re-opens the row so the
-  // editor restarts on the v2 template
+  // old-format report -> latest template (surprise: lib/reportconvert.js, QA: lib/qaconvert.js);
+  // the parent re-opens the row so the editor restarts on the new template
+  $: isSurprise = report.type === 'surprise'
   async function convert() {
-    if (!confirm('Convert this report to the new format? Answers move to the new sections (e.g. key findings become major findings). Old answers the new format no longer asks for stay saved but are not shown.')) return
+    const moves = isSurprise
+      ? 'Answers move to the new sections (e.g. key findings become major findings).'
+      : 'Answers move to the new sections (e.g. the MoU details become the MoU table, evidence gets numbers).'
+    if (!confirm(`Convert this report to the new format? ${moves} Old answers the new format no longer asks for stay saved but are not shown.`)) return
     await flush()
     if (saveState === 'offline') {
       alert('Could not save the latest answers. Check the connection and try again.')
       return
     }
     try {
-      const v2 = TEMPLATES.surprise
-      report = await updateReport(report.id, { data: convertSurpriseV1ToV2(v2, data), template_version: v2.version })
+      const latest = TEMPLATES[report.type]
+      const converted = isSurprise ? convertSurpriseV1ToV2(latest, data) : convertQaV1ToV2(latest, data)
+      report = await updateReport(report.id, { data: converted, template_version: latest.version })
       dispatch('converted', report)
     } catch (e) {
       alert('Convert failed: ' + (e.message ?? e))
@@ -229,7 +235,11 @@
     </div>
     {#if needsConversion(report) && !disabled}
       <div class="convert">
-        <span><b>This report uses the old format.</b> Convert it to get templated remarks, the trainers table, the equipment list, major findings and recommendations. Your answers are kept.</span>
+        {#if isSurprise}
+          <span><b>This report uses the old format.</b> Convert it to get templated remarks, the trainers table, the equipment list, major findings and recommendations. Your answers are kept.</span>
+        {:else}
+          <span><b>This report uses the old format.</b> Convert it to get the officer, registration and MoU tables, numbered evidence and the new criteria. Your answers are kept.</span>
+        {/if}
         <button type="button" class="btn" on:click={convert}>Convert to new format</button>
       </div>
     {/if}
