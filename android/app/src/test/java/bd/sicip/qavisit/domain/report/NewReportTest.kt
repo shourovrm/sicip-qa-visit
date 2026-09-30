@@ -41,6 +41,15 @@ class NewReportTest {
     }
 
     @Test
+    fun `qa-v2 first MoU card suggests the visit association`() {
+        val template = parseReportTemplate(File("../../shared/report-templates/qa-v2.json").readText())
+
+        val data = newReport(template, sampleVisit(), officerName = "Jane Doe")
+
+        assertEquals("FLAXA", data.cardField("mous", 0, "partner"))
+    }
+
+    @Test
     fun `officers prefill falls back to name alone when designation is unknown`() {
         val template = loadSurpriseTemplate()
         val visit = sampleVisit()

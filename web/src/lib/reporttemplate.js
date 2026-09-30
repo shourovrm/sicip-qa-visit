@@ -396,6 +396,11 @@ export function newReportData(template, visit, officerName) {
       }
     } else if (block.type === 'cards') {
       cards[block.key] = Array.from({ length: block.start ?? 0 }, () => ({ _id: crypto.randomUUID() }))
+      // card field prefill (qa-v2 1.21 partner <- visit association): first seeded card only
+      const first = block.linkFrom ? null : cards[block.key][0]
+      for (const field of first ? block.fields : []) {
+        if (field.prefill === 'association' && visit?.association) first[field.key] = visit.association
+      }
       // surprise v2 visiting officers: the first card is the officer writing it
       if (block.prefill === 'officers' && cards[block.key].length > 0) cards[block.key][0].name = officerName ?? ''
     }

@@ -4,7 +4,7 @@ import { describe, it, expect } from 'vitest'
 import qaV1 from '../../../shared/report-templates/qa-v1.json'
 import qaV2 from '../../../shared/report-templates/qa-v2.json'
 import fixture from '../../../shared/report-templates/fixtures/qa-2.json'
-import { computeProgress, isShown, needsConversion } from './reporttemplate.js'
+import { computeProgress, isShown, needsConversion, newReportData } from './reporttemplate.js'
 import { criteriaPath, evidenceLabel, evidenceSuggestions, itemEvidence, usedEvidence, withEvidenceAdded, withEvidenceRemoved } from './evidence.js'
 import { convertQaV1ToV2 } from './qaconvert.js'
 
@@ -158,5 +158,12 @@ describe('qa-v2 running courses', async () => {
   it('uses current batches, else the MoU courses', () => {
     expect(runningCourses({ cards: { batches: [{ course: 'EIM' }, { course: 'PPF' }, { course: 'EIM' }], mou_courses: [{ course: 'X' }] } })).toEqual(['EIM', 'PPF'])
     expect(runningCourses({ cards: { batches: [{ course: ' ' }], mou_courses: [{ course: 'Welding' }] } })).toEqual(['Welding'])
+  })
+})
+
+describe('qa-v2 new report', () => {
+  it('first MoU card suggests the visit association', () => {
+    const data = newReportData(qaV2, { association: 'FLAXA', institute: 'X' }, 'Jane')
+    expect(data.cards.mous[0].partner).toBe('FLAXA')
   })
 })

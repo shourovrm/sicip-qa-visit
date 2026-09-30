@@ -38,6 +38,14 @@ fun newReport(
                     if (block.linkFrom == null) {
                         repeat(block.start) { data = data.withCardAdded(block.key) }
                     }
+                    // card field prefill (qa-v2 1.21 partner <- visit association): first seeded
+                    // card only, a suggestion the officer can change
+                    if (block.start > 0 && block.linkFrom == null) {
+                        block.fields.forEach { field ->
+                            val value = prefillValue(field.prefill, visit, officerName, officerDesignation)
+                            if (!value.isNullOrBlank()) data = data.withCardField(block.key, 0, field.key, value)
+                        }
+                    }
                     // surprise v2 visiting officers: the first card is the officer writing it
                     if (block.prefill == "officers" && block.start > 0) {
                         data = data.withCardField(block.key, 0, "name", officerName)

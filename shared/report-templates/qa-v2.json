@@ -267,6 +267,7 @@
       {
        "key": "partner",
        "label": "1.21 Contract/MoU signed with",
+       "prefill": "association",
        "kind": "select",
        "options": [
         "AEOSIB",
