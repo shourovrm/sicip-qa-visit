@@ -34,6 +34,7 @@ import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportTemplate
 import bd.sicip.qavisit.domain.report.allWeaknesses
 import bd.sicip.qavisit.domain.report.recommendationsFromPlan
+import kotlinx.serialization.json.JsonObject
 import kotlinx.coroutines.launch
 
 @Composable
@@ -93,6 +94,7 @@ fun FindingsDraftButton(field: Field, template: ReportTemplate, data: ReportData
     var loading by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf(false) }
     var preview by remember { mutableStateOf<Drafted<String>?>(null) }
+    val undo = rememberDraftUndo<String>()
     val weaknesses = allWeaknesses(template, data)
 
     DraftButtonRow(
@@ -116,8 +118,10 @@ fun FindingsDraftButton(field: Field, template: ReportTemplate, data: ReportData
         }
     }
     if (notice) DraftFallbackNotice()
+    UseMyWordsButton(undo, data.field(field.key)) { editor.editNow(editor.data.withField(field.key, it)) }
     preview?.let { drafted ->
         ReplaceTextDialog("Major findings", drafted.value, drafted.fromMarks, onUse = {
+            undo.record(editor.data.field(field.key), drafted.value)
             editor.editNow(editor.data.withField(field.key, drafted.value))
             notice = drafted.fromMarks
             preview = null
@@ -132,6 +136,7 @@ fun RecommendationsFromPlan(field: Field, data: ReportData, readOnly: Boolean, e
     if (readOnly) return
     val planKey = field.draftFrom ?: return
     var confirm by remember { mutableStateOf(false) }
+    val undo = rememberDraftUndo<String>()
     val fromPlan = recommendationsFromPlan(data.cards(planKey))
 
     LaunchedEffect(field.key) {
@@ -148,8 +153,10 @@ fun RecommendationsFromPlan(field: Field, data: ReportData, readOnly: Boolean, e
     ) {
         if (editor.data.field(field.key).isBlank()) editor.editNow(editor.data.withField(field.key, fromPlan)) else confirm = true
     }
+    UseMyWordsButton(undo, data.field(field.key)) { editor.editNow(editor.data.withField(field.key, it)) }
     if (confirm) {
         ReplaceTextDialog("Recommendations", fromPlan, fromMarks = false, onUse = {
+            undo.record(editor.data.field(field.key), fromPlan)
             editor.editNow(editor.data.withField(field.key, fromPlan))
             confirm = false
         }, onDismiss = { confirm = false })
@@ -166,6 +173,7 @@ fun PlanDraftButton(block: ReportBlock.Cards, template: ReportTemplate, data: Re
     var loading by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf(false) }
     var confirm by remember { mutableStateOf(false) }
+    val undo = rememberDraftUndo<List<JsonObject>>()
     val weaknesses = allWeaknesses(template, data)
 
     fun rebuild() {
@@ -173,6 +181,7 @@ fun PlanDraftButton(block: ReportBlock.Cards, template: ReportTemplate, data: Re
         notice = false
         scope.launch {
             val result = ai.plan(allWeaknesses(template, editor.data), editor.data.cards(block.key))
+            undo.record(editor.data.cards(block.key), result.value)
             editor.editNow(editor.data.withCardsReplaced(block.key, result.value))
             notice = result.fromMarks
             loading = false
@@ -188,6 +197,7 @@ fun PlanDraftButton(block: ReportBlock.Cards, template: ReportTemplate, data: Re
         if (data.cards(block.key).isEmpty()) rebuild() else confirm = true
     }
     if (notice) DraftFallbackNotice()
+    UseMyWordsButton(undo, data.cards(block.key)) { editor.editNow(editor.data.withCardsReplaced(block.key, it)) }
     if (confirm) {
         AlertDialog(
             onDismissRequest = { confirm = false },

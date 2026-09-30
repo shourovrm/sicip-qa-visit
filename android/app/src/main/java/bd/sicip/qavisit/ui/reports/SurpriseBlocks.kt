@@ -151,6 +151,7 @@ fun FindingsBlockView(block: ReportBlock.Findings, template: ReportTemplate, dat
     val picks = data.findings()
     var loading by remember { mutableStateOf(false) }
     var fromMarks by remember { mutableStateOf(false) }
+    val undo = rememberDraftUndo<List<Finding>>()
 
     // AI suggestions replace the picks that came from the list; typed findings stay
     fun suggest() {
@@ -160,6 +161,8 @@ fun FindingsBlockView(block: ReportBlock.Findings, template: ReportTemplate, dat
             val current = editor.data.findings()
             val kept = result.value.map { suggested -> current.find { it.src == suggested.src } ?: suggested }
             val typed = current.filter { it.src.isEmpty() }
+            // the automatic first pre-select replaces nothing, so only a re-suggest is undoable
+            if (current.isNotEmpty()) undo.record(current, kept + typed)
             editor.editNow(editor.data.withFindings(kept + typed).withFindingsAiSource(candidatesSource))
             fromMarks = result.fromMarks
             loading = false
@@ -196,6 +199,7 @@ fun FindingsBlockView(block: ReportBlock.Findings, template: ReportTemplate, dat
                     Text("Suggest again")
                 }
             }
+            UseMyWordsButton(undo, picks) { editor.editNow(editor.data.withFindings(it)) }
         }
 
         val pickedSources = picks.map { it.src }.toSet()
@@ -229,6 +233,7 @@ fun RecommendationsDraftButton(field: Field, data: ReportData, readOnly: Boolean
     var loading by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf(false) }
     var preview by remember { mutableStateOf<Drafted<String>?>(null) }
+    val undo = rememberDraftUndo<String>()
     val findings = data.findings().map { it.text }.filter { it.isNotBlank() }
 
     DraftButtonRow(
@@ -252,8 +257,10 @@ fun RecommendationsDraftButton(field: Field, data: ReportData, readOnly: Boolean
         }
     }
     if (notice) DraftFallbackNotice()
+    UseMyWordsButton(undo, data.field(field.key)) { editor.editNow(editor.data.withField(field.key, it)) }
     preview?.let { drafted ->
         ReplaceTextDialog("Recommendations", drafted.value, drafted.fromMarks, onUse = {
+            undo.record(editor.data.field(field.key), drafted.value)
             editor.editNow(editor.data.withField(field.key, drafted.value))
             preview = null
         }, onDismiss = { preview = null })

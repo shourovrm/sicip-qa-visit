@@ -62,6 +62,7 @@ import bd.sicip.qavisit.domain.report.ReportSection
 import bd.sicip.qavisit.domain.report.SectionProgress
 import bd.sicip.qavisit.domain.report.computeProgress
 import bd.sicip.qavisit.domain.report.convertSurpriseV1ToV2
+import bd.sicip.qavisit.domain.report.revertSurpriseV2ToV1
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -88,6 +89,7 @@ fun ReportHub(
     var menuOpen by remember { mutableStateOf(false) }
     var pdfMenuOpen by remember { mutableStateOf(false) }
     var showConvertConfirm by remember { mutableStateOf(false) }
+    var showRevertConfirm by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var pdfBusy by remember { mutableStateOf(false) }
 
@@ -124,6 +126,12 @@ fun ReportHub(
                     if (editor.report.status == "draft") {
                         IconButton(onClick = { menuOpen = true }) { Icon(Icons.Filled.MoreVert, contentDescription = "More") }
                         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            if (canRevertToOldFormat(editor.report)) {
+                                DropdownMenuItem(
+                                    text = { Text("Revert to old format") },
+                                    onClick = { menuOpen = false; showRevertConfirm = true },
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text("Delete draft") },
                                 onClick = { menuOpen = false; showDeleteConfirm = true },
@@ -246,6 +254,26 @@ fun ReportHub(
                 }) { Text("Convert") }
             },
             dismissButton = { TextButton(onClick = { showConvertConfirm = false }) { Text("Cancel") } },
+        )
+    }
+
+    if (showRevertConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRevertConfirm = false },
+            title = { Text("Revert to the old format?") },
+            text = { Text("The report goes back to the old questions. Major findings, recommendations, officers, trainers present and job calls are copied back to their old places; the new-format answers stay saved, so you can convert again later.") },
+            confirmButton = {
+                Button(onClick = {
+                    showRevertConfirm = false
+                    scope.launch {
+                        editor.flush()
+                        val v1 = surpriseTemplate(context, 1)
+                        val reverted = revertSurpriseV2ToV1(v1, editor.data)
+                        db.reportDao().updateDataAndVersion(editor.report.id, reverted.toJsonString(), v1.version, Instant.now().toString())
+                    }
+                }) { Text("Revert") }
+            },
+            dismissButton = { TextButton(onClick = { showRevertConfirm = false }) { Text("Cancel") } },
         )
     }
 

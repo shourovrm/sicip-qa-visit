@@ -78,3 +78,54 @@ fun convertSurpriseV1ToV2(v2: ReportTemplate, v1Data: ReportData, newId: () -> S
     }
     return data.withCardsReplaced("trainers", trainers)
 }
+
+private val EMPLOYMENT_V2_TO_V1 = mapOf(
+    "employed" to "same", "other_job" to "other", "self_employed" to "other", "others" to "other", "not_employed" to "none",
+)
+
+// the Hub's "Revert to old format": v2 data -> v1 shape. Every key stays; answers given in v2
+// are copied back to where v1 shows them (officers, H3 logbook, trainers present, J course/
+// batch + employment, key findings, instructions), so reverting loses nothing either.
+fun revertSurpriseV2ToV1(v1: ReportTemplate, v2Data: ReportData): ReportData {
+    var data = v2Data
+
+    val officers = data.cards("officers").mapNotNull { card ->
+        val name = card.text("name")
+        val designation = card.text("designation")
+        when {
+            name.isEmpty() -> null
+            designation.isEmpty() -> name
+            else -> "$name ($designation)"
+        }
+    }
+    if (officers.isNotEmpty()) data = data.withField("officers", officers.joinToString("\n"))
+
+    val logbookAnswer = data.checkAnswer("followup_1")
+    val logbookRemarks = data.checkRemarks("followup_1")
+    if (logbookAnswer.isNotBlank() || logbookRemarks.isNotBlank()) {
+        data = data.withCheck("registers_3", answer = logbookAnswer, remarks = logbookRemarks)
+    }
+
+    val trainersPresent = data.cards("trainers").associate { it.text("_link") to it.text("present") }
+    data = data.withCardsReplaced("attendance", data.cards("attendance").map { card ->
+        val present = trainersPresent[card.text("_link")].orEmpty()
+        if (present.isEmpty()) card else JsonObject(card + ("trainers_present" to JsonPrimitive(present)))
+    })
+
+    data = data.withCardsReplaced("graduate", data.cards("graduate").map { card ->
+        val merged = card.toMutableMap()
+        val courseBatch = listOf(card.text("course"), card.text("batch")).filter { it.isNotEmpty() }.joinToString(" ")
+        if (courseBatch.isNotEmpty()) {
+            merged["batch"] = JsonPrimitive(courseBatch)
+            merged["course"] = JsonPrimitive("")
+        }
+        EMPLOYMENT_V2_TO_V1[card.text("confirmed")]?.let { merged["confirmed"] = JsonPrimitive(it) }
+        JsonObject(merged)
+    })
+
+    val findings = data.findings().map { it.text.trim() }.filter { it.isNotEmpty() }
+    if (findings.isNotEmpty()) data = data.withField("key_findings", findings.joinToString("\n"))
+    if (data.field("recommendations").isNotBlank()) data = data.withField("instructions_given", data.field("recommendations"))
+
+    return normalize(v1, data)
+}

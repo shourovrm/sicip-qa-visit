@@ -108,6 +108,7 @@ private fun PairCard(
     val scope = rememberCoroutineScope()
     var loading by remember { mutableStateOf(false) }
     var preview by remember { mutableStateOf<Drafted<StrengthsDraft>?>(null) }
+    val undo = rememberDraftUndo<Pair<String, String>>()
     val notes = componentNotes(template, data, pair.source)
     val sourceBadge = template.sections.firstOrNull { it.key == pair.source }?.badge ?: pair.source
 
@@ -138,6 +139,9 @@ private fun PairCard(
                         modifier = Modifier.height(48.dp),
                     ) { Text("Draft from remarks") }
                     if (loading) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    UseMyWordsButton(undo, data.field(pair.strength) to data.field(pair.weakness)) { (strength, weakness) ->
+                        editor.editNow(editor.data.withField(pair.strength, strength).withField(pair.weakness, weakness))
+                    }
                 }
                 if (!hasNotes(notes)) {
                     Text("Nothing marked in section $sourceBadge yet", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -159,7 +163,10 @@ private fun PairCard(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    editor.editNow(editor.data.withDraft(pair, drafted.value))
+                    val before = editor.data.field(pair.strength) to editor.data.field(pair.weakness)
+                    val after = editor.data.withDraft(pair, drafted.value)
+                    undo.record(before, after.field(pair.strength) to after.field(pair.weakness))
+                    editor.editNow(after)
                     preview = null
                 }) { Text("Use draft") }
             },

@@ -10,10 +10,10 @@
      so this component still renders standalone (e.g. in a test) without those wired up. -->
 <script>
   import { createEventDispatcher } from 'svelte'
-  import { computeProgress, normalize, needsConversion, TEMPLATES } from '../../lib/reporttemplate.js'
+  import { computeProgress, normalize, needsConversion, templateFor, TEMPLATES } from '../../lib/reporttemplate.js'
   import { getReport, updateReport, updateReportIfUnchanged, submitReport, softDeleteReport } from '../../lib/db.js'
   import { mergeReportData } from '../../lib/reportmerge.js'
-  import { convertSurpriseV1ToV2 } from '../../lib/reportconvert.js'
+  import { convertSurpriseV1ToV2, revertSurpriseV2ToV1 } from '../../lib/reportconvert.js'
   import ReportSection from './ReportSection.svelte'
   import SectionChips from './SectionChips.svelte'
   import SectionIndex from './SectionIndex.svelte'
@@ -165,6 +165,23 @@
     }
   }
 
+  // v2 surprise report -> back to v1 (every key kept, v2 answers copied back); parent re-opens
+  async function revert() {
+    if (!confirm('Revert this report to the old format? Major findings, recommendations, officers, trainers present and job calls are copied back to their old places; the new-format answers stay saved, so you can convert again later.')) return
+    await flush()
+    if (saveState === 'offline') {
+      alert('Could not save the latest answers. Check the connection and try again.')
+      return
+    }
+    try {
+      const v1 = templateFor('surprise', 1)
+      report = await updateReport(report.id, { data: revertSurpriseV2ToV1(v1, data), template_version: v1.version })
+      dispatch('converted', report)
+    } catch (e) {
+      alert('Revert failed: ' + (e.message ?? e))
+    }
+  }
+
   async function del() {
     if (!confirm('Delete this draft report? This cannot be undone.')) return
     await softDeleteReport(report.id)
@@ -186,6 +203,7 @@
   // SectionChips (spec section 8: "> 13 sections").
   $: useSectionIndex = template.sections.length > 13
   // surprise v2 has remarks blocks -> it also prints as a narrative report
+  $: canRevert = !disabled && report.type === 'surprise' && Number(report.template_version) === TEMPLATES.surprise.version
   $: hasNarrative = template.sections.some((s) => s.blocks.some((b) => b.type === 'remarks'))
 </script>
 
@@ -199,6 +217,7 @@
         <p class="subtitle">{meta.institute || template.subtitle || template.short}</p>
       </div>
       <div class="head-actions">
+        {#if canRevert}<button type="button" class="btn" on:click={revert} title="Switch this report back to the old questions">Old format</button>{/if}
         <button type="button" class="btn" on:click={close}>Close</button>
       </div>
     </div>

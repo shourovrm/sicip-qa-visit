@@ -5,7 +5,7 @@ import v2 from '../../../shared/report-templates/surprise-v2.json'
 import fixture from '../../../shared/report-templates/fixtures/remarks-surprise-2.json'
 import { buildRemarkLines, fillSays, findingCandidates, parseMajorAnswer } from './sectionremarks.js'
 import { compareMismatch, templateFor, needsConversion } from './reporttemplate.js'
-import { convertSurpriseV1ToV2 } from './reportconvert.js'
+import { convertSurpriseV1ToV2, revertSurpriseV2ToV1 } from './reportconvert.js'
 import { reportHtml } from './reporthtml.js'
 import { narrativeHtml } from './narrativehtml.js'
 
@@ -72,6 +72,16 @@ describe('convertSurpriseV1ToV2', () => {
     expect(out.fields.recommendations).toBe('Fix register\nRecommended follow-up: Full QA visit')
     expect(out.flags).toEqual(['flag_1'])
     expect(v1Data.findings).toBeUndefined() // input untouched
+
+    // revert copies v2 answers back to their v1 places
+    out.findings = [{ src: '', text: 'Edited finding' }]
+    out.cards.trainers[0].present = '2'
+    const back = revertSurpriseV2ToV1(templateFor('surprise', 1), out)
+    expect(back.fields.officers).toBe('Rafiq (QA Specialist)\nNusrat')
+    expect(back.fields.key_findings).toBe('Edited finding')
+    expect(back.checks.registers_3.answer).toBe('no')
+    expect(back.cards.attendance[0].trainers_present).toBe('2')
+    expect(back.cards.graduate[0]).toMatchObject({ batch: 'Welding 05', course: '', confirmed: 'same' })
   })
 })
 

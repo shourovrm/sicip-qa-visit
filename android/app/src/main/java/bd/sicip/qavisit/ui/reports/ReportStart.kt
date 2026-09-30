@@ -43,6 +43,9 @@ fun templateForType(context: Context, type: String, version: Int? = null): Repor
 // an old-format surprise report the hub offers to convert
 fun needsConversion(report: Report): Boolean = report.type == REPORT_TYPE_SURPRISE && report.templateVersion < SURPRISE_LATEST_VERSION
 
+// a new-format surprise report the hub offers to switch back to v1 (ReportConvert.kt)
+fun canRevertToOldFormat(report: Report): Boolean = report.type == REPORT_TYPE_SURPRISE && report.templateVersion == SURPRISE_LATEST_VERSION
+
 fun templateForReport(context: Context, report: Report): ReportTemplate =
     templateForType(context, report.type, report.templateVersion)
 

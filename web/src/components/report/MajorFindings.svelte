@@ -17,6 +17,8 @@
 
   let busy = false
   let usedFallback = false
+  let undo = null
+  $: canUndo = undo !== null && data.findings === undo.after
 
   $: candidates = findingCandidates(template, data)
   $: candidatesSource = candidates.map((l) => l.text).join('\n')
@@ -36,8 +38,11 @@
       const result = await draftMajorFindings(candidates)
       const current = data.findings ?? []
       const kept = result.findings.map((s) => current.find((f) => f.src === s.src) ?? s)
+      const next = [...kept, ...current.filter((f) => !f.src)]
+      // the automatic first pre-select replaces nothing, so only a re-suggest is undoable
+      if (current.length > 0) undo = { before: current, after: next }
       data.findingsAi = candidatesSource
-      setPicks([...kept, ...current.filter((f) => !f.src)])
+      setPicks(next)
       usedFallback = result.usedFallback
     } finally {
       busy = false
@@ -73,6 +78,7 @@
     <div class="row">
       <button type="button" class="btn" on:click={() => setPicks([...picks, { src: '', text: '' }])}>＋ Add finding</button>
       <button type="button" class="btn" on:click={suggest} disabled={busy || candidates.length === 0}>Suggest again</button>
+      {#if canUndo}<button type="button" class="btn-link" on:click={() => { setPicks(undo.before); undo = null }}>Use my words</button>{/if}
     </div>
   {/if}
 

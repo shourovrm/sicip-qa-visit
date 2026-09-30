@@ -16,6 +16,9 @@
   let loading = false
   let error = ''
   let suggestion = null // rewritten text once a request succeeds, cleared on Use this/Keep mine
+  // after "Use this": the officer's own text, offered back while the box still holds the AI text
+  let mine = null
+  let applied = null
   let online = navigator.onLine
 
   function setOnline() {
@@ -38,8 +41,15 @@
   }
 
   function useThis() {
+    mine = text
+    applied = suggestion
     dispatch('change', suggestion)
     suggestion = null
+  }
+  function useMine() {
+    dispatch('change', mine)
+    mine = null
+    applied = null
   }
   function keepMine() {
     suggestion = null
@@ -59,6 +69,7 @@
       >
         {#if loading}Improving…{:else if !online}Improve wording (Offline){:else}Improve wording{/if}
       </button>
+      {#if mine !== null && text === applied}<button type="button" class="btn-link improve-btn" on:click={useMine}>Use my words</button>{/if}
       {#if error}<p class="improve-error">{error}</p>{/if}
     {:else}
       <div class="improve-panel">

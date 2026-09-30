@@ -16,6 +16,14 @@
   $: weaknessCount = allWeaknesses(template, data).length
   $: cards = data.cards?.[block.key] ?? []
 
+  let undo = null
+  $: canUndo = undo !== null && data.cards?.[block.key] === undo.after
+  function useMine() {
+    data.cards[block.key] = undo.before
+    undo = null
+    onChange()
+  }
+
   async function draft() {
     const confirmText = `Rebuild the plan from ${weaknessCount} weaknesses? Responsible and timeline are kept for matching weaknesses.`
     if (cards.length > 0 && !confirm(confirmText)) return
@@ -23,6 +31,8 @@
     notice = ''
     try {
       const result = await draftPlan(template, data, cards)
+      // "Use my words": the cards this draft replaced, while the drafted ones stay untouched
+      if (cards.length > 0) undo = { before: structuredClone(cards), after: result.cards }
       data.cards[block.key] = result.cards
       notice = result.usedFallback ? FALLBACK_NOTICE : ''
       onChange()
@@ -38,6 +48,7 @@
   </button>
   {#if weaknessCount === 0}<span class="hint">Add weaknesses in section 13 first</span>{/if}
   {#if notice}<span class="hint">{notice}</span>{/if}
+  {#if canUndo && !disabled}<button type="button" class="btn-link" on:click={useMine}>Use my words</button>{/if}
 </div>
 
 <style>

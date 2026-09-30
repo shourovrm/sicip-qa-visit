@@ -51,8 +51,29 @@
     const { [pair.source]: _closed, ...rest } = previews
     previews = rest
   }
+  // "Use my words": per component, the text a previewed draft replaced (while still untouched)
+  let undo = {}
+  function useMine(pair) {
+    const { strength, weakness } = undo[pair.source]
+    data.fields[pair.strength] = strength
+    data.fields[pair.weakness] = weakness
+    undo = { ...undo, [pair.source]: undefined }
+    onChange()
+  }
+  const canUndo = (pair, fields) => {
+    const u = undo[pair.source]
+    return Boolean(u) && fields[pair.strength] === u.appliedStrength && fields[pair.weakness] === u.appliedWeakness
+  }
   function usePreview(pair) {
-    apply(pair, previews[pair.source])
+    const preview = previews[pair.source]
+    undo = {
+      ...undo,
+      [pair.source]: {
+        strength: data.fields[pair.strength] ?? '', weakness: data.fields[pair.weakness] ?? '',
+        appliedStrength: preview.strengths.join('\n'), appliedWeakness: preview.weaknesses.join('\n'),
+      },
+    }
+    apply(pair, preview)
     closePreview(pair)
   }
 
@@ -96,6 +117,7 @@
         disabled={disabled || busyKey !== '' || !available[pair.source]}>
         {busyKey === pair.source ? 'Drafting…' : 'Draft from remarks'}
       </button>
+      {#if !disabled && canUndo(pair, data.fields)}<button type="button" class="btn-link" on:click={() => useMine(pair)}>Use my words</button>{/if}
     </div>
     {#if !available[pair.source]}<p class="hint">Nothing marked in section {sectionNumber(pair.source)} yet</p>{/if}
     {#if previews[pair.source]}

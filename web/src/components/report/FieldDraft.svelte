@@ -37,7 +37,11 @@
 
   async function draft() {
     if (fromPlan) {
-      if (isBlank(current) || confirm('Replace the current recommendations with the improvement plan actions?')) write(sourceText)
+      if (isBlank(current)) write(sourceText)
+      else if (confirm('Replace the current recommendations with the improvement plan actions?')) {
+        undo = { before: current, after: sourceText }
+        write(sourceText)
+      }
       return
     }
     busy = true
@@ -47,8 +51,17 @@
       busy = false
     }
   }
+  // "Use my words": the text a draft replaced, offered back while the draft is untouched
+  let undo = null
+  $: canUndo = undo !== null && current === undo.after
+  function useMine() {
+    write(undo.before)
+    undo = null
+  }
   function usePreview() {
-    write(preview.lines.join('\n'))
+    const drafted = preview.lines.join('\n')
+    if (!isBlank(current)) undo = { before: current, after: drafted }
+    write(drafted)
     preview = null
   }
 </script>
@@ -57,6 +70,7 @@
   <button type="button" class="btn-link" on:click={draft} disabled={disabled || busy || !sourceText}>
     {#if busy}Drafting…{:else if fromPlan}Fill from improvement plan{:else if fromFindings}Draft from major findings{:else}Draft from weaknesses{/if}
   </button>
+  {#if canUndo && !disabled}<button type="button" class="btn-link" on:click={useMine}>Use my words</button>{/if}
   {#if !sourceText}
     <span class="hint">{fromPlan ? 'Add improvement actions in section 16 first' : fromFindings ? 'Select major findings above first' : 'Add weaknesses in section 13 first'}</span>
   {/if}

@@ -66,3 +66,48 @@ export function convertSurpriseV1ToV2(v2, v1Data, newId = () => crypto.randomUUI
   })
   return data
 }
+
+const EMPLOYMENT_V2_TO_V1 = { employed: 'same', other_job: 'other', self_employed: 'other', others: 'other', not_employed: 'none' }
+
+// the editor's "Revert to old format": v2 data -> v1 shape, 1:1 port of android
+// revertSurpriseV2ToV1. Every key stays; v2 answers are copied back to where v1 shows them.
+export function revertSurpriseV2ToV1(v1, v2Data) {
+  const data = structuredClone(v2Data)
+  data.fields = data.fields ?? {}
+  data.checks = data.checks ?? {}
+  data.cards = data.cards ?? {}
+
+  const officers = (data.cards.officers ?? [])
+    .filter((c) => text(c, 'name'))
+    .map((c) => (text(c, 'designation') ? `${text(c, 'name')} (${text(c, 'designation')})` : text(c, 'name')))
+  if (officers.length) data.fields.officers = officers.join('\n')
+
+  const logbook = data.checks.followup_1 ?? {}
+  if (text(logbook, 'answer') || text(logbook, 'remarks')) {
+    data.checks.registers_3 = { ...(data.checks.registers_3 ?? {}), answer: logbook.answer ?? '', remarks: logbook.remarks ?? '' }
+  }
+
+  const trainersPresent = Object.fromEntries((data.cards.trainers ?? []).map((c) => [text(c, '_link'), text(c, 'present')]))
+  data.cards.attendance = (data.cards.attendance ?? []).map((c) => {
+    const present = trainersPresent[text(c, '_link')] ?? ''
+    return present ? { ...c, trainers_present: present } : c
+  })
+
+  data.cards.graduate = (data.cards.graduate ?? []).map((c) => {
+    const merged = { ...c }
+    const courseBatch = [text(c, 'course'), text(c, 'batch')].filter(Boolean).join(' ')
+    if (courseBatch) {
+      merged.batch = courseBatch
+      merged.course = ''
+    }
+    const employment = EMPLOYMENT_V2_TO_V1[text(c, 'confirmed')]
+    if (employment) merged.confirmed = employment
+    return merged
+  })
+
+  const findings = (data.findings ?? []).map((f) => String(f.text ?? '').trim()).filter(Boolean)
+  if (findings.length) data.fields.key_findings = findings.join('\n')
+  if (text(data.fields, 'recommendations')) data.fields.instructions_given = data.fields.recommendations
+
+  return normalize(v1, data)
+}

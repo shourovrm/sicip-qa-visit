@@ -79,6 +79,9 @@ fun ImproveWordingButton(
     var loading by remember { mutableStateOf(false) }
     var error by remember(text) { mutableStateOf<String?>(null) } // a fresh edit clears a stale error
     var suggestion by remember { mutableStateOf<String?>(null) }
+    // after "Use this": the officer's own text, offered back while the box still holds the AI text
+    var mine by remember { mutableStateOf<String?>(null) }
+    var applied by remember { mutableStateOf<String?>(null) }
 
     // re-checked on every recomposition (e.g. right before the tap handler runs) rather than
     // cached once -- there is no NetworkCallback listener here, this is a point-in-time check.
@@ -108,6 +111,10 @@ fun ImproveWordingButton(
             ) { Text("Improve wording") }
             if (loading) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
             if (!online) Text("Offline", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val previous = mine
+            if (previous != null && text == applied) {
+                TextButton(onClick = { onApply(previous); mine = null; applied = null }) { Text("Use my words") }
+            }
         }
         error?.let {
             Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
@@ -121,6 +128,8 @@ fun ImproveWordingButton(
             suggested = current,
             onKeepMine = { suggestion = null },
             onUseThis = {
+                mine = text
+                applied = current
                 onApply(current)
                 suggestion = null
             },

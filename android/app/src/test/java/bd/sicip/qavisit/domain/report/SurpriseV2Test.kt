@@ -89,6 +89,17 @@ class SurpriseV2Test {
         assertEquals(listOf("Low attendance", "No CBLM"), out.findings().map { it.text })
         assertEquals("Fix register\nRecommended follow-up: Full QA visit", out.field("recommendations"))
         assertEquals(setOf("flag_1"), out.flags()) // v1 data is kept, just not shown
+
+        // revert copies v2 answers back to their v1 places
+        val edited = out.withFindings(listOf(Finding("", "Edited finding")))
+            .withCardsReplaced("trainers", out.cards("trainers").map { JsonObject(it + ("present" to kotlinx.serialization.json.JsonPrimitive("2"))) })
+        val back = revertSurpriseV2ToV1(template("surprise-v1.json"), edited)
+        assertEquals("Rafiq (QA Specialist)\nNusrat", back.field("officers"))
+        assertEquals("Edited finding", back.field("key_findings"))
+        assertEquals("no", back.checkAnswer("registers_3"))
+        assertEquals("2", back.cards("attendance").single()["trainers_present"]!!.jsonPrimitive.content)
+        assertEquals("Welding 05", back.cards("graduate").single()["batch"]!!.jsonPrimitive.content)
+        assertEquals("same", back.cards("graduate").single()["confirmed"]!!.jsonPrimitive.content)
     }
 
     @Test
