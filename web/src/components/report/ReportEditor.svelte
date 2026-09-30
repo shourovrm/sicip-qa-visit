@@ -11,7 +11,8 @@
 <script>
   import { createEventDispatcher } from 'svelte'
   import { computeProgress, normalize, needsConversion, templateFor, TEMPLATES } from '../../lib/reporttemplate.js'
-  import { getReport, updateReport, updateReportIfUnchanged, submitReport, softDeleteReport } from '../../lib/db.js'
+  import { getReport, updateReport, updateReportIfUnchanged, submitReport, retractReport, canRetract, RETRACT_DAYS, softDeleteReport } from '../../lib/db.js'
+  import { isAdmin } from '../../lib/auth.js'
   import { mergeReportData } from '../../lib/reportmerge.js'
   import { convertSurpriseV1ToV2, revertSurpriseV2ToV1 } from '../../lib/reportconvert.js'
   import { convertQaV1ToV2 } from '../../lib/qaconvert.js'
@@ -133,8 +134,21 @@
     e.returnValue = ''
   }
 
+  // admin: reopen any time; owner: only inside the retract window
+  $: canReopen = report.status === 'submitted' && ($isAdmin || canRetract(report))
+
+  async function reopen() {
+    if (!confirm('Move this report back to draft so it can be edited? It must be submitted again afterwards.')) return
+    try {
+      report = await retractReport(report.id)
+      dispatch('reopened', report)
+    } catch (e) {
+      alert('Could not move the report back to draft: ' + (e.message ?? e))
+    }
+  }
+
   async function submit() {
-    if (!confirm('Submit this report? It becomes read-only once submitted.')) return
+    if (!confirm(`Submit this report? Please check it first. You can take it back to draft within ${RETRACT_DAYS} days; after that it is locked and only the admin can reopen it.`)) return
     await flush()
     if (saveState === 'offline') {
       alert('Could not save the latest answers. Check the connection and try Submit again.')
@@ -271,6 +285,9 @@
     {#if !disabled && report.status === 'draft'}
       <button type="button" class="btn-link danger" on:click={del}>Delete</button>
       <button type="button" class="btn btn-primary" on:click={submit}>Submit</button>
+    {/if}
+    {#if canReopen}
+      <button type="button" class="btn" on:click={reopen}>Back to draft</button>
     {/if}
     <button type="button" class="btn" on:click={() => onPrint?.(template, data, meta)}>{hasNarrative ? 'Form PDF' : 'Print / PDF'}</button>
     {#if hasNarrative}<button type="button" class="btn" on:click={() => onNarrative?.(template, data, meta)}>Narrative PDF</button>{/if}

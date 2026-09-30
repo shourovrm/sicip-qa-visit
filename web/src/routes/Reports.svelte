@@ -134,7 +134,7 @@
   {#key `${current.id}:${current.template_version}`}
     <ReportEditor report={current} template={currentTemplate} visit={currentVisit} officerName={$officer?.name ?? ''}
       readonly={currentReadonly} onPrint={printReport} onDocx={docxReport} onNarrative={openNarrativePrint} onNarrativeDocx={downloadNarrativeDocx}
-      on:close={closeEditor} on:save={onSave} on:submit={onSave} on:delete={onDelete} on:converted={onConverted} />
+      on:close={closeEditor} on:save={onSave} on:submit={onSave} on:reopened={onConverted} on:delete={onDelete} on:converted={onConverted} />
   {/key}
 {:else}
   <h1>Reports</h1>

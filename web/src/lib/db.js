@@ -170,6 +170,18 @@ export async function submitReport(id) {
   return updateReport(id, { status: 'submitted', submitted_at: new Date().toISOString() })
 }
 
+// submitted -> draft: owner within RETRACT_DAYS of submitting, admin any time (Android: domain/report/Retract.kt)
+export const RETRACT_DAYS = 3
+
+export function canRetract(report, now = new Date()) {
+  if (report.status !== 'submitted' || !report.submitted_at) return false
+  return now.getTime() < new Date(report.submitted_at).getTime() + RETRACT_DAYS * 86400000
+}
+
+export async function retractReport(id) {
+  return updateReport(id, { status: 'draft', submitted_at: null })
+}
+
 export async function softDeleteReport(id) {
   return updateReport(id, { deleted: true })
 }

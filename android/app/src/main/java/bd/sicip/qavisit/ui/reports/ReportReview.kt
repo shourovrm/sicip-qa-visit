@@ -56,10 +56,12 @@ import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Visit
 import bd.sicip.qavisit.data.sync.SyncNow
+import bd.sicip.qavisit.domain.report.RETRACT_DAYS
 import bd.sicip.qavisit.domain.report.ReportBlock
 import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportSection
 import bd.sicip.qavisit.domain.report.ReportTemplate
+import bd.sicip.qavisit.domain.report.canRetract
 import bd.sicip.qavisit.domain.report.collectRewritableLocations
 import bd.sicip.qavisit.domain.report.computeProgress
 import bd.sicip.qavisit.domain.report.currentText
@@ -68,6 +70,7 @@ import bd.sicip.qavisit.ui.theme.LocalToneColors
 import bd.sicip.qavisit.ui.theme.forToneId
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
+import java.time.Instant
 
 // where an unanswered checklist item id came from -- lets a "Not answered" row jump straight to
 // its section instead of making the officer hunt for it.
@@ -101,6 +104,7 @@ fun ReportReview(
     var showSubmitConfirm by remember { mutableStateOf(false) }
     var pdfBusy by remember { mutableStateOf(false) }
     var submitting by remember { mutableStateOf(false) }
+    var showRetractConfirm by remember { mutableStateOf(false) }
 
     LaunchedEffect(report?.visitId, report?.officerId) {
         val r = report ?: return@LaunchedEffect
@@ -173,6 +177,11 @@ fun ReportReview(
                         colors = actionButtonColors(),
                         modifier = Modifier.weight(1.4f).height(48.dp),
                     ) { Text("Submit") }
+                } else if (canRetract(editor.report.status, editor.report.submittedAt, Instant.now())) {
+                    OutlinedButton(
+                        onClick = { showRetractConfirm = true },
+                        modifier = Modifier.weight(1.4f).height(48.dp),
+                    ) { Text("Back to draft") }
                 }
             }
         },
@@ -300,10 +309,12 @@ fun ReportReview(
 
             item {
                 Text(
-                    if (editor.report.status == "submitted") {
-                        "This report is submitted and read-only. The PDF can be shared at any time."
+                    if (editor.report.status != "submitted") {
+                        "After submitting, the report becomes read-only. You can take it back to draft within $RETRACT_DAYS days; after that only the admin can reopen it. The PDF can be shared at any time."
+                    } else if (canRetract(editor.report.status, editor.report.submittedAt, Instant.now())) {
+                        "This report is submitted. Within $RETRACT_DAYS days of submitting you can take it back to draft to edit it. The PDF can be shared at any time."
                     } else {
-                        "After submitting, the report becomes read-only. The admin can read it on the web, and the PDF can be shared at any time."
+                        "This report is submitted and locked. Ask the admin to reopen it if it needs changes. The PDF can be shared at any time."
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -316,7 +327,7 @@ fun ReportReview(
         AlertDialog(
             onDismissRequest = { if (!submitting) showSubmitConfirm = false },
             title = { Text("Submit report?") },
-            text = { Text("Once submitted, this report can no longer be edited or deleted from the app.") },
+            text = { Text("Please check the report before submitting. You can take it back to draft within $RETRACT_DAYS days; after that it is locked and only the admin can reopen it.") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -333,6 +344,26 @@ fun ReportReview(
                 ) { Text(if (submitting) "Submitting…" else "Submit") }
             },
             dismissButton = { TextButton(onClick = { if (!submitting) showSubmitConfirm = false }) { Text("Cancel") } },
+        )
+    }
+
+    if (showRetractConfirm) {
+        AlertDialog(
+            onDismissRequest = { showRetractConfirm = false },
+            title = { Text("Back to draft?") },
+            text = { Text("The report moves to In progress so you can edit it. Submit it again when done.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showRetractConfirm = false
+                        scope.launch {
+                            editor.retract()
+                            SyncNow.enqueue(context)
+                        }
+                    },
+                ) { Text("Back to draft") }
+            },
+            dismissButton = { TextButton(onClick = { showRetractConfirm = false }) { Text("Cancel") } },
         )
     }
 

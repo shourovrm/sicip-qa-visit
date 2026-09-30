@@ -130,6 +130,14 @@ class ReportEditor(initialReport: Report, private val db: AppDb, private val tem
             report = updated
         }
     }
+
+    // back to draft within the retract window (domain/report/Retract.kt); caller checks canRetract
+    suspend fun retract() = writeLock.withLock {
+        val now = Instant.now().toString()
+        val updated = report.copy(status = "draft", submittedAt = null, updatedAt = now, dirty = true)
+        db.reportDao().updateStatus(updated.id, updated.status, updated.submittedAt, updated.updatedAt)
+        report = updated
+    }
 }
 
 // templateFor resolves a report's own `type` ("surprise"/"qa") to its template -- there is no
