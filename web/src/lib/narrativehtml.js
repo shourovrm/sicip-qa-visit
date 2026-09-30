@@ -5,8 +5,8 @@
 import {
   CSS, esc, fieldValueHtml, headerHtml, numberedListHtml, openPrintWindow, remarkBulletsHtml, withNormalizedData,
 } from './reporthtml.js'
-import { sectionHasContent } from './reporttemplate.js'
-import { printedRemarkLines } from './sectionremarks.js'
+import { answeredCards, sectionHasContent } from './reporttemplate.js'
+import { courseBatchLabel, printedRemarkLines } from './sectionremarks.js'
 
 const NARRATIVE_CSS = `
   .kv { display: grid; grid-template-columns: 34mm 1fr 30mm 1fr; gap: 1pt 6pt; margin: 0 0 4pt; }
@@ -44,12 +44,12 @@ function cardsTableHtml(block, data) {
 
 // interviews: questions down, courses across; a question's remarks sit under its answer
 function interviewTableHtml(block, data) {
-  const cards = data.cards?.[block.key] ?? []
+  const cards = answeredCards(block, data)
   if (cards.length === 0) return ''
   const linked = new Set(block.linkFrom?.fields ?? [])
   const rows = block.fields.filter((f) => !linked.has(f.key) && !f.noteFor)
   const head = '<th class="l">Question</th>' + cards
-    .map((c) => `<th>${esc([value(c, 'course'), value(c, 'batch')].filter(Boolean).join(' '))}</th>`)
+    .map((c) => `<th>${esc(courseBatchLabel(value(c, 'course'), value(c, 'batch')))}</th>`)
     .join('')
   const body = rows.map((f) => {
     const note = block.fields.find((n) => n.noteFor === f.key)

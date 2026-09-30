@@ -7,8 +7,8 @@ import {
   bodyCellDxa, fieldValueParagraph, fieldValueRuns, fixedTable, headerCellDxa, headerParagraphs, listParagraphs,
   packDocx, reportFilename, run, saveDocx, subheadParagraph, withNormalizedData,
 } from './reportdocx.js'
-import { sectionHasContent } from './reporttemplate.js'
-import { printedRemarkLines } from './sectionremarks.js'
+import { answeredCards, sectionHasContent } from './reporttemplate.js'
+import { courseBatchLabel, printedRemarkLines } from './sectionremarks.js'
 
 const value = (obj, key) => String(obj?.[key] ?? '').trim()
 
@@ -56,7 +56,7 @@ function cardsDocx(block, data) {
 
 // interviews: questions down, courses across; a question's remarks follow its answer
 function interviewDocx(block, data) {
-  const cards = data.cards?.[block.key] ?? []
+  const cards = answeredCards(block, data)
   if (cards.length === 0) return []
   const linked = new Set(block.linkFrom?.fields ?? [])
   const rows = block.fields.filter((f) => !linked.has(f.key) && !f.noteFor).map((f) => {
@@ -69,7 +69,7 @@ function interviewDocx(block, data) {
       }),
     ]
   })
-  const headers = ['Question', ...cards.map((c) => [value(c, 'course'), value(c, 'batch')].filter(Boolean).join(' '))]
+  const headers = ['Question', ...cards.map((c) => courseBatchLabel(value(c, 'course'), value(c, 'batch')))]
   return [table(headers, rows)]
 }
 

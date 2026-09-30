@@ -185,6 +185,15 @@
         "no": "The training calendar was not displayed, provided to trainees or followed.",
         "partial": "The training calendar was only partly displayed, provided to trainees and followed."
        }
+      },
+      {
+       "id": "arrival_5",
+       "text": "Project signboard displayed at the entrance",
+       "says": {
+        "yes": "The project signboard is displayed at the entrance.",
+        "no": "The project signboard is not displayed at the entrance.",
+        "partial": "The project signboard is displayed but not clearly visible at the entrance."
+       }
       }
      ]
     },
@@ -227,7 +236,7 @@
       "message": "Headcount is far below the 7-day average in the register / TMS"
      },
      "says": {
-      "text": "{course} {batch}: headcount {present_total} of {enrolled_total} enrolled[; 7-day average {register_avg7} in the register][ and {tms_avg7} in TMS][. {remarks}]",
+      "text": "{course}[ batch-{batch}]: headcount {present_total} of {enrolled_total} enrolled[; 7-day average {register_avg7} in the register][ and {tms_avg7} in TMS][. {remarks}]",
       "negWhen": [
        {
         "op": "gap",
@@ -305,7 +314,7 @@
       ]
      },
      "says": {
-      "text": "{course} {batch}: {present} of {stipulated} stipulated trainers present ({engaged} engaged)",
+      "text": "{course}[ batch-{batch}]: {present} of {stipulated} stipulated trainers present ({engaged} engaged)",
       "negWhen": [
        {
         "op": "lt",
@@ -521,7 +530,7 @@
    "letter": "E",
    "key": "materials",
    "short": "Materials",
-   "title": "Materials & safety gear provided",
+   "title": "Learning materials provided",
    "blocks": [
     {
      "type": "checklist",
@@ -555,26 +564,6 @@
         "yes": "An apron / T-shirt was provided to each trainee.",
         "no": "Aprons / T-shirts were not provided to the trainees.",
         "partial": "Aprons / T-shirts were provided to only some trainees."
-       }
-      },
-      {
-       "id": "materials_4",
-       "text": "Required PPE provided to trainees",
-       "perCourse": true,
-       "says": {
-        "yes": "The required PPE was provided to trainees.",
-        "no": "The required PPE was not provided to trainees.",
-        "partial": "The required PPE was only partly provided to trainees."
-       }
-      },
-      {
-       "id": "materials_5",
-       "text": "PPE worn during practical session",
-       "perCourse": true,
-       "says": {
-        "yes": "PPE was worn during the practical session.",
-        "no": "PPE was not worn during the practical session.",
-        "partial": "PPE was only partly worn during the practical session."
        }
       }
      ]
@@ -635,35 +624,6 @@
         "yes": "Consumables are available and being used.",
         "no": "Consumables are not available or not being used.",
         "partial": "Consumables are only partly available or used."
-       }
-      },
-      {
-       "id": "delivery_5",
-       "text": "Fire extinguisher available and inspection date valid",
-       "perCourse": true,
-       "says": {
-        "yes": "A fire extinguisher is available with a valid inspection date.",
-        "no": "No fire extinguisher with a valid inspection date is available.",
-        "partial": "A fire extinguisher is available, but its inspection date is not valid."
-       }
-      },
-      {
-       "id": "delivery_6",
-       "text": "First aid kit available and stocked",
-       "says": {
-        "yes": "A stocked first aid kit is available.",
-        "no": "No stocked first aid kit is available.",
-        "partial": "A first aid kit is available but not fully stocked."
-       }
-      },
-      {
-       "id": "delivery_7",
-       "text": "Safety and PPE signs displayed in workshop",
-       "perCourse": true,
-       "says": {
-        "yes": "Safety and PPE signs are displayed in the workshop.",
-        "no": "Safety and PPE signs are not displayed in the workshop.",
-        "partial": "Safety and PPE signs are only partly displayed in the workshop."
        }
       },
       {
@@ -748,6 +708,180 @@
   },
   {
    "letter": "G",
+   "key": "premises",
+   "short": "Premises",
+   "title": "Premises and housekeeping",
+   "blocks": [
+    {
+     "type": "checklist",
+     "key": "premises",
+     "items": [
+      {
+       "id": "premises_1",
+       "text": "Centre premises well organised and clean (classrooms, corridors, notice boards, compound)",
+       "says": {
+        "yes": "The centre premises are well organised and clean.",
+        "no": "The centre premises are not well organised or not clean.",
+        "partial": "The centre premises are only partly organised and clean."
+       }
+      },
+      {
+       "id": "premises_2",
+       "text": "Workshop well organised (tools stored in marked places, workstations clear, walkways unobstructed)",
+       "perCourse": true,
+       "says": {
+        "yes": "The workshop is well organised.",
+        "no": "The workshop is not well organised.",
+        "partial": "The workshop is only partly organised."
+       }
+      },
+      {
+       "id": "premises_3",
+       "text": "Workshop clean (floors, benches and machines free of dust, scrap and spills)",
+       "perCourse": true,
+       "says": {
+        "yes": "The workshop is clean.",
+        "no": "The workshop is not clean.",
+        "partial": "The workshop is only partly clean."
+       }
+      },
+      {
+       "id": "premises_4",
+       "text": "Adequate lighting and ventilation in the classroom and workshop",
+       "perCourse": true,
+       "says": {
+        "yes": "The classroom and workshop have adequate lighting and ventilation.",
+        "no": "The classroom and workshop do not have adequate lighting and ventilation.",
+        "partial": "Lighting and ventilation in the classroom and workshop are only partly adequate."
+       }
+      },
+      {
+       "id": "premises_5",
+       "text": "Scrap and waste bins available and used",
+       "perCourse": true,
+       "says": {
+        "yes": "Scrap and waste bins are available and used.",
+        "no": "Scrap and waste bins are not available or not used.",
+        "partial": "Scrap and waste bins are only partly available or used."
+       }
+      },
+      {
+       "id": "premises_6",
+       "text": "Enough space and seating for the trainees in the classroom and workshop",
+       "perCourse": true,
+       "says": {
+        "yes": "The classroom and workshop have enough space and seating for the trainees.",
+        "no": "The classroom and workshop do not have enough space and seating for the trainees.",
+        "partial": "Space and seating for the trainees in the classroom and workshop are only partly sufficient."
+       }
+      }
+     ]
+    },
+    {
+     "type": "remarks",
+     "key": "premises_remarks",
+     "heading": "Remarks"
+    }
+   ]
+  },
+  {
+   "letter": "H",
+   "key": "safety",
+   "short": "Safety",
+   "title": "Safety",
+   "blocks": [
+    {
+     "type": "checklist",
+     "key": "safety",
+     "items": [
+      {
+       "id": "materials_4",
+       "text": "Required PPE provided to trainees",
+       "perCourse": true,
+       "says": {
+        "yes": "The required PPE was provided to trainees.",
+        "no": "The required PPE was not provided to trainees.",
+        "partial": "The required PPE was only partly provided to trainees."
+       }
+      },
+      {
+       "id": "materials_5",
+       "text": "PPE worn during practical session",
+       "perCourse": true,
+       "says": {
+        "yes": "PPE was worn during the practical session.",
+        "no": "PPE was not worn during the practical session.",
+        "partial": "PPE was only partly worn during the practical session."
+       }
+      },
+      {
+       "id": "delivery_5",
+       "text": "Fire extinguisher available and inspection date valid",
+       "perCourse": true,
+       "says": {
+        "yes": "A fire extinguisher is available with a valid inspection date.",
+        "no": "No fire extinguisher with a valid inspection date is available.",
+        "partial": "A fire extinguisher is available, but its inspection date is not valid."
+       }
+      },
+      {
+       "id": "delivery_6",
+       "text": "First aid kit available and stocked",
+       "says": {
+        "yes": "A stocked first aid kit is available.",
+        "no": "No stocked first aid kit is available.",
+        "partial": "A first aid kit is available but not fully stocked."
+       }
+      },
+      {
+       "id": "delivery_7",
+       "text": "Safety and PPE signs displayed in workshop",
+       "perCourse": true,
+       "says": {
+        "yes": "Safety and PPE signs are displayed in the workshop.",
+        "no": "Safety and PPE signs are not displayed in the workshop.",
+        "partial": "Safety and PPE signs are only partly displayed in the workshop."
+       }
+      },
+      {
+       "id": "safety_1",
+       "text": "Emergency exit clear and marked",
+       "says": {
+        "yes": "The emergency exit is clear and marked.",
+        "no": "The emergency exit is not clear or not marked.",
+        "partial": "The emergency exit is only partly clear or marked."
+       }
+      },
+      {
+       "id": "safety_2",
+       "text": "Electrical wiring in the workshop safe (no exposed wires, switchboards covered)",
+       "perCourse": true,
+       "says": {
+        "yes": "The electrical wiring in the workshop is safe.",
+        "no": "The electrical wiring in the workshop is not safe.",
+        "partial": "The electrical wiring in the workshop is only partly safe."
+       }
+      },
+      {
+       "id": "safety_3",
+       "text": "No visible hazards in the centre (e.g. blocked passages, stored flammables, broken glass or fittings)",
+       "says": {
+        "yes": "No visible hazards were found in the centre.",
+        "no": "Visible hazards were found in the centre.",
+        "partial": "Minor visible hazards were found in the centre."
+       }
+      }
+     ]
+    },
+    {
+     "type": "remarks",
+     "key": "safety_remarks",
+     "heading": "Remarks"
+    }
+   ]
+  },
+  {
+   "letter": "I",
    "key": "assessment",
    "short": "Assessment",
    "title": "Formative assessment",
@@ -817,7 +951,7 @@
    ]
   },
   {
-   "letter": "H",
+   "letter": "J",
    "key": "registers",
    "short": "Registers",
    "title": "Daily registers",
@@ -855,10 +989,10 @@
    ]
   },
   {
-   "letter": "I",
+   "letter": "K",
    "key": "interview",
    "short": "Trainees",
-   "title": "Trainee interviews (no staff present)",
+   "title": "Trainee interviews",
    "note": "Talk with a group of trainees of each course away from centre staff. Ask one technical question from a unit they have covered.",
    "blocks": [
     {
@@ -876,9 +1010,9 @@
       ]
      },
      "says": {
-      "text": "{course} {batch}: {trainees_interviewed} trainees interviewed[; technical question on {tech_topic}: {tech_result}][. Complaints or other feedback: {feedback}]"
+      "text": "{course}[ batch-{batch}]: {trainees_interviewed} trainees interviewed[; technical question on {tech_topic}: {tech_result}][. Complaints or other feedback: {feedback}]"
      },
-     "sayPrefix": "{course} {batch}: ",
+     "sayPrefix": "{course}[ batch-{batch}]: ",
      "fields": [
       {
        "key": "course",
@@ -1224,7 +1358,7 @@
    ]
   },
   {
-   "letter": "J",
+   "letter": "L",
    "key": "graduates",
    "short": "Job calls",
    "title": "Job placement verification calls",
@@ -1237,7 +1371,7 @@
      "start": 5,
      "titleField": "name",
      "says": {
-      "text": "{name}[ ({course}[ batch {batch}])]: {call}[, {confirmed}][ as {position}][, BDT {salary} per month][. {remarks}]"
+      "text": "{name}[ ({course}[ batch-{batch}])]: {call}[, {confirmed}][ as {position}][, BDT {salary} per month][. {remarks}]"
      },
      "fields": [
       {
@@ -1356,7 +1490,7 @@
    ]
   },
   {
-   "letter": "K",
+   "letter": "M",
    "key": "followup",
    "short": "Follow-up",
    "title": "Previous visit follow-up",
@@ -1466,7 +1600,7 @@
    ]
   },
   {
-   "letter": "L",
+   "letter": "N",
    "key": "rating",
    "short": "Findings",
    "title": "Major findings and recommendations",

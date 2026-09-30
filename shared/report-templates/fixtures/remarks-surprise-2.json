@@ -317,11 +317,11 @@
  "built": {
   "arrival_remarks": [
    {
-    "text": "Welding (SMAW) 07: The session being taught matched today's topic in the session plan / Training Delivery Plan.",
+    "text": "Welding (SMAW) batch-07: The session being taught matched today's topic in the session plan / Training Delivery Plan.",
     "neg": false
    },
    {
-    "text": "Electrical Installation 03: The session being taught did not match today's topic in the session plan / Training Delivery Plan. EIM batch on a later unit.",
+    "text": "Electrical Installation batch-03: The session being taught did not match today's topic in the session plan / Training Delivery Plan. EIM batch on a later unit.",
     "neg": true
    },
    {
@@ -331,19 +331,19 @@
   ],
   "attendance_remarks": [
    {
-    "text": "Welding (SMAW) 07: headcount 22 of 25 enrolled; 7-day average 23.4 in the register and 23.1 in TMS.",
+    "text": "Welding (SMAW) batch-07: headcount 22 of 25 enrolled; 7-day average 23.4 in the register and 23.1 in TMS.",
     "neg": false
    },
    {
-    "text": "Electrical Installation 03: headcount 14 of 25 enrolled; 7-day average 23.9 in the register. Rest at {industry}.",
+    "text": "Electrical Installation batch-03: headcount 14 of 25 enrolled; 7-day average 23.9 in the register. Rest at {industry}.",
     "neg": true
    },
    {
-    "text": "Welding (SMAW) 07: 2 of 2 stipulated trainers present (2 engaged).",
+    "text": "Welding (SMAW) batch-07: 2 of 2 stipulated trainers present (2 engaged).",
     "neg": false
    },
    {
-    "text": "Electrical Installation 03: 1 of 2 stipulated trainers present (1 engaged).",
+    "text": "Electrical Installation batch-03: 1 of 2 stipulated trainers present (1 engaged).",
     "neg": true
    },
    {
@@ -380,6 +380,8 @@
     "neg": true
    }
   ],
+  "premises_remarks": [],
+  "safety_remarks": [],
   "assessment_remarks": [],
   "registers_remarks": [
    {
@@ -389,21 +391,21 @@
   ],
   "interview_remarks": [
    {
-    "text": "Welding (SMAW) 07: 6 trainees interviewed; technical question on Electrode holder: most could answer. Complaints or other feedback: Want more practice.",
+    "text": "Welding (SMAW) batch-07: 6 trainees interviewed; technical question on Electrode holder: most could answer. Complaints or other feedback: Want more practice.",
     "neg": false
    },
    {
-    "text": "Welding (SMAW) 07: trainees said classes run on all scheduled days and hours.",
+    "text": "Welding (SMAW) batch-07: trainees said classes run on all scheduled days and hours.",
     "neg": false
    },
    {
-    "text": "Welding (SMAW) 07: trainees said the stipend / allowance is sometimes late. August stipend 3 weeks late.",
+    "text": "Welding (SMAW) batch-07: trainees said the stipend / allowance is sometimes late. August stipend 3 weeks late.",
     "neg": true
    }
   ],
   "graduates_remarks": [
    {
-    "text": "Shahin (Welding (SMAW) batch 05): reached, employed as Welder, BDT 16,000 per month.",
+    "text": "Shahin (Welding (SMAW) batch-05): reached, employed as Welder, BDT 16,000 per month.",
     "neg": false
    },
    {
@@ -428,7 +430,7 @@
  },
  "candidates": [
   {
-   "text": "Electrical Installation 03: The session being taught did not match today's topic in the session plan / Training Delivery Plan. EIM batch on a later unit.",
+   "text": "Electrical Installation batch-03: The session being taught did not match today's topic in the session plan / Training Delivery Plan. EIM batch on a later unit.",
    "neg": true
   },
   {
@@ -436,11 +438,11 @@
    "neg": true
   },
   {
-   "text": "Electrical Installation 03: headcount 14 of 25 enrolled; 7-day average 23.9 in the register. Rest at {industry}.",
+   "text": "Electrical Installation batch-03: headcount 14 of 25 enrolled; 7-day average 23.9 in the register. Rest at {industry}.",
    "neg": true
   },
   {
-   "text": "Electrical Installation 03: 1 of 2 stipulated trainers present (1 engaged).",
+   "text": "Electrical Installation batch-03: 1 of 2 stipulated trainers present (1 engaged).",
    "neg": true
   },
   {
@@ -464,7 +466,7 @@
    "neg": true
   },
   {
-   "text": "Welding (SMAW) 07: trainees said the stipend / allowance is sometimes late. August stipend 3 weeks late.",
+   "text": "Welding (SMAW) batch-07: trainees said the stipend / allowance is sometimes late. August stipend 3 weeks late.",
    "neg": true
   },
   {
@@ -476,15 +478,15 @@
    "neg": true
   },
   {
-   "text": "Welding (SMAW) 07: The session being taught matched today's topic in the session plan / Training Delivery Plan.",
+   "text": "Welding (SMAW) batch-07: The session being taught matched today's topic in the session plan / Training Delivery Plan.",
    "neg": false
   },
   {
-   "text": "Welding (SMAW) 07: headcount 22 of 25 enrolled; 7-day average 23.4 in the register and 23.1 in TMS.",
+   "text": "Welding (SMAW) batch-07: headcount 22 of 25 enrolled; 7-day average 23.4 in the register and 23.1 in TMS.",
    "neg": false
   },
   {
-   "text": "Welding (SMAW) 07: 2 of 2 stipulated trainers present (2 engaged).",
+   "text": "Welding (SMAW) batch-07: 2 of 2 stipulated trainers present (2 engaged).",
    "neg": false
   },
   {
@@ -500,15 +502,15 @@
    "neg": false
   },
   {
-   "text": "Welding (SMAW) 07: 6 trainees interviewed; technical question on Electrode holder: most could answer. Complaints or other feedback: Want more practice.",
+   "text": "Welding (SMAW) batch-07: 6 trainees interviewed; technical question on Electrode holder: most could answer. Complaints or other feedback: Want more practice.",
    "neg": false
   },
   {
-   "text": "Welding (SMAW) 07: trainees said classes run on all scheduled days and hours.",
+   "text": "Welding (SMAW) batch-07: trainees said classes run on all scheduled days and hours.",
    "neg": false
   },
   {
-   "text": "Shahin (Welding (SMAW) batch 05): reached, employed as Welder, BDT 16,000 per month.",
+   "text": "Shahin (Welding (SMAW) batch-05): reached, employed as Welder, BDT 16,000 per month.",
    "neg": false
   },
   {

@@ -111,7 +111,14 @@ function courseIdsOf(data) {
   return (data.cards?.courses ?? []).filter((c) => !isBlank(c.course)).map((c) => c._id)
 }
 
-const courseLabel = (card) => [text(card, 'course'), text(card, 'batch')].filter(Boolean).join(' ')
+// "Plumbing and pipe fitting batch-4" -- a bare number after the course reads like part of its name
+export function courseBatchLabel(course, batch) {
+  const courseText = String(course ?? '').trim()
+  const batchText = String(batch ?? '').trim()
+  if (!batchText) return courseText
+  return [courseText, `batch-${batchText}`].filter(Boolean).join(' ')
+}
+const courseLabel = (card) => courseBatchLabel(text(card, 'course'), text(card, 'batch'))
 
 function itemSentence(item, answer, answers) {
   if (item.says?.[answer]) return item.says[answer]

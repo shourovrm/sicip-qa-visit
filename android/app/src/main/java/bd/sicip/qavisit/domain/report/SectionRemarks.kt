@@ -106,7 +106,15 @@ private fun cardLines(block: ReportBlock.Cards, data: ReportData): List<RemarkLi
     return lines
 }
 
-private fun courseLabel(card: JsonObject): String = listOf(card.text("course"), card.text("batch")).filter { it.isNotEmpty() }.joinToString(" ")
+// "Plumbing and pipe fitting batch-4" -- a bare number after the course reads like part of its name
+fun courseBatchLabel(course: String, batch: String): String {
+    val courseText = course.trim()
+    val batchText = batch.trim()
+    if (batchText.isEmpty()) return courseText
+    return listOf(courseText, "batch-$batchText").filter { it.isNotEmpty() }.joinToString(" ")
+}
+
+private fun courseLabel(card: JsonObject): String = courseBatchLabel(card.text("course"), card.text("batch"))
 
 private fun itemSentence(item: ChecklistItem, answer: String, answers: List<AnswerOption>): String =
     item.says[answer]?.takeIf { it.isNotBlank() }

@@ -40,6 +40,14 @@ export function isBlank(value) {
   return value == null || String(value).trim() === ''
 }
 
+// linked cards with something typed beyond the copied course/batch -- a course nobody was
+// interviewed in prints no blank column
+export function answeredCards(block, data) {
+  const linked = new Set(block.linkFrom?.fields ?? [])
+  const cards = data.cards?.[block.key] ?? []
+  return cards.filter((card) => block.fields.some((f) => !linked.has(f.key) && !isBlank(card[f.key])))
+}
+
 function toneOf(field, value) {
   return field.options?.find((o) => o.id === value)?.tone
 }

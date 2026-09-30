@@ -9,6 +9,7 @@ import bd.sicip.qavisit.domain.report.ReportBlock
 import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportSection
 import bd.sicip.qavisit.domain.report.ReportTemplate
+import bd.sicip.qavisit.domain.report.courseBatchLabel
 import bd.sicip.qavisit.domain.report.normalize
 import bd.sicip.qavisit.domain.report.printedRemarkLines
 import bd.sicip.qavisit.domain.report.sectionHasContent
@@ -57,12 +58,13 @@ private fun cardsTableHtml(block: ReportBlock.Cards, data: ReportData): String {
 
 // interviews: questions down, courses across; a question's remarks sit under its answer
 private fun interviewTableHtml(block: ReportBlock.Cards, data: ReportData): String {
-    val cards = data.cards(block.key)
-    if (cards.isEmpty()) return ""
     val linked = block.linkFrom?.fields?.toSet() ?: emptySet()
+    // a course nobody was interviewed in prints no blank column
+    val cards = data.cards(block.key).filter { card -> block.fields.any { it.key !in linked && !isBlank(card.value(it.key)) } }
+    if (cards.isEmpty()) return ""
     val rows = block.fields.filter { it.key !in linked && it.noteFor == null }
     val head = "<th class=\"l\">Question</th>" + cards.joinToString("") { card ->
-        "<th>${reportEsc(listOf(card.value("course"), card.value("batch")).filter { it.isNotEmpty() }.joinToString(" "))}</th>"
+        "<th>${reportEsc(courseBatchLabel(card.value("course"), card.value("batch")))}</th>"
     }
     val body = rows.joinToString("") { f ->
         val note = block.fields.find { it.noteFor == f.key }
