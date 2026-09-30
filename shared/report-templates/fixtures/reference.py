@@ -8,6 +8,7 @@ import re
 HERE = pathlib.Path(__file__).parent
 TEMPLATE = json.loads((HERE.parent / "surprise-v1.json").read_text())
 QA_TEMPLATE = json.loads((HERE.parent / "qa-v1.json").read_text())
+QA2_TEMPLATE = json.loads((HERE.parent / "qa-v2.json").read_text())
 
 
 def blank(value):
@@ -97,12 +98,21 @@ def compare_mismatch(compare, card):
 def tone_of(field, value):
     for option in field.get("options", []):
         if isinstance(option, dict) and option["id"] == value:
-            return option["tone"]
+            return option.get("tone")
     return None
 
 
 def counts(field):
     return field.get("required") or field["kind"] == "choice"
+
+
+# qa-v2 "showIf": {field, in:[...]} -- a field/block only shows (and only counts) while the
+# named value (top-level field, or the same card's field) is one of `in`
+def shown(thing, values):
+    rule = thing.get("showIf")
+    if not rule:
+        return True
+    return str(values.get(rule["field"]) or "") in rule["in"]
 
 
 # ---- criteria blocks (QA report, shared/report-templates/qa-v1.json) ----
@@ -119,9 +129,34 @@ BRACE_RE = re.compile(r"\{([^}]*)\}")
 # one criteria item ({id, text, options:[...]}) + its data.criteria[item_id] entry
 # ({opts:{optId:{v,detail,remark}}, evidence, note, ai}) -> ordered list of Remarks bullets.
 # spec section 4: options in template order, then "Evidence seen: ...", then the free note.
+# "a", "a and b", "a, b and c"
+def join_labels(labels):
+    if len(labels) <= 1:
+        return "".join(labels)
+    return ", ".join(labels[:-1]) + " and " + labels[-1]
+
+
+# the item's ticked boxes (qa-v2 "ticks", e.g. CBLM / lesson plan), template order, as their
+# sentence words (`say`, falling back to the label)
+def ticked_says(item, entry):
+    ticked = set(entry.get("ticks") or [])
+    return [t.get("say") or t["label"] for t in item.get("ticks", []) if t["id"] in ticked]
+
+
+# the sentence for a marked answer: "<v>Ticks" with "@" = the ticked boxes when any are ticked
+# and the option has one, else the plain "<v>" sentence
+def answer_sentence(option, v, ticks):
+    with_ticks = option.get(v + "Ticks")
+    if ticks and with_ticks:
+        return with_ticks.replace("@", join_labels(ticks))
+    return option.get(v, "")
+
+
 def build_remarks(item, entry):
     bullets = []
     opts = entry.get("opts", {})
+    ticks = ticked_says(item, entry)
+    ticks_used = False
     for option in item.get("options", []):
         state = opts.get(option["id"], {})
         v = state.get("v") or ""
@@ -131,18 +166,15 @@ def build_remarks(item, entry):
                 name = option.get("short") or option["label"]
                 bullets.append(f"{name}: {remark}")
             continue
-        sentence = option.get(v, "")
-        detail = str(state.get("detail") or "").strip()
-
-        def repl(match):
-            part = match.group(1)
-            return part.replace("$", detail) if detail else ""
-
-        sentence = BRACE_RE.sub(repl, sentence, count=1)
-        parts = [p for p in (sentence, remark) if p]
-        joined = " ".join(parts)
+        if ticks and option.get(v + "Ticks"):
+            ticks_used = True
+        joined = option_text(option, state, ticks)
         if joined:
             bullets.append(joined)
+    # ticked boxes no marked answer mentioned still get their own bullet
+    if ticks and not ticks_used:
+        label = item.get("ticksLabel") or "Available"
+        bullets.append(f"{label}: " + ensure_stop(join_labels(ticks)))
     evidence = str(entry.get("evidence") or "").strip()
     if evidence:
         bullets.append("Evidence seen: " + ensure_stop(evidence))
@@ -155,10 +187,10 @@ def build_remarks(item, entry):
 # ---- QA conclusions drafts (s13 strengths/weaknesses, s14 findings, s16 plan, s15 recs) ----
 
 # one marked option -> its fixed sentence (detail group substituted) + officer remark
-def option_text(option, state):
+def option_text(option, state, ticks=()):
     v = state.get("v") or ""
     remark = ensure_stop(str(state.get("remark") or "").strip())
-    sentence = option.get(v, "")
+    sentence = answer_sentence(option, v, list(ticks))
     detail = str(state.get("detail") or "").strip()
 
     def repl(match):
@@ -203,6 +235,7 @@ def component_notes(template, data, source_key):
         for item in criteria_items(block):
             entry = criteria_data.get(item["id"]) or {}
             opts = entry.get("opts", {})
+            ticks = ticked_says(item, entry)
             for option in item["options"]:
                 state = opts.get(option["id"]) or {}
                 v = state.get("v") or ""
@@ -211,7 +244,7 @@ def component_notes(template, data, source_key):
                     if remark:
                         other.append(f"{option.get('short') or option['label']}: {remark}")
                     continue
-                text = option_text(option, state)
+                text = option_text(option, state, ticks)
                 if not text:
                     continue
                 if v == "seen":
@@ -375,6 +408,8 @@ def section_progress(section, data):
     custom_flags = []
     for block in section["blocks"]:
         kind = block["type"]
+        if not shown(block, data.get("fields", {})):
+            continue
         if kind == "checklist":
             for item in block["items"]:
                 total += 1
@@ -387,7 +422,7 @@ def section_progress(section, data):
                     flagged = True
         elif kind == "fields":
             for field in block["fields"]:
-                if not counts(field):
+                if not counts(field) or not shown(field, data.get("fields", {})):
                     continue
                 total += 1
                 value = data.get("fields", {}).get(field["key"])
@@ -406,7 +441,7 @@ def section_progress(section, data):
                 continue
             for card in entries:
                 for field in block["fields"]:
-                    if not counts(field):
+                    if not counts(field) or not shown(field, card):
                         continue
                     total += 1
                     value = card.get(field["key"])
@@ -450,6 +485,8 @@ def section_has_content(section, data):
                 if any(not blank((o or {}).get("v")) or not blank((o or {}).get("remark")) or not blank((o or {}).get("detail")) for o in opts.values()):
                     return True
                 if not blank(entry.get("evidence")) or not blank(entry.get("note")):
+                    return True
+                if entry.get("ticks") or entry.get("evidenceRefs"):
                     return True
     return False
 
@@ -709,6 +746,45 @@ def fixture_drafts_qa_1():
             "recommendations": recommendations_from_plan(cards_ai)}
 
 
+# qa-v2 tick boxes: "<v>Ticks" sentences, the "Available: ..." bullet, s6 drafts notes
+def fixture_remarks_qa_2():
+    def qa2_item(item_id):
+        for _, block in all_blocks(QA2_TEMPLATE):
+            if block["type"] == "criteria":
+                for found in block["items"]:
+                    if found["id"] == item_id:
+                        return found
+
+    cases = []
+
+    def add(name, item_id, entry):
+        found = qa2_item(item_id)
+        cases.append({"case": name, "item": found, "entry": entry,
+                      "bullets": build_remarks(found, entry), "printed": printed_remarks(found, entry)})
+
+    add("two ticks + seen -> ticks sentence", "s6_2",
+        {"opts": {"learning_materials": {"v": "seen"}}, "ticks": ["lesson_plan", "cblm"]})
+    add("three ticks + not seen + remark", "s6_3",
+        {"opts": {"tools_cover": {"v": "not", "remark": "no oral checklist"}},
+         "ticks": ["portfolio", "demo_checklist", "written_questions"]})
+    add("ticks only -> Available bullet", "s6_2", {"opts": {}, "ticks": ["job_sheet"]})
+    add("seen without ticks -> plain sentence", "s6_2", {"opts": {"learning_materials": {"v": "seen"}}})
+    add("n/a with ticks -> Available bullet kept", "s6_3",
+        {"opts": {"tools_cover": {"v": "na"}}, "ticks": ["oral_checklist"]})
+    data = {"criteria": {
+        "s6_1": {"opts": {"cs_available": {"v": "seen"}}},
+        "s6_2": {"opts": {"learning_materials": {"v": "seen"}}, "ticks": ["cblm", "tdp"]},
+        "s6_3": {"opts": {"tools_cover": {"v": "not"}}, "ticks": ["demo_checklist"]},
+    }, "cards": {}, "fields": {}}
+    s1 = next(section for section in QA2_TEMPLATE["sections"] if section["key"] == "s1")
+    profile = {"fields": {"bteb_registered": "yes", "nsda_registered": "no", "other_contract": "na"},
+               "cards": {"mous": [{"_id": "m1", "partner": "Others"}],
+                         "contract_courses": [{"_id": "c1", "overlap": "yes"}]}, "criteria": {}}
+    return {"template": "qa-v2.json", "cases": cases, "data": data,
+            "component_s6": component_notes(QA2_TEMPLATE, data, "s6"),
+            "profile": profile, "progress_s1": section_progress(s1, profile)[0]}
+
+
 if __name__ == "__main__":
     fixture = fixture_1()
     (HERE / "progress-1.json").write_text(json.dumps(fixture, indent=1, ensure_ascii=False) + "\n")
@@ -726,3 +802,7 @@ if __name__ == "__main__":
     drafts_fixture = fixture_drafts_qa_1()
     (HERE / "drafts-qa-1.json").write_text(json.dumps(drafts_fixture, indent=1, ensure_ascii=False) + "\n")
     print("drafts-qa-1.json written")
+
+    remarks_qa_2 = fixture_remarks_qa_2()
+    (HERE / "qa-2.json").write_text(json.dumps(remarks_qa_2, indent=1, ensure_ascii=False) + "\n")
+    print(f"qa-2.json: {len(remarks_qa_2['cases'])} cases")

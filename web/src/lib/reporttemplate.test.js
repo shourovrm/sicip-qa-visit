@@ -125,7 +125,7 @@ describe('qa template', () => {
   })
 
   it('computeProgress on criteria sections matches the shared fixture exactly (android parity)', () => {
-    const template = templateFor('qa')
+    const template = templateFor('qa', 1)
     expect(computeProgress(template, qaProgressFixture.data)).toEqual(qaProgressFixture.expected)
   })
 
@@ -138,7 +138,7 @@ describe('qa template', () => {
   })
 
   it('section 8 sums options across both its criteria blocks (main table + 8.1 sub-table)', () => {
-    const template = templateFor('qa')
+    const template = templateFor('qa', 1)
     const s8 = template.sections.find((s) => s.key === 's8')
     expect(s8.blocks.filter((b) => b.type === 'criteria')).toHaveLength(2)
   })

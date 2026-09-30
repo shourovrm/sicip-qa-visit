@@ -6,16 +6,17 @@
 import surpriseV1 from '../../../shared/report-templates/surprise-v1.json'
 import surpriseV2 from '../../../shared/report-templates/surprise-v2.json'
 import qaV1 from '../../../shared/report-templates/qa-v1.json'
+import qaV2 from '../../../shared/report-templates/qa-v2.json'
 
 // the `reports.type` DB column predates the QA template (check constraint 'surprise'|'monitoring'
 // -- see supabase/migrations/010_reports.sql) -- 'monitoring' is qa-v1's DB-side type, so a QA
 // report's row keeps type:'monitoring' while its template id/short/visitType are 'qa'. templateFor
 // accepts either name so callers can pass a DB row's `type` directly.
 // the LATEST template per type -- what a new report is created with
-export const TEMPLATES = { surprise: surpriseV2, qa: qaV1, monitoring: qaV1 }
+export const TEMPLATES = { surprise: surpriseV2, qa: qaV2, monitoring: qaV2 }
 
 // older versions an existing report row may still be on (template_version column)
-const OLDER_VERSIONS = { surprise: { 1: surpriseV1 } }
+const OLDER_VERSIONS = { surprise: { 1: surpriseV1 }, qa: { 1: qaV1 }, monitoring: { 1: qaV1 } }
 
 // version omitted = latest; a report row passes its own template_version
 export function templateFor(type, version) {
@@ -24,9 +25,10 @@ export function templateFor(type, version) {
   return OLDER_VERSIONS[type]?.[version] ?? latest
 }
 
-// an old-format surprise report the editor offers to convert (lib/reportconvert.js)
+// an old-format report the editor offers to convert (lib/reportconvert.js, lib/qaconvert.js)
 export function needsConversion(report) {
-  return report?.type === 'surprise' && Number(report.template_version) < TEMPLATES.surprise.version
+  const latest = TEMPLATES[report?.type]
+  return Boolean(latest) && Number(report.template_version) < latest.version
 }
 
 // the DB `type` column value for a template id (inverse of templateFor's 'monitoring' alias).
@@ -150,6 +152,14 @@ function counts(field) {
   return Boolean(field.required) || field.kind === 'choice'
 }
 
+// qa-v2 "showIf": {field, in:[...]} -- a field/block only shows (and only counts) while the
+// named value (top-level field, or the same card's field) is one of `in`
+export function isShown(thing, values) {
+  const rule = thing.showIf
+  if (!rule) return true
+  return rule.in.includes(String(values?.[rule.field] ?? ''))
+}
+
 // gapPct set (surprise v2): only when fields[0] (headcount) is more than gapPct% below any
 // other field (7-day averages); otherwise any difference
 export function compareMismatch(compare, card) {
@@ -210,6 +220,7 @@ function sectionProgress(section, data) {
   const courseCount = courseIds(data).length // computed once; perCourse items only split at 2+
 
   for (const block of section.blocks) {
+    if (!isShown(block, data.fields)) continue
     if (block.type === 'checklist') {
       for (const item of block.items) {
         total += 1
@@ -223,7 +234,7 @@ function sectionProgress(section, data) {
       }
     } else if (block.type === 'fields') {
       for (const field of block.fields) {
-        if (!counts(field)) continue
+        if (!counts(field) || !isShown(field, data.fields)) continue
         total += 1
         const value = data.fields?.[field.key]
         if (!isBlank(value)) answered += 1
@@ -243,7 +254,7 @@ function sectionProgress(section, data) {
       }
       for (const card of entries) {
         for (const field of block.fields) {
-          if (!counts(field)) continue
+          if (!counts(field) || !isShown(field, card)) continue
           total += 1
           const value = card[field.key]
           if (!isBlank(value)) answered += 1
@@ -329,6 +340,7 @@ export function sectionHasContent(section, data) {
         const opts = entry.opts ?? {}
         if (Object.values(opts).some((o) => !isBlank(o?.v) || !isBlank(o?.remark) || !isBlank(o?.detail))) return true
         if (!isBlank(entry.evidence) || !isBlank(entry.note)) return true
+        if ((entry.ticks ?? []).length > 0 || (entry.evidenceRefs ?? []).length > 0) return true
       }
     }
     if (block.type === 'flags' && block.items.some((i) => (data.flags ?? []).includes(i.id))) return true

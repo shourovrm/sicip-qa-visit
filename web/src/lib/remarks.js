@@ -17,14 +17,35 @@ const DETAIL_GROUP_RE = /\{([^}]*)\}/
 
 // one MARKED option -> its fixed sentence for the marked answer (detail group substituted) +
 // the officer's remark, e.g. "Fire extinguishers are available, last examined on 12/02. Refilled."
-export function optionText(option, state) {
+export function optionText(option, state, ticks = []) {
   const remark = ensureStop(String(state.remark ?? '').trim())
-  let sentence = option[state.v] ?? ''
+  let sentence = answerSentence(option, state.v, ticks)
   const detail = String(state.detail ?? '').trim()
   // the `{...}` group is kept (with $ substituted) only when its detail box has text; blank
   // detail drops the WHOLE group, including its own leading punctuation/spacing.
   sentence = sentence.replace(DETAIL_GROUP_RE, (_match, part) => (detail ? part.replace('$', detail) : ''))
   return [sentence, remark].filter(Boolean).join(' ')
+}
+
+// "a", "a and b", "a, b and c"
+export function joinLabels(labels) {
+  if (labels.length <= 1) return labels.join('')
+  return `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`
+}
+
+// the item's ticked boxes (qa-v2 "ticks", e.g. CBLM / lesson plan) in template order, as their
+// sentence words (`say`, falling back to the label)
+export function tickedSays(item, entry) {
+  const ticked = new Set(entry.ticks ?? [])
+  return (item.ticks ?? []).filter((tick) => ticked.has(tick.id)).map((tick) => tick.say || tick.label)
+}
+
+// a marked answer's sentence: "<v>Ticks" with "@" = the ticked boxes when any are ticked and the
+// option has one, else the plain "<v>" sentence
+function answerSentence(option, v, ticks) {
+  const withTicks = option[`${v}Ticks`]
+  if (ticks.length && withTicks) return withTicks.replace('@', joinLabels(ticks))
+  return option[v] ?? ''
 }
 
 // one criteria item ({id, text, options:[{id,label,short?,seen,not,na}]}) + its
@@ -34,6 +55,8 @@ export function optionText(option, state) {
 export function buildRemarks(item, entry) {
   const bullets = []
   const opts = entry.opts ?? {}
+  const ticks = tickedSays(item, entry)
+  let ticksUsed = false
   for (const option of item.options ?? []) {
     const state = opts[option.id] ?? {}
     const v = state.v ?? ''
@@ -44,9 +67,12 @@ export function buildRemarks(item, entry) {
       if (remark) bullets.push(`${option.short ?? option.label}: ${remark}`)
       continue
     }
-    const joined = optionText(option, state)
+    if (ticks.length && option[`${v}Ticks`]) ticksUsed = true
+    const joined = optionText(option, state, ticks)
     if (joined) bullets.push(joined)
   }
+  // ticked boxes no marked answer mentioned still get their own bullet
+  if (ticks.length && !ticksUsed) bullets.push(`${item.ticksLabel || 'Available'}: ${ensureStop(joinLabels(ticks))}`)
   const evidence = String(entry.evidence ?? '').trim()
   if (evidence) bullets.push(`Evidence seen: ${ensureStop(evidence)}`)
   const note = String(entry.note ?? '').trim()

@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest'
 import { buildQaReportDocx, downloadQaReportDocx } from './qareportdocx.js'
 import { templateFor } from './reporttemplate.js'
 
-const template = templateFor('qa')
+const template = templateFor('qa', 1)
 const meta = { officerName: 'Mahfuzul Islam', status: 'draft' }
 const EMPTY_DATA = { fields: {}, checks: {}, cards: {}, flags: [], criteria: {} }
 

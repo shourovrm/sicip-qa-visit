@@ -1,0 +1,410 @@
+{
+ "template": "qa-v2.json",
+ "cases": [
+  {
+   "case": "two ticks + seen -> ticks sentence",
+   "item": {
+    "id": "s6_2",
+    "no": "2.",
+    "text": "Learning material covers all topics provided in the occupation specific knowledge and occupation specific skills stated in each unit of competency of the modular course outline.",
+    "evidence": "Learning materials developed by the centre covers the all the units of competency specified in standards. (Provide list of contents in case of new learning materials)\n- CBLMs\n- Lesson plan\n- Training delivery plan\n- Job sheet",
+    "options": [
+     {
+      "id": "learning_materials",
+      "label": "Learning materials cover every unit of competency",
+      "short": "Learning materials cover all units",
+      "src": [
+       "A3"
+      ],
+      "seen": "Learning materials cover every unit of competency in the course outline.",
+      "not": "Learning materials do not cover every unit of competency.",
+      "na": "",
+      "seenTicks": "Available @ indicate they cover every unit of competency.",
+      "notTicks": "Available @ do not cover every unit of competency."
+     }
+    ],
+    "ticks": [
+     {
+      "id": "cblm",
+      "label": "CBLM",
+      "say": "CBLM"
+     },
+     {
+      "id": "lesson_plan",
+      "label": "Lesson plan",
+      "say": "lesson plan"
+     },
+     {
+      "id": "tdp",
+      "label": "Training delivery plan (TDP)",
+      "say": "TDP"
+     },
+     {
+      "id": "job_sheet",
+      "label": "Job sheet",
+      "say": "job sheet"
+     }
+    ],
+    "ticksLabel": "Available"
+   },
+   "entry": {
+    "opts": {
+     "learning_materials": {
+      "v": "seen"
+     }
+    },
+    "ticks": [
+     "lesson_plan",
+     "cblm"
+    ]
+   },
+   "bullets": [
+    "Available CBLM and lesson plan indicate they cover every unit of competency."
+   ],
+   "printed": [
+    "Available CBLM and lesson plan indicate they cover every unit of competency."
+   ]
+  },
+  {
+   "case": "three ticks + not seen + remark",
+   "item": {
+    "id": "s6_3",
+    "no": "3.",
+    "text": "Assessment tools provide all checklist needed for each unit of competency and shall cover all requirement of competencies for the targeted occupations in the job market stated in the modular course outline.",
+    "evidence": "Tools such Demonstration checklist, Observation checklist, question checklist are used and adequate to assess trainees' performance (provide sample in case of new courses)",
+    "options": [
+     {
+      "id": "tools_cover",
+      "label": "Assessment tools cover all units of competency",
+      "short": "Assessment tools cover all units",
+      "src": [
+       "A3"
+      ],
+      "seen": "Assessment tools cover all units of competency.",
+      "not": "Assessment tools do not cover all units of competency.",
+      "na": "",
+      "seenTicks": "Available @ indicate the assessment tools cover all units of competency.",
+      "notTicks": "Available @ do not cover all units of competency."
+     }
+    ],
+    "ticks": [
+     {
+      "id": "demo_checklist",
+      "label": "Demonstration checklist",
+      "say": "demonstration checklist"
+     },
+     {
+      "id": "observation_checklist",
+      "label": "Observation checklist",
+      "say": "observation checklist"
+     },
+     {
+      "id": "oral_checklist",
+      "label": "Oral checklist",
+      "say": "oral checklist"
+     },
+     {
+      "id": "written_questions",
+      "label": "Written test questions",
+      "say": "written test questions"
+     },
+     {
+      "id": "portfolio",
+      "label": "Portfolio",
+      "say": "portfolio"
+     },
+     {
+      "id": "assessment_evidence",
+      "label": "Assessment evidences",
+      "say": "assessment evidences"
+     }
+    ],
+    "ticksLabel": "Available"
+   },
+   "entry": {
+    "opts": {
+     "tools_cover": {
+      "v": "not",
+      "remark": "no oral checklist"
+     }
+    },
+    "ticks": [
+     "portfolio",
+     "demo_checklist",
+     "written_questions"
+    ]
+   },
+   "bullets": [
+    "Available demonstration checklist, written test questions and portfolio do not cover all units of competency. no oral checklist."
+   ],
+   "printed": [
+    "Available demonstration checklist, written test questions and portfolio do not cover all units of competency. no oral checklist."
+   ]
+  },
+  {
+   "case": "ticks only -> Available bullet",
+   "item": {
+    "id": "s6_2",
+    "no": "2.",
+    "text": "Learning material covers all topics provided in the occupation specific knowledge and occupation specific skills stated in each unit of competency of the modular course outline.",
+    "evidence": "Learning materials developed by the centre covers the all the units of competency specified in standards. (Provide list of contents in case of new learning materials)\n- CBLMs\n- Lesson plan\n- Training delivery plan\n- Job sheet",
+    "options": [
+     {
+      "id": "learning_materials",
+      "label": "Learning materials cover every unit of competency",
+      "short": "Learning materials cover all units",
+      "src": [
+       "A3"
+      ],
+      "seen": "Learning materials cover every unit of competency in the course outline.",
+      "not": "Learning materials do not cover every unit of competency.",
+      "na": "",
+      "seenTicks": "Available @ indicate they cover every unit of competency.",
+      "notTicks": "Available @ do not cover every unit of competency."
+     }
+    ],
+    "ticks": [
+     {
+      "id": "cblm",
+      "label": "CBLM",
+      "say": "CBLM"
+     },
+     {
+      "id": "lesson_plan",
+      "label": "Lesson plan",
+      "say": "lesson plan"
+     },
+     {
+      "id": "tdp",
+      "label": "Training delivery plan (TDP)",
+      "say": "TDP"
+     },
+     {
+      "id": "job_sheet",
+      "label": "Job sheet",
+      "say": "job sheet"
+     }
+    ],
+    "ticksLabel": "Available"
+   },
+   "entry": {
+    "opts": {},
+    "ticks": [
+     "job_sheet"
+    ]
+   },
+   "bullets": [
+    "Available: job sheet."
+   ],
+   "printed": [
+    "Available: job sheet."
+   ]
+  },
+  {
+   "case": "seen without ticks -> plain sentence",
+   "item": {
+    "id": "s6_2",
+    "no": "2.",
+    "text": "Learning material covers all topics provided in the occupation specific knowledge and occupation specific skills stated in each unit of competency of the modular course outline.",
+    "evidence": "Learning materials developed by the centre covers the all the units of competency specified in standards. (Provide list of contents in case of new learning materials)\n- CBLMs\n- Lesson plan\n- Training delivery plan\n- Job sheet",
+    "options": [
+     {
+      "id": "learning_materials",
+      "label": "Learning materials cover every unit of competency",
+      "short": "Learning materials cover all units",
+      "src": [
+       "A3"
+      ],
+      "seen": "Learning materials cover every unit of competency in the course outline.",
+      "not": "Learning materials do not cover every unit of competency.",
+      "na": "",
+      "seenTicks": "Available @ indicate they cover every unit of competency.",
+      "notTicks": "Available @ do not cover every unit of competency."
+     }
+    ],
+    "ticks": [
+     {
+      "id": "cblm",
+      "label": "CBLM",
+      "say": "CBLM"
+     },
+     {
+      "id": "lesson_plan",
+      "label": "Lesson plan",
+      "say": "lesson plan"
+     },
+     {
+      "id": "tdp",
+      "label": "Training delivery plan (TDP)",
+      "say": "TDP"
+     },
+     {
+      "id": "job_sheet",
+      "label": "Job sheet",
+      "say": "job sheet"
+     }
+    ],
+    "ticksLabel": "Available"
+   },
+   "entry": {
+    "opts": {
+     "learning_materials": {
+      "v": "seen"
+     }
+    }
+   },
+   "bullets": [
+    "Learning materials cover every unit of competency in the course outline."
+   ],
+   "printed": [
+    "Learning materials cover every unit of competency in the course outline."
+   ]
+  },
+  {
+   "case": "n/a with ticks -> Available bullet kept",
+   "item": {
+    "id": "s6_3",
+    "no": "3.",
+    "text": "Assessment tools provide all checklist needed for each unit of competency and shall cover all requirement of competencies for the targeted occupations in the job market stated in the modular course outline.",
+    "evidence": "Tools such Demonstration checklist, Observation checklist, question checklist are used and adequate to assess trainees' performance (provide sample in case of new courses)",
+    "options": [
+     {
+      "id": "tools_cover",
+      "label": "Assessment tools cover all units of competency",
+      "short": "Assessment tools cover all units",
+      "src": [
+       "A3"
+      ],
+      "seen": "Assessment tools cover all units of competency.",
+      "not": "Assessment tools do not cover all units of competency.",
+      "na": "",
+      "seenTicks": "Available @ indicate the assessment tools cover all units of competency.",
+      "notTicks": "Available @ do not cover all units of competency."
+     }
+    ],
+    "ticks": [
+     {
+      "id": "demo_checklist",
+      "label": "Demonstration checklist",
+      "say": "demonstration checklist"
+     },
+     {
+      "id": "observation_checklist",
+      "label": "Observation checklist",
+      "say": "observation checklist"
+     },
+     {
+      "id": "oral_checklist",
+      "label": "Oral checklist",
+      "say": "oral checklist"
+     },
+     {
+      "id": "written_questions",
+      "label": "Written test questions",
+      "say": "written test questions"
+     },
+     {
+      "id": "portfolio",
+      "label": "Portfolio",
+      "say": "portfolio"
+     },
+     {
+      "id": "assessment_evidence",
+      "label": "Assessment evidences",
+      "say": "assessment evidences"
+     }
+    ],
+    "ticksLabel": "Available"
+   },
+   "entry": {
+    "opts": {
+     "tools_cover": {
+      "v": "na"
+     }
+    },
+    "ticks": [
+     "oral_checklist"
+    ]
+   },
+   "bullets": [
+    "Available: oral checklist."
+   ],
+   "printed": [
+    "Available: oral checklist."
+   ]
+  }
+ ],
+ "data": {
+  "criteria": {
+   "s6_1": {
+    "opts": {
+     "cs_available": {
+      "v": "seen"
+     }
+    }
+   },
+   "s6_2": {
+    "opts": {
+     "learning_materials": {
+      "v": "seen"
+     }
+    },
+    "ticks": [
+     "cblm",
+     "tdp"
+    ]
+   },
+   "s6_3": {
+    "opts": {
+     "tools_cover": {
+      "v": "not"
+     }
+    },
+    "ticks": [
+     "demo_checklist"
+    ]
+   }
+  },
+  "cards": {},
+  "fields": {}
+ },
+ "component_s6": {
+  "seen": [
+   "Competency standards / course outlines are available and used, with a list of standards and courses implemented.",
+   "Available CBLM and TDP indicate they cover every unit of competency."
+  ],
+  "gaps": [
+   "Available demonstration checklist do not cover all units of competency."
+  ],
+  "notes": [],
+  "feedback": []
+ },
+ "profile": {
+  "fields": {
+   "bteb_registered": "yes",
+   "nsda_registered": "no",
+   "other_contract": "na"
+  },
+  "cards": {
+   "mous": [
+    {
+     "_id": "m1",
+     "partner": "Others"
+    }
+   ],
+   "contract_courses": [
+    {
+     "_id": "c1",
+     "overlap": "yes"
+    }
+   ]
+  },
+  "criteria": {}
+ },
+ "progress_s1": {
+  "answered": 3,
+  "total": 7,
+  "done": false,
+  "flagged": false
+ }
+}

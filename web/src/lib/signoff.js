@@ -8,7 +8,7 @@ const text = (value) => String(value ?? '').trim()
 
 // "Name, Designation" or "Name (Designation)" -- the comma wins because designations like
 // "Program Officer (QA)" carry their own brackets
-function splitOfficerLine(line) {
+export function splitOfficerLine(line) {
   const comma = line.indexOf(',')
   if (comma > 0) return { name: line.slice(0, comma).trim(), designation: line.slice(comma + 1).trim() }
   const bracketed = /^(.*?)\s*\((.+)\)\s*$/.exec(line)

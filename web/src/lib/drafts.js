@@ -2,7 +2,7 @@
 // -- ported 1:1 from shared/report-templates/fixtures/reference.py's "QA conclusions drafts"
 // helpers, fixture-tested against drafts-qa-1.json so android's Drafts.kt can't drift.
 import { isBlank } from './reporttemplate.js'
-import { ensureStop, optionText } from './remarks.js'
+import { ensureStop, optionText, tickedSays } from './remarks.js'
 
 function sectionByKey(template, key) {
   return template.sections.find((section) => section.key === key)
@@ -43,6 +43,7 @@ export function componentNotes(template, data, sourceKey) {
     for (const item of block.items.filter((i) => !i.heading)) {
       const entry = criteriaData[item.id] ?? {}
       const opts = entry.opts ?? {}
+      const ticks = tickedSays(item, entry)
       for (const option of item.options) {
         const state = opts[option.id] ?? {}
         if (isBlank(state.v)) {
@@ -50,7 +51,7 @@ export function componentNotes(template, data, sourceKey) {
           if (remark) notes.push(`${option.short ?? option.label}: ${remark}`)
           continue
         }
-        const text = optionText(option, state)
+        const text = optionText(option, state, ticks)
         if (!text) continue
         if (state.v === 'seen') seen.push(text)
         else if (state.v === 'not') gaps.push(text)
