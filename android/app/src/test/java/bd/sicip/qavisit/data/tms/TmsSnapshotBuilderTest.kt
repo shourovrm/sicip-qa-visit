@@ -22,6 +22,22 @@ class TmsSnapshotBuilderTest {
     }
 
     @Test
+    fun `display name is the longer of course_name and alias, both names kept`() {
+        val named = TmsFixture.snapshot(withAliases = true)
+        val longer = named.courses.first { it.tmsName == "Course A" }
+        assertEquals("Course A Advanced Diploma", longer.name) // alias longer
+        val shorter = named.courses.first { it.tmsName == "Course B" }
+        assertEquals("Course B", shorter.name) // alias "B" is shorter, course_name wins
+        assertEquals("Course A Advanced Diploma", named.runningBatches.single().course)
+        assertEquals("Course A", named.runningBatches.single().tmsCourse)
+    }
+
+    @Test
+    fun `no alias list gives the short names`() {
+        assertEquals(listOf("Course A", "Course B"), snapshot.courses.map { it.name })
+    }
+
+    @Test
     fun `cumulative counts parse numbers and strings`() {
         assertEquals(22, courseA.enrolledTotal)
         assertEquals(9, courseA.enrolledFemale)

@@ -24,8 +24,16 @@ object TmsFixture {
         summary = data("enrollment/batch_summary"),
     )
 
-    fun snapshot(): TmsSnapshot = runBlocking {
-        buildTmsSnapshot(input(), TMS_SAMPLE_VISIT_DATE, "2026-05-13T10:00:00Z") { _, batchId, date ->
+    // same input plus the alias master list (Course A -> longer alias, Course B -> shorter alias)
+    fun inputWithAliases() = TmsSnapshotInput(
+        targets = data("institutetarget/all-list"),
+        batches = data("batch/list"),
+        summary = data("enrollment/batch_summary"),
+        aliases = data("configurations/alias_name/list"),
+    )
+
+    fun snapshot(withAliases: Boolean = false): TmsSnapshot = runBlocking {
+        buildTmsSnapshot(if (withAliases) inputWithAliases() else input(), TMS_SAMPLE_VISIT_DATE, "2026-05-13T10:00:00Z") { _, batchId, date ->
             val day = root.getValue("_date_wise_by_batch").jsonObject[batchId.toString()]?.jsonObject?.get(date.toString())
             day?.let { presentCountOf(it.jsonObject.getValue("data").jsonArray) }
         }

@@ -3,11 +3,12 @@
 package bd.sicip.qavisit.data.tms
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
 import java.time.LocalDate
 
 @Serializable
 data class TmsCourse(
-    val name: String,
+    val name: String, // display name: the longer of TMS course_name and its master-list alias
     val code: String,
     val targetBatches: Int,
     val batchSize: Int,
@@ -20,6 +21,7 @@ data class TmsCourse(
     val placedFemale: Int,
     val dropoutTotal: Int? = null, // null = no ended batch with assessment data
     val dropoutFemale: Int? = null,
+    val tmsName: String = "", // TMS's own short course_name; "" in snapshots cached before aliases
 )
 
 @Serializable
@@ -32,6 +34,7 @@ data class TmsRunningBatch(
     val female: Int,
     val attendanceToday: Int? = null, // null = no attendance rows that day
     val attendance7day: Double? = null,
+    val tmsCourse: String = "", // short TMS course_name, see TmsCourse.tmsName
 )
 
 @Serializable
@@ -50,6 +53,16 @@ data class TmsLink(
     val name: String,
 )
 
+// full-name master list; optional, so a failure just means short course names.
+// api.get already reported API-change errors, so swallow them here.
+suspend fun fetchAliasList(api: TmsApi): JsonArray = try {
+    api.getList("configurations/alias_name/list")
+} catch (e: TmsApiChangeException) {
+    JsonArray(emptyList())
+} catch (e: TmsTransientException) {
+    JsonArray(emptyList())
+}
+
 // runs the spec's calls sequentially; API-change errors are reported before they propagate.
 suspend fun fetchTmsSnapshot(api: TmsApi, link: TmsLink, visitDate: LocalDate, fetchedAt: String): TmsSnapshot {
     val entity = link.entityId
@@ -65,6 +78,7 @@ suspend fun fetchTmsSnapshot(api: TmsApi, link: TmsLink, visitDate: LocalDate, f
             summary = api.getList(
                 "enrollment/batch_summary?entity_id=$entity&tranche_id=$tranche&institute_info_id=$institute",
             ),
+            aliases = fetchAliasList(api),
         )
         return buildTmsSnapshot(input, visitDate, fetchedAt) { courseId, batchId, date ->
             val rows = api.getList(

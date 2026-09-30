@@ -29,7 +29,7 @@ class TmsPrefillTest {
         assertEquals(listOf("Course A", "Course B"), data.cards("mou_courses").map { it["course"]!!.let { v -> (v as JsonPrimitive).content } })
         assertEquals("seed", (data.cards("mou_courses")[0]["_id"] as JsonPrimitive).content) // blank seed row reused
         assertEquals("60 days / 300 h", data.cardField("mou_courses", 0, "duration"))
-        assertEquals("10", data.cardField("mou_courses", 0, "batches"))
+        assertEquals("", data.cardField("mou_courses", 0, "batches")) // TMS target batches are partner-wide
         assertEquals("20", data.cardField("mou_courses", 0, "batch_size"))
         assertEquals("22", data.cardField("cumulative", 0, "enrolled_t"))
         assertEquals("2", data.cardField("cumulative", 0, "dropout_t"))
@@ -46,7 +46,7 @@ class TmsPrefillTest {
     @Test
     fun `target and tms_mismatch and dropouts of running batches stay blank`() {
         val data = prefillFromTms(snapshot, ReportData.EMPTY).data
-        listOf("mou_courses" to "target", "cumulative" to "target", "batches" to "tms_mismatch", "batches" to "dropouts").forEach { (block, field) ->
+        listOf("mou_courses" to "target", "mou_courses" to "batches", "cumulative" to "target", "batches" to "tms_mismatch", "batches" to "dropouts").forEach { (block, field) ->
             data.cards(block).forEach { assertNull("$block.$field", it[field]) }
         }
     }
@@ -76,6 +76,32 @@ class TmsPrefillTest {
 
         val otherBatch = dataWith("batches", card("course" to "Course A", "batch" to "9"))
         assertEquals(2, prefillFromTms(snapshot, otherBatch).data.cards("batches").size)
+    }
+
+    @Test
+    fun `card filled with the short TMS name is matched, not duplicated, and offered the full name`() {
+        val full = TmsFixture.snapshot(withAliases = true)
+        val existing = dataWith("mou_courses", card("course" to "course a", "duration" to "1 day"))
+        val result = prefillFromTms(full, existing)
+        val cards = result.data.cards("mou_courses")
+        assertEquals(listOf("course a", "Course B"), cards.map { (it["course"] as JsonPrimitive).content })
+        assertEquals(2, cards.size) // Course A reused, Course B added under its short name (alias is shorter)
+        val suggestion = result.suggestions.single { it.cardsKey == "mou_courses" && it.fieldKey == "course" }
+        assertEquals("Course A Advanced Diploma", suggestion.tmsValue)
+        assertEquals("course a", result.data.cardField("mou_courses", 0, "course")) // not auto-overwritten
+    }
+
+    @Test
+    fun `card with the full name matches too, and running batches use both names`() {
+        val full = TmsFixture.snapshot(withAliases = true)
+        val existing = dataWith(
+            "batches",
+            card("course" to "Course A", "batch" to "2"),
+            card("course" to "Course A Advanced Diploma", "batch" to "2"),
+        )
+        assertEquals(2, prefillFromTms(full, existing).data.cards("batches").size) // both reused, none added
+        assertEquals(4, tmsPresentToday(full, "Course A", "2"))
+        assertEquals(4, tmsPresentToday(full, "Course A Advanced Diploma", "2"))
     }
 
     @Test

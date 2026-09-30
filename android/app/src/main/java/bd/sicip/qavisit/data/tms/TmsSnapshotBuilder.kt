@@ -10,7 +10,17 @@ private const val SUMMARY = "enrollment/batch_summary"
 private const val CLASS_DAYS_FOR_MEAN = 7
 private const val MAX_DAYS_LOOKBACK = 14 // stop walking back over holidays
 
-class TmsSnapshotInput(val targets: JsonArray, val batches: JsonArray, val summary: JsonArray)
+class TmsSnapshotInput(
+    val targets: JsonArray,
+    val batches: JsonArray,
+    val summary: JsonArray,
+    val aliases: JsonArray = JsonArray(emptyList()), // configurations/alias_name/list
+)
+
+// TMS course_name is often abbreviated ("Beautification and ED"); the master list holds the
+// full name. the alias is not always fuller ("Welding" vs "Advanced Welding"), so keep the longer.
+private fun displayName(shortName: String, aliasName: String?): String =
+    if (aliasName != null && aliasName.length > shortName.length) aliasName else shortName
 
 // present trainees in one day's report; null = no rows (no class that day).
 fun presentCountOf(rows: JsonArray): Int? {
@@ -64,13 +74,20 @@ suspend fun buildTmsSnapshot(
     val courseRows = targetRows + extraRows
     val allBatches = input.batches.map { it.objectOrEmpty().toBatchRow() }
 
+    val aliasNames = input.aliases.map { it.objectOrEmpty() }
+        .associate { it["id"].lenientLong() to it["name"].lenientText() }
+    fun fullNameOf(courseRow: JsonObject) = displayName(
+        courseRow["course_name"].lenientText(),
+        aliasNames[courseRow["x_course_name_id"].lenientLong()],
+    )
+
     val courses = courseRows.map { courseRow ->
         val courseId = courseRow["id"].lenientLong()
         val totals = summaryByCourse[courseId] ?: JsonObject(emptyMap())
         val ownBatches = allBatches.filter { it.courseId == courseId }
         val dropouts = endedDropouts(ownBatches, batchCounts, visitDate)
         TmsCourse(
-            name = courseRow["course_name"].lenientText(),
+            name = fullNameOf(courseRow),
             code = courseRow["code"].lenientText(),
             targetBatches = courseRow["total_target_batches"].lenientInt(),
             batchSize = courseRow["trainee_per_batch"].lenientInt(),
@@ -83,10 +100,11 @@ suspend fun buildTmsSnapshot(
             placedFemale = totals["employment_female_trainee"].lenientInt(),
             dropoutTotal = dropouts?.first,
             dropoutFemale = dropouts?.second,
+            tmsName = courseRow["course_name"].lenientText(),
         )
     }
 
-    val courseNames = courseRows.associate { it["id"].lenientLong() to it["course_name"].lenientText() }
+    val courseRowsById = courseRows.associateBy { it["id"].lenientLong() }
     val running = allBatches
         .filter { it.start != null && it.end != null && it.start <= visitDate && visitDate <= it.end }
         .sortedWith(compareBy({ it.courseId }, { it.number.toIntOrNull() ?: Int.MAX_VALUE }))
@@ -94,7 +112,7 @@ suspend fun buildTmsSnapshot(
             val counts = batchCounts[batch.id] ?: JsonObject(emptyMap())
             val attendance = attendanceOf(batch, visitDate, presentOn)
             TmsRunningBatch(
-                course = courseNames[batch.courseId] ?: "",
+                course = courseRowsById[batch.courseId]?.let(::fullNameOf) ?: "",
                 batchNumber = batch.number,
                 startDate = batch.start.toString(),
                 endDate = batch.end.toString(),
@@ -102,6 +120,7 @@ suspend fun buildTmsSnapshot(
                 female = counts["enroll_female_trainee"].lenientInt(),
                 attendanceToday = attendance.first,
                 attendance7day = attendance.second,
+                tmsCourse = courseRowsById[batch.courseId]?.get("course_name").lenientText(),
             )
         }
     return TmsSnapshot(fetchedAt, courses, running)

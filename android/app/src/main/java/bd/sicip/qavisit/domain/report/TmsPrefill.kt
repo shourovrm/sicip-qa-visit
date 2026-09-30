@@ -1,6 +1,7 @@
 // pure: TMS snapshot + report data -> data with empty QA v2 card fields filled (and missing
 // course/batch cards added), plus "Use" suggestions where a filled-in value differs from TMS.
-// rules: only empty fields are written, cards are never removed, target stays blank,
+// rules: only empty fields are written, cards are never removed, target and batches stay blank
+// (TMS target batches are partner-wide, not per institute),
 // tms_mismatch is never filled (officer counts heads; TMS present count is exposed as reference).
 package bd.sicip.qavisit.domain.report
 
@@ -34,7 +35,13 @@ data class TmsPrefillResult(
 )
 
 // one card the snapshot wants to see; batchNumber == null for course-level blocks.
-private class WantedCard(val course: String, val batchNumber: String?, val values: Map<String, String>)
+// shortCourse = TMS's abbreviated name; cards filled before full names existed still carry it.
+private class WantedCard(
+    val course: String,
+    val shortCourse: String,
+    val batchNumber: String?,
+    val values: Map<String, String>,
+)
 
 fun prefillFromTms(snapshot: TmsSnapshot, data: ReportData): TmsPrefillResult {
     val suggestions = mutableListOf<TmsSuggestion>()
@@ -56,21 +63,22 @@ fun prefillFromTms(snapshot: TmsSnapshot, data: ReportData): TmsPrefillResult {
 
 // TMS present count on the visit date, shown next to tms_mismatch as a reference.
 fun tmsPresentToday(snapshot: TmsSnapshot, course: String, batchNumber: String): Int? =
-    snapshot.runningBatches.firstOrNull { sameText(it.course, course) && sameText(it.batchNumber, batchNumber) }
+    snapshot.runningBatches.firstOrNull {
+        (sameText(it.course, course) || sameText(it.tmsCourse, course)) && sameText(it.batchNumber, batchNumber)
+    }
         ?.attendanceToday
 
 private fun mouCourseCard(course: TmsCourse) = WantedCard(
-    course.name, null,
+    course.name, course.tmsName, null,
     mapOf(
         "course" to course.name,
         "duration" to course.duration,
-        "batches" to course.targetBatches.toString(),
         "batch_size" to course.batchSize.toString(),
     ),
 )
 
 private fun cumulativeCard(course: TmsCourse) = WantedCard(
-    course.name, null,
+    course.name, course.tmsName, null,
     mapOf(
         "course" to course.name,
         "enrolled_t" to course.enrolledTotal.toString(),
@@ -85,7 +93,7 @@ private fun cumulativeCard(course: TmsCourse) = WantedCard(
 )
 
 private fun batchCard(batch: TmsRunningBatch) = WantedCard(
-    batch.course, batch.batchNumber,
+    batch.course, batch.tmsCourse, batch.batchNumber,
     mapOf(
         "course" to batch.course,
         "batch" to batch.batchNumber,
@@ -154,7 +162,9 @@ private fun applyBlock(
 }
 
 private fun matches(card: JsonObject, wanted: WantedCard): Boolean {
-    if (card.text("course").isBlank() || !sameText(card.text("course"), wanted.course)) return false
+    val cardCourse = card.text("course")
+    if (cardCourse.isBlank()) return false
+    if (!sameText(cardCourse, wanted.course) && !sameText(cardCourse, wanted.shortCourse)) return false
     return wanted.batchNumber == null || sameText(card.text("batch"), wanted.batchNumber)
 }
 
