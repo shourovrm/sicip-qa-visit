@@ -31,15 +31,33 @@ fun ensureStop(s: String): String {
     return if (last == '.' || last == '!' || last == '?') s else "$s."
 }
 
+// "a", "a and b", "a, b and c"
+fun joinLabels(labels: List<String>): String =
+    if (labels.size <= 1) labels.joinToString("") else labels.dropLast(1).joinToString(", ") + " and " + labels.last()
+
+// the item's ticked boxes (qa-v2 "ticks", e.g. CBLM / lesson plan), template order, as their
+// sentence words (`say`, falling back to the label)
+fun tickedSays(item: CriteriaItem, data: ReportData): List<String> {
+    val ticked = data.criteriaTicks(item.id).toSet()
+    return item.ticks.filter { it.id in ticked }.map { it.say.ifBlank { it.label } }
+}
+
 // one MARKED option -> its fixed sentence ({...$...} resolved) + typed remark, one string
-// (reference.py option_text; shared by buildRemarks and Drafts.kt's componentNotes).
-fun optionText(itemId: String, option: CriteriaOption, data: ReportData): String {
+// (reference.py option_text; shared by buildRemarks and Drafts.kt's componentNotes). With ticked
+// boxes and a "<answer>Ticks" sentence, that sentence is used with "@" = the ticked boxes.
+fun optionText(itemId: String, option: CriteriaOption, data: ReportData, ticks: List<String> = emptyList()): String {
     val remark = ensureStop(data.criteriaOptRemark(itemId, option.id).trim())
-    val sentenceTemplate = when (data.criteriaOptValue(itemId, option.id)) {
-        "seen" -> option.seen
-        "not" -> option.not
-        "na" -> option.na
-        else -> "" // unrecognised stored value -- treat as no fixed sentence, remark still prints
+    val answer = data.criteriaOptValue(itemId, option.id)
+    val withTicks = option.ticksSentence(answer)
+    val sentenceTemplate = if (ticks.isNotEmpty() && withTicks != null) {
+        withTicks.replace("@", joinLabels(ticks))
+    } else {
+        when (answer) {
+            "seen" -> option.seen
+            "not" -> option.not
+            "na" -> option.na
+            else -> "" // unrecognised stored value -- treat as no fixed sentence, remark still prints
+        }
     }
     val detail = data.criteriaOptDetail(itemId, option.id).trim()
     val sentence = resolveDetailGroup(sentenceTemplate, detail).trim()
@@ -57,6 +75,8 @@ fun optionText(itemId: String, option: CriteriaOption, data: ReportData): String
 // 3. a non-blank "Other remarks" box -> one more bullet, the typed text as-is (period ensured).
 fun buildRemarks(item: CriteriaItem, data: ReportData): List<String> {
     val bullets = mutableListOf<String>()
+    val ticks = tickedSays(item, data)
+    var ticksUsed = false
 
     item.options.forEach { option ->
         val value = data.criteriaOptValue(item.id, option.id)
@@ -69,9 +89,12 @@ fun buildRemarks(item: CriteriaItem, data: ReportData): List<String> {
             return@forEach
         }
 
-        val joined = optionText(item.id, option, data)
+        if (ticks.isNotEmpty() && option.ticksSentence(value) != null) ticksUsed = true
+        val joined = optionText(item.id, option, data, ticks)
         if (joined.isNotBlank()) bullets += joined
     }
+    // ticked boxes no marked answer mentioned still get their own bullet
+    if (ticks.isNotEmpty() && !ticksUsed) bullets += "${item.ticksLabel ?: "Available"}: ${ensureStop(joinLabels(ticks))}"
 
     val evidence = data.criteriaEvidence(item.id).trim()
     if (evidence.isNotBlank()) bullets += "Evidence seen: ${ensureStop(evidence)}"

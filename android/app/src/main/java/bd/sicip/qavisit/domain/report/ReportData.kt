@@ -32,6 +32,8 @@ import java.util.UUID
 
 data class Finding(val src: String, val text: String)
 
+data class EvidenceEntry(val id: String, val name: String, val no: String)
+
 data class ReportData(val root: JsonObject) {
     companion object {
         val EMPTY = ReportData(
@@ -220,6 +222,36 @@ data class ReportData(val root: JsonObject) {
             entry["opts"] = JsonObject(opts)
         }
 
+    // qa-v2 tick boxes (template order) and numbered evidence ids on one criteria item
+    fun criteriaTicks(itemId: String): List<String> =
+        (criteriaEntry(itemId)["ticks"] as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList()
+
+    fun withCriteriaTicks(itemId: String, ticks: List<String>): ReportData =
+        withCriteriaEntry(itemId) { entry -> entry["ticks"] = JsonArray(ticks.map { JsonPrimitive(it) }) }
+
+    fun criteriaEvidenceRefs(itemId: String): List<String> =
+        (criteriaEntry(itemId)["evidenceRefs"] as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList()
+
+    fun withCriteriaEvidenceRefs(itemId: String, refs: List<String>): ReportData =
+        withCriteriaEntry(itemId) { entry -> entry["evidenceRefs"] = JsonArray(refs.map { JsonPrimitive(it) }) }
+
+    // data.evidence = [{_id, name, no}] (Evidence.kt)
+    fun evidenceList(): List<EvidenceEntry> =
+        ((root["evidence"] as? JsonArray) ?: JsonArray(emptyList())).mapNotNull { element ->
+            val obj = element as? JsonObject ?: return@mapNotNull null
+            EvidenceEntry(
+                obj["_id"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null,
+                obj["name"]?.jsonPrimitive?.contentOrNull ?: "",
+                obj["no"]?.jsonPrimitive?.contentOrNull ?: "",
+            )
+        }
+
+    fun withEvidenceList(list: List<EvidenceEntry>): ReportData =
+        withRoot("evidence", JsonArray(list.map { buildJsonObject { put("_id", it.id); put("name", it.name); put("no", it.no) } }))
+
+    // every criteria item id with an entry (Evidence.kt usedEvidence)
+    fun criteriaItemIds(): Set<String> = criteriaObj.keys
+
     fun withCriteriaEvidence(itemId: String, evidence: String): ReportData =
         withCriteriaEntry(itemId) { entry -> entry["evidence"] = JsonPrimitive(evidence) }
 
@@ -265,6 +297,12 @@ data class ReportData(val root: JsonObject) {
     // candidates joined -- the AI pre-select ran for exactly this list, don't auto-run it again
     fun findingsAiSource(): String = root["findingsAi"]?.jsonPrimitive?.contentOrNull ?: ""
     fun withFindingsAiSource(source: String): ReportData = withRoot("findingsAi", JsonPrimitive(source))
+
+    // whole data.criteria as stored -- template converts (QaConvert.kt) rebuild it wholesale
+    fun criteriaRaw(): JsonObject = criteriaObj
+
+    // set one top-level key verbatim (template converts: criteria, criteriaV1)
+    fun withTopLevel(key: String, value: JsonElement): ReportData = withRoot(key, value)
 
     private fun withRoot(key: String, value: JsonElement): ReportData =
         ReportData(JsonObject(root.toMutableMap().apply { put(key, value) }))

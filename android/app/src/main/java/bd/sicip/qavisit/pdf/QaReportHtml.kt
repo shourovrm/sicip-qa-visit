@@ -19,6 +19,8 @@ import bd.sicip.qavisit.domain.report.ReportSection
 import bd.sicip.qavisit.domain.report.ReportTemplate
 import bd.sicip.qavisit.domain.report.normalize
 import bd.sicip.qavisit.domain.report.printedRemarks
+import bd.sicip.qavisit.domain.report.shown
+import bd.sicip.qavisit.domain.report.shownFor
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
@@ -87,7 +89,9 @@ private val CSS = """
 // header block: top-right "Annex-3", centred bold program line, centred bold title, then the
 // fixed key/value lines exactly as Annex-3 prints them (spec §7).
 private fun headerHtml(template: ReportTemplate, data: ReportData): String {
-    val annex = template.annex ?: "Annex-3"
+    // "Annex-3" top right on v1 only; qa-v2 keeps officers as cards
+    val annex = template.annex?.let { "<div class=\"annex\">${esc(it)}</div>" } ?: ""
+    val officers = if (data.cards("officers").isNotEmpty()) officersLine(data) else data.field("officers")
     val dateFrom = data.field("date_from")
     val dateTo = data.field("date_to")
     val dates = if (!blank(dateFrom) && !blank(dateTo)) {
@@ -96,14 +100,14 @@ private fun headerHtml(template: ReportTemplate, data: ReportData): String {
         ""
     }
     return """
-      <div class="annex">${esc(annex)}</div>
+      $annex
       <div class="program">${esc(template.program)}</div>
       <div class="title">${esc(template.title)}</div>
       <div class="kv">
         <div><b>Name of Training TI/TC Visited :</b> ${esc(data.field("ti_name"))}</div>
         <div><b>Name of the Association/Provider :</b> ${esc(data.field("provider"))}</div>
         <div><b>Date(s) of Visit :</b> ${esc(dates)}</div>
-        <div><b>Name(s) &amp; Designation(s) of Visiting Officer(s) :</b> ${esc(data.field("officers"))}</div>
+        <div><b>Name(s) &amp; Designation(s) of Visiting Officer(s) :</b> ${esc(officers)}</div>
       </div>
     """.trimIndent()
 }
@@ -112,12 +116,22 @@ private fun headerHtml(template: ReportTemplate, data: ReportData): String {
 // a heading item (no options) is one row with its Sl + text spanning the other three columns; a
 // real item's REMARKS cell is domain/report/Remarks.kt's printedRemarks as a bulleted list, blank
 // when there's nothing to print (never a placeholder).
-private fun criteriaBlockHtml(block: ReportBlock.Criteria, data: ReportData): String {
+// PrintTable (QaTables.kt) -> heading + grid table; null -> nothing
+private fun tableHtml(table: PrintTable?, heading: String? = table?.heading): String {
+    if (table == null) return ""
+    val head = table.headers.joinToString("") { "<th>${esc(it)}</th>" }
+    val body = table.rows.joinToString("") { row -> "<tr>${row.joinToString("") { "<td>${escMultiline(it)}</td>" }}</tr>" }
+    return (heading?.let { "<h3>${esc(it)}</h3>" } ?: "") + "<table><thead><tr>$head</tr></thead><tbody>$body</tbody></table>"
+}
+
+private fun criteriaBlockHtml(block: ReportBlock.Criteria, data: ReportData, template: ReportTemplate): String {
     val rows = block.items.joinToString("") { item ->
         if (item.heading) {
             "<tr><td class=\"sl\">${esc(item.no)}</td><td class=\"heading-row\" colspan=\"3\">${esc(item.text)}</td></tr>"
         } else {
-            val evidenceHtml = escMultiline(item.evidence ?: "")
+            // qa-v2: the numbered evidence the officer saw; v1: the form's own evidence text
+            val evidence = if (template.evidenceRegister) evidenceLines(data, item.id).joinToString("\n") else item.evidence.orEmpty()
+            val evidenceHtml = escMultiline(evidence)
             val remarksHtml = remarksListHtml(item, data)
             "<tr><td class=\"sl\">${esc(item.no)}</td><td>${esc(item.text)}</td><td>$evidenceHtml</td><td>$remarksHtml</td></tr>"
         }
@@ -144,10 +158,22 @@ private fun remarksListHtml(item: CriteriaItem, data: ReportData): String {
 // was written (see this agent's own build note in DECISIONS.md). Generic rendering still prints
 // every value the officer entered, in template order, losing only the paper form's exact spacing
 // -- reasonable given the template it must match isn't authored yet.
-private fun fieldsBlockHtml(block: ReportBlock.Fields, data: ReportData): String {
+private fun fieldsBlockHtml(block: ReportBlock.Fields, data: ReportData, template: ReportTemplate): String {
     if (block.pairs.isNotEmpty()) return strengthsWeaknessesHtml(block, data) // s13
+    // qa-v2 i) status: BTEB/NSDA as one table, then any other registration
+    if (block.fields.any { it.key == "bteb_registered" }) {
+        val other = data.field("other_registration")
+        return "<div class=\"field-line\"><b>${esc(block.heading.orEmpty())} :</b></div>" + tableHtml(registrationTable(template, data), null) +
+            (if (blank(other)) "" else "<div class=\"field-line\">Other registration: ${escMultiline(other)}</div>")
+    }
+    // qa-v2 1.30: the yes/N/A answer on the heading line (its table prints with the course rows)
+    val contractAnswer = block.fields.find { it.key == "other_contract" }
+    if (contractAnswer != null) {
+        return "<h3>${esc(block.heading.orEmpty())}: ${esc(shownValue(contractAnswer, data.field("other_contract")))}</h3>"
+    }
     val heading = block.heading?.let { "<h3>${esc(it)}</h3>" } ?: ""
-    return heading + block.fields.joinToString("") { field -> fieldHtml(field) { data.field(it) } }
+    return heading + block.fields.filter { field -> field.showIf.shown { data.field(it) } }
+        .joinToString("") { field -> fieldHtml(field) { data.field(it) } }
 }
 
 private fun fieldHtml(field: Field, value: (String) -> String): String {
@@ -164,9 +190,17 @@ private fun fieldHtml(field: Field, value: (String) -> String): String {
     return "<div class=\"field-line\"><b>${esc(field.label)} :</b> ${esc(raw)}</div>"
 }
 
-private fun cardsBlockHtml(block: ReportBlock.Cards, data: ReportData): String {
+private fun cardsBlockHtml(block: ReportBlock.Cards, data: ReportData, template: ReportTemplate): String {
     if (block.anonymous) return feedbackTablesHtml(block, data) // s11/s12
     if (block.draftFrom != null) return planTableHtml(block, data) // s16
+    // qa-v2 tables (QaTables.kt, same rows as the web PDF/Word)
+    when (block.key) {
+        "officers" -> return "<div class=\"field-line\"><b>iii) Monitoring Team Members with Designations :</b> ${esc(officersLine(data))}</div>"
+        "mous" -> return tableHtml(mouTable(data), block.heading).ifEmpty { "<h3>${esc(block.heading.orEmpty())}</h3>" }
+        "contracts" -> return "" // printed with the course rows below
+        "contract_courses" -> return tableHtml(contractsTable(template, data), null)
+        "selection", "rooms", "damaged" -> return tableHtml(cardsTable(block, data))
+    }
     val cards = data.cards(block.key)
     if (cards.isEmpty()) return ""
     val headerCells = block.fields.joinToString("") { "<th>${esc(it.label)}</th>" }
@@ -177,19 +211,24 @@ private fun cardsBlockHtml(block: ReportBlock.Cards, data: ReportData): String {
     return "<table><thead><tr>$headerCells</tr></thead><tbody>$rows</tbody></table>"
 }
 
-private fun blockHtml(block: ReportBlock, data: ReportData): String = when (block) {
-    is ReportBlock.Criteria -> criteriaBlockHtml(block, data)
-    is ReportBlock.Fields -> fieldsBlockHtml(block, data)
-    is ReportBlock.Cards -> cardsBlockHtml(block, data)
+private fun blockHtml(block: ReportBlock, data: ReportData, template: ReportTemplate): String = when {
+    !block.shownFor(data) -> "" // qa-v2 showIf (1.30 contracts while the answer isn't Yes)
+    else -> blockBodyHtml(block, data, template)
+}
+
+private fun blockBodyHtml(block: ReportBlock, data: ReportData, template: ReportTemplate): String = when (block) {
+    is ReportBlock.Criteria -> criteriaBlockHtml(block, data, template)
+    is ReportBlock.Fields -> fieldsBlockHtml(block, data, template)
+    is ReportBlock.Cards -> cardsBlockHtml(block, data, template)
     // qa-v1.json has neither of these block types (spec §2) -- nothing to print if one ever
     // sneaks in, rather than guessing at a layout for it.
     is ReportBlock.Checklist -> ""
     is ReportBlock.Flags, is ReportBlock.Remarks, is ReportBlock.Findings -> ""
 }
 
-private fun sectionHtml(section: ReportSection, data: ReportData): String {
+private fun sectionHtml(section: ReportSection, data: ReportData, template: ReportTemplate): String {
     val heading = "<h2 class=\"sh\">${esc(section.badge)}. ${esc(section.title.uppercase())}</h2>"
-    val blocks = section.blocks.joinToString("") { blockHtml(it, data) }
+    val blocks = section.blocks.joinToString("") { blockHtml(it, data, template) }
     return heading + blocks
 }
 
@@ -198,9 +237,10 @@ private fun sectionHtml(section: ReportSection, data: ReportData): String {
 // report never reaches this file.
 fun buildQaReportHtml(template: ReportTemplate, data: ReportData): String {
     val normalizedData = normalize(template, data)
-    val sections = template.sections.joinToString("") { sectionHtml(it, normalizedData) }
+    val sections = template.sections.joinToString("") { sectionHtml(it, normalizedData, template) }
     return "<!doctype html><html><head><meta charset=\"utf-8\"><title>${esc(template.title)}</title>" +
         "<style>$CSS\n$SIGNOFF_CSS</style></head><body>" +
-        headerHtml(template, normalizedData) + sections + signoffHtml(normalizedData) +
+        headerHtml(template, normalizedData) + sections + tableHtml(evidenceIndexTable(template, normalizedData)) +
+        signoffHtml(normalizedData) +
         "</body></html>"
 }

@@ -16,6 +16,7 @@ package bd.sicip.qavisit.domain.report
 
 import android.content.Context
 import kotlinx.serialization.DeserializationStrategy
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonContentPolymorphicSerializer
@@ -51,6 +52,8 @@ data class FlagItem(val id: String, val text: String)
 // unmarked-option remark bullet (domain/report/Remarks.kt's buildRemarks); seen/not/na are the
 // fixed sentence templates for each 3-way answer, each with at most one `{...$...}` detail group
 // (see Remarks.kt for how `$` is substituted or the whole group dropped).
+// seenTicks/notTicks (qa-v2): the sentence used instead when the item has ticked boxes, "@" =
+// the ticked boxes' words, e.g. "Available @ indicate they cover every unit of competency."
 @Serializable
 data class CriteriaOption(
     val id: String,
@@ -61,7 +64,30 @@ data class CriteriaOption(
     val seen: String = "",
     val not: String = "",
     val na: String = "",
-)
+    val seenTicks: String? = null,
+    val notTicks: String? = null,
+) {
+    fun ticksSentence(answer: String): String? = when (answer) {
+        "seen" -> seenTicks
+        "not" -> notTicks
+        else -> null
+    }
+}
+
+// qa-v2 tick box on a criteria item ("CBLM", "Lesson plan"...); say = its word in a sentence
+@Serializable
+data class CriteriaTick(val id: String, val label: String, val say: String = "")
+
+// qa-v2 "showIf": a field/block shows (and counts) only while the named value -- a top-level
+// field, or the same card's field -- is one of `values`
+@Serializable
+data class ShowIf(val field: String, @SerialName("in") val values: List<String>)
+
+fun ShowIf?.shown(valueOf: (String) -> String): Boolean = this == null || valueOf(field) in values
+
+// qa-v2 courseRef narrowing: only source cards whose `field` equals this card's `value` key
+@Serializable
+data class FilterBy(val field: String, val value: String)
 
 // one row of a `criteria` block: either a heading (no options, `no` + `text` print across the
 // row, e.g. "1." Physical resources...) or a real criterion with >= 1 option (e.g. "c)" Safety
@@ -76,6 +102,9 @@ data class CriteriaItem(
     val heading: Boolean = false,
     val evidence: String? = null,
     val options: List<CriteriaOption> = emptyList(),
+    // qa-v2 tick boxes shown above the options, e.g. 6.2's "Available: CBLM / Lesson plan / ..."
+    val ticks: List<CriteriaTick> = emptyList(),
+    val ticksLabel: String? = null,
 )
 
 @Serializable
@@ -136,6 +165,10 @@ data class Field(
     val noteFor: String? = null,
     // courseRef: "course" = offer course names only (not "course · batch"), still free text
     val optionsPart: String? = null,
+    // courseRef (qa-v2): offer this key's values of the optionsFrom cards (e.g. "organisation")
+    val optionsField: String? = null,
+    val filterBy: FilterBy? = null,
+    val showIf: ShowIf? = null,
 ) {
     fun selectOptions(): List<String> =
         (options as? JsonArray)?.map { it.jsonPrimitive.content } ?: emptyList()
@@ -159,7 +192,12 @@ sealed class ReportBlock {
     // surprise-v1.json's fields blocks never set it, so it stays null there.
     // pairs: QA s13 only -- one strengths/weaknesses group per component (Drafts.kt)
     @Serializable
-    data class Fields(val fields: List<Field>, val heading: String? = null, val pairs: List<ComponentPair> = emptyList()) : ReportBlock()
+    data class Fields(
+        val fields: List<Field>,
+        val heading: String? = null,
+        val pairs: List<ComponentPair> = emptyList(),
+        val showIf: ShowIf? = null,
+    ) : ReportBlock()
 
     @Serializable
     data class Checklist(val key: String, val heading: String? = null, val items: List<ChecklistItem>) : ReportBlock()
@@ -191,6 +229,9 @@ sealed class ReportBlock {
         val narrative: String? = null,
         // "officers": first seeded card gets the officer's name (NewReport.kt)
         val prefill: String? = null,
+        // qa-v2: offered as an evidence name ("Table 1.20: ...", Evidence.kt)
+        val evidenceName: String? = null,
+        val showIf: ShowIf? = null,
         val fields: List<Field>,
     ) : ReportBlock()
 
@@ -285,8 +326,18 @@ data class ReportTemplate(
     // fixed shape, not a `choice`-style AnswerOption list) -- defaults to empty so its absence
     // from that template's JSON doesn't fail to parse.
     val answers: List<AnswerOption> = emptyList(),
+    // qa-v2: numbered evidence register (Evidence.kt) instead of a free "Evidence seen" box
+    val evidenceRegister: Boolean = false,
+    val evidenceSuggestions: List<String> = emptyList(),
     val sections: List<ReportSection>,
 )
+
+// a block's own showIf, read against the report's top-level fields (Fields/Cards only)
+fun ReportBlock.shownFor(data: ReportData): Boolean = when (this) {
+    is ReportBlock.Fields -> showIf.shown { data.field(it) }
+    is ReportBlock.Cards -> showIf.shown { data.field(it) }
+    else -> true
+}
 
 fun ReportTemplate.allowsPurpose(purpose: String): Boolean = purposes.isEmpty() || purpose in purposes
 

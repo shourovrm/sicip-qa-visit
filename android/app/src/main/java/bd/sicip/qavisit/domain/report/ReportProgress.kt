@@ -71,7 +71,7 @@ fun cardCountedProgress(block: ReportBlock.Cards, card: JsonObject): Pair<Int, I
     var answered = 0
     var total = 0
     block.fields.forEach { field ->
-        if (!counts(field)) return@forEach
+        if (!counts(field) || !field.showIf.shown { card[it]?.jsonPrimitive?.contentOrNull.orEmpty() }) return@forEach
         total++
         if (!isBlank(card[field.key]?.jsonPrimitive?.contentOrNull)) answered++
     }
@@ -143,6 +143,7 @@ private fun sectionProgress(
     val customFlags = mutableListOf<String>()
 
     section.blocks.forEach { block ->
+        if (!block.shownFor(data)) return@forEach // qa-v2 showIf: hidden blocks don't count
         when (block) {
             is ReportBlock.Checklist -> {
                 block.items.forEach { item ->
@@ -169,7 +170,7 @@ private fun sectionProgress(
 
             is ReportBlock.Fields -> {
                 block.fields.forEach { field ->
-                    if (!counts(field)) return@forEach
+                    if (!counts(field) || !field.showIf.shown { data.field(it) }) return@forEach
                     total++
                     val value = data.field(field.key)
                     if (!isBlank(value)) answered++
@@ -193,7 +194,7 @@ private fun sectionProgress(
                 }
                 entries.forEach { card ->
                     block.fields.forEach { field ->
-                        if (!counts(field)) return@forEach
+                        if (!counts(field) || !field.showIf.shown { card[it]?.jsonPrimitive?.contentOrNull.orEmpty() }) return@forEach
                         total++
                         val value = card[field.key]?.jsonPrimitive?.contentOrNull
                         if (!isBlank(value)) {
@@ -274,7 +275,10 @@ fun sectionHasContent(section: ReportSection, data: ReportData): Boolean = secti
         is ReportBlock.Remarks -> data.remarksText(block.key).isNotBlank()
         is ReportBlock.Findings -> data.findings().isNotEmpty()
         is ReportBlock.Criteria -> block.items.any { item ->
-            !item.heading && item.options.any { option -> !isBlank(data.criteriaOptValue(item.id, option.id)) }
+            !item.heading && (
+                item.options.any { option -> !isBlank(data.criteriaOptValue(item.id, option.id)) } ||
+                    data.criteriaTicks(item.id).isNotEmpty() || data.criteriaEvidenceRefs(item.id).isNotEmpty()
+                )
         }
     }
 }

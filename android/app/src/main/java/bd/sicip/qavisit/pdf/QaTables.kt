@@ -1,0 +1,150 @@
+// qa-v2 print tables as plain headers + rows (strings only), rendered by QaReportHtml.kt.
+// 1:1 port of web/src/lib/qatables.js (which the web PDF and Word file share). A table with no
+// filled row is null (nothing printed).
+package bd.sicip.qavisit.pdf
+
+import bd.sicip.qavisit.domain.report.Field
+import bd.sicip.qavisit.domain.report.ReportBlock
+import bd.sicip.qavisit.domain.report.ReportData
+import bd.sicip.qavisit.domain.report.ReportTemplate
+import bd.sicip.qavisit.domain.report.criteriaPath
+import bd.sicip.qavisit.domain.report.evidenceLabel
+import bd.sicip.qavisit.domain.report.itemEvidence
+import bd.sicip.qavisit.domain.report.usedEvidence
+import bd.sicip.qavisit.domain.report.visitingOfficers
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
+
+data class PrintTable(val headers: List<String>, val rows: List<List<String>>, val heading: String? = null)
+
+private fun JsonObject.text(key: String): String = this[key]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+
+private fun filled(card: JsonObject): Boolean = card.any { (key, _) -> !key.startsWith("_") && card.text(key).isNotEmpty() }
+
+// a choice value -> its option label; anything else as typed
+fun shownValue(field: Field?, value: String): String =
+    if (field?.kind == "choice") field.choiceOptions().find { it.id == value }?.label ?: value.trim() else value.trim()
+
+private fun numbered(rows: List<List<String>>): List<List<String>> = rows.mapIndexed { index, row -> listOf("${index + 1}.") + row }
+
+// "2026-01-10" -> "10/01/2026" like the rest of the printed form; anything else as typed
+private fun ddmmyyyy(value: String): String {
+    val match = Regex("""^(\d{4})-(\d{2})-(\d{2})$""").find(value.trim()) ?: return value.trim()
+    val (year, month, day) = match.destructured
+    return "$day/$month/$year"
+}
+
+private fun cardsBlock(template: ReportTemplate, key: String): ReportBlock.Cards? =
+    template.sections.flatMap { it.blocks }.filterIsInstance<ReportBlock.Cards>().find { it.key == key }
+
+// "R. M. Shourov, Program Officer (QA); S. Akter, Program Officer"
+fun officersLine(data: ReportData): String =
+    visitingOfficers(data).filter { it.name.isNotEmpty() }
+        .joinToString("; ") { listOf(it.name, it.designation).filter { part -> part.isNotEmpty() }.joinToString(", ") }
+
+// i) status: one row per registration body the officer answered
+fun registrationTable(template: ReportTemplate, data: ReportData): PrintTable? {
+    val block = template.sections.first().blocks.filterIsInstance<ReportBlock.Fields>()
+        .find { fields -> fields.fields.any { it.key == "bteb_registered" } }
+    fun field(key: String) = block?.fields?.find { it.key == key }
+    val rows = listOf("bteb" to "BTEB", "nsda" to "NSDA").mapNotNull { (body, name) ->
+        val registered = data.field("${body}_registered").trim()
+        if (registered.isEmpty()) return@mapNotNull null
+        val yes = registered == "yes"
+        listOf(
+            name,
+            shownValue(field("${body}_registered"), registered),
+            if (yes) data.field("${body}_reg_no").trim() else "",
+            if (yes) data.field("${body}_courses").trim() else "",
+            if (yes) shownValue(field("${body}_uptodate"), data.field("${body}_uptodate")) else "",
+            if (yes) data.field("${body}_remarks").trim() else "",
+        )
+    }
+    if (rows.isEmpty()) return null
+    return PrintTable(listOf("Body", "Registered", "Registration no.", "Accredited courses", "Up to date", "Remarks"), rows)
+}
+
+// 1.20: one row per MoU, "Others" printed as the typed organisation name
+fun mouTable(data: ReportData): PrintTable? {
+    val rows = data.cards("mous").filter(::filled).map { card ->
+        val partner = if (card.text("partner") == "Others") card.text("partner_other").ifEmpty { "Others" } else card.text("partner")
+        listOf(partner, ddmmyyyy(card.text("signed_date")), card.text("target"), card.text("duration"), card.text("amount"))
+    }
+    if (rows.isEmpty()) return null
+    return PrintTable(
+        listOf("S.N.", "Contract/MoU signed with", "Date of signing", "Total target", "Duration", "Total amount"),
+        numbered(rows),
+    )
+}
+
+// 1.31-1.34: one row per course; a contract with no course yet still gets its own row
+fun contractsTable(template: ReportTemplate, data: ReportData): PrintTable? {
+    val block = cardsBlock(template, "contract_courses")
+    fun field(key: String) = block?.fields?.find { it.key == key }
+    val courses = data.cards("contract_courses").filter(::filled)
+    val rows = courses.map { card ->
+        listOf(
+            card.text("contract"), card.text("course"),
+            shownValue(field("overlap"), card.text("overlap")), shownValue(field("facilities"), card.text("facilities")),
+        )
+    }.toMutableList()
+    data.cards("contracts").forEach { contract ->
+        val organisation = contract.text("organisation")
+        if (organisation.isNotEmpty() && courses.none { it.text("contract") == organisation }) rows += listOf(organisation, "", "", "")
+    }
+    if (rows.isEmpty()) return null
+    return PrintTable(listOf("S.N.", "Organization / project", "Training course", "Overlaps a SICIP course", "Facilities"), numbered(rows))
+}
+
+// "Classroom - 300 sft and workshop/lab - 800 sft" | "Classroom cum workshop/lab - 1000 sft"
+fun roomSize(card: JsonObject): String {
+    if (card.text("layout") == "same") {
+        return card.text("combined_sft").let { if (it.isEmpty()) "" else "Classroom cum workshop/lab - $it sft" }
+    }
+    val parts = mutableListOf<String>()
+    if (card.text("classroom_sft").isNotEmpty()) parts += "Classroom - ${card.text("classroom_sft")} sft"
+    if (card.text("workshop_sft").isNotEmpty()) parts += "workshop/lab - ${card.text("workshop_sft")} sft"
+    return parts.joinToString(" and ")
+}
+
+// cards blocks inside criteria sections (4.2 sample check, 8 rooms, 8 damaged equipment) and the
+// plain section 1 tables that print one column per field
+fun cardsTable(block: ReportBlock.Cards, data: ReportData): PrintTable? {
+    val cards = data.cards(block.key).filter(::filled)
+    if (cards.isEmpty()) return null
+    if (block.key == "rooms") {
+        return PrintTable(
+            listOf("S.N.", "Course", "Classroom and workshop size", "Trainees per batch"),
+            numbered(cards.map { listOf(it.text("course"), roomSize(it), it.text("trainees")) }),
+            block.heading,
+        )
+    }
+    return PrintTable(
+        listOf("S.N.") + block.fields.map { it.label },
+        numbered(cards.map { card -> block.fields.map { shownValue(it, card.text(it.key)) } }),
+        block.heading,
+    )
+}
+
+// a criterion's EVIDENCE cell: its numbered evidence, one per line
+fun evidenceLines(data: ReportData, itemId: String): List<String> = itemEvidence(data, itemId).map(::evidenceLabel)
+
+// closing list: every evidence in number order with the criteria that cite it
+fun evidenceIndexTable(template: ReportTemplate, data: ReportData): PrintTable? {
+    val used = usedEvidence(data)
+    if (used.isEmpty()) return null
+    val citedBy = used.associate { it.id to mutableListOf<String>() }
+    for (section in template.sections) {
+        for (block in section.blocks.filterIsInstance<ReportBlock.Criteria>()) {
+            for (item in block.items) {
+                itemEvidence(data, item.id).forEach { citedBy[it.id]?.add(criteriaPath(section, block, item)) }
+            }
+        }
+    }
+    return PrintTable(
+        listOf("No.", "Evidence", "Criteria"),
+        used.map { listOf(it.no, it.name, citedBy.getValue(it.id).joinToString(", ")) },
+        "List of evidence",
+    )
+}

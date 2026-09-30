@@ -48,6 +48,7 @@ fun componentNotes(template: ReportTemplate, data: ReportData, sourceKey: String
     val section = template.sections.first { it.key == sourceKey }
     section.blocks.filterIsInstance<ReportBlock.Criteria>().forEach { block ->
         block.items.filterNot { it.heading }.forEach { item ->
+            val ticks = tickedSays(item, data)
             item.options.forEach { option ->
                 val value = data.criteriaOptValue(item.id, option.id)
                 if (value.isBlank()) {
@@ -56,7 +57,7 @@ fun componentNotes(template: ReportTemplate, data: ReportData, sourceKey: String
                     if (remark.isNotEmpty()) other += "${option.short ?: option.label}: $remark"
                     return@forEach
                 }
-                val text = optionText(item.id, option, data)
+                val text = optionText(item.id, option, data, ticks)
                 if (text.isEmpty()) return@forEach
                 when (value) {
                     "seen" -> seen += text
