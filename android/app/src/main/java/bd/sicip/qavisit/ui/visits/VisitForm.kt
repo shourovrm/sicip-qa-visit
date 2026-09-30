@@ -150,35 +150,6 @@ fun VisitForm(
             style = MaterialTheme.typography.titleLarge,
         )
 
-        // institute: type-to-filter over every institute ever visited (any officer, synced),
-        // free typing still commits (onTextChange) -- same pattern as the ref-no picker below.
-        PickerDropdown(
-            label = "Institute",
-            options = instituteOptions,
-            selected = institute,
-            onSelect = { institute = it },
-            onTextChange = { institute = it },
-            searchable = true,
-        )
-
-        PickerDropdown("Association", ASSOCIATIONS, association, { association = it }, searchable = true)
-        PickerDropdown("District", DISTRICTS, district, { district = it }, searchable = true)
-
-        if (district == "Dhaka") {
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                SegmentedButton(
-                    selected = !dhakaMetro,
-                    onClick = { dhakaMetro = false },
-                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                ) { Text("Outside metro") }
-                SegmentedButton(
-                    selected = dhakaMetro,
-                    onClick = { dhakaMetro = true },
-                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                ) { Text("Inside metro") }
-            }
-        }
-
         PickerDropdown(
             "Purpose",
             PURPOSES,
@@ -206,6 +177,44 @@ fun VisitForm(
                     ) { Text("QA visit") }
                 }
             }
+        }
+
+        PickerDropdown("Association", ASSOCIATIONS, association, { association = it }, searchable = true)
+        PickerDropdown("District", DISTRICTS, district, { district = it }, searchable = true)
+
+        if (district == "Dhaka") {
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                SegmentedButton(
+                    selected = !dhakaMetro,
+                    onClick = { dhakaMetro = false },
+                    shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                ) { Text("Outside metro") }
+                SegmentedButton(
+                    selected = dhakaMetro,
+                    onClick = { dhakaMetro = true },
+                    shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                ) { Text("Inside metro") }
+            }
+        }
+
+        // institute: TMS list (Monitoring Visit + TMS login) or every institute ever visited (any
+        // officer, synced). free typing still commits (onTextChange) either way.
+        val tmsChoices = rememberTmsInstituteChoices(purpose, association, district)
+        PickerDropdown(
+            label = "Institute",
+            options = tmsChoices.tmsNames ?: instituteOptions,
+            selected = institute,
+            onSelect = { institute = it },
+            onTextChange = { institute = it },
+            searchable = true,
+        )
+        val instituteNote = if (tmsChoices.tmsNames != null) "From TMS" else tmsChoices.note
+        if (instituteNote != null) {
+            Text(
+                instituteNote,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (tmsChoices.noteIsError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         // ref no: type-to-filter over every ref_no ever used (distinctRefs), free typing still
