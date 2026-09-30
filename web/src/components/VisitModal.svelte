@@ -39,19 +39,7 @@
   <form class="card modal" on:submit|preventDefault={() => dispatch('save')}>
     <h2>{title}</h2>
     <fieldset disabled={readonly}>
-    <div class="field">
-      <label for="inst">Institute</label>
-      <input id="inst" type="text" list="visit-institute-list" bind:value={editing.institute} required />
-      <datalist id="visit-institute-list">{#each instituteOptions as i}<option value={i} />{/each}</datalist>
-    </div>
-    <div class="field"><label for="assoc">Association</label><Dropdown bind:value={editing.association} options={ASSOCIATIONS} /></div>
-    <div class="field"><label for="dist">District</label><Dropdown bind:value={editing.district} options={DISTRICTS} /></div>
-    {#if editing.district === 'Dhaka'}
-      <div class="field">
-        <label for="metro">Dhaka sub-option</label>
-        <Dropdown id="metro" bind:value={editing.dhaka_metro} options={[[true, 'Inside metro'], [false, 'Outside metro']]} />
-      </div>
-    {/if}
+    <!-- order: purpose -> association -> district -> institute (matches android form) -->
     <div class="field"><label for="purp">Purpose</label><Dropdown bind:value={editing.purpose} options={PURPOSES} /></div>
     {#if editing.purpose === 'Monitoring Visit'}
       <div class="field">
@@ -63,6 +51,19 @@
         </div>
       </div>
     {/if}
+    <div class="field"><label for="assoc">Association</label><Dropdown bind:value={editing.association} options={ASSOCIATIONS} /></div>
+    <div class="field"><label for="dist">District</label><Dropdown bind:value={editing.district} options={DISTRICTS} /></div>
+    {#if editing.district === 'Dhaka'}
+      <div class="field">
+        <label for="metro">Dhaka sub-option</label>
+        <Dropdown id="metro" bind:value={editing.dhaka_metro} options={[[true, 'Inside metro'], [false, 'Outside metro']]} />
+      </div>
+    {/if}
+    <div class="field">
+      <label for="inst">Institute</label>
+      <input id="inst" type="text" list="visit-institute-list" bind:value={editing.institute} required />
+      <datalist id="visit-institute-list">{#each instituteOptions as i}<option value={i} />{/each}</datalist>
+    </div>
     <div class="field">
       <label for="ref">Ref no</label>
       <input id="ref" type="text" list="visit-ref-list" bind:value={editing.ref_no} on:input={refNoChanged} />
