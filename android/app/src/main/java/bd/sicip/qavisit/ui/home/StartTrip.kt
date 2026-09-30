@@ -34,6 +34,7 @@ import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Officer
 import bd.sicip.qavisit.data.db.Trip
 import bd.sicip.qavisit.data.db.Visit
+import bd.sicip.qavisit.data.reminder.cancelTodaysReminder
 import bd.sicip.qavisit.data.sync.SyncNow
 import bd.sicip.qavisit.ui.common.PickerDropdown
 import bd.sicip.qavisit.ui.common.TimeField
@@ -149,6 +150,7 @@ fun StartTrip(officerId: String, db: AppDb, preselectedVisitId: String? = null, 
                         val v = candidates.first { it.id == visitId }
                         db.visitDao().upsert(v.copy(tripId = tripId, updatedAt = now, dirty = true))
                     }
+                    cancelTodaysReminder(context)
                     SyncNow.enqueue(context)
                     onDone()
                 }

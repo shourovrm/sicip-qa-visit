@@ -17,6 +17,7 @@ class ReminderLogicTest {
         officerId: String = "me",
         status: String = "scheduled",
         deleted: Boolean = false,
+        tripId: String? = null,
     ) = Visit(
         id = id,
         officerId = officerId,
@@ -28,6 +29,7 @@ class ReminderLogicTest {
         endDate = startDate,
         status = status,
         deleted = deleted,
+        tripId = tripId,
         createdAt = "2026-07-01T00:00:00Z",
         updatedAt = "2026-07-01T00:00:00Z",
     )
@@ -78,5 +80,13 @@ class ReminderLogicTest {
     @Test fun does_not_filter_officer_itself() {
         val visits = listOf(visit("1", startDate = "2026-07-10", officerId = "someone-else"))
         assertEquals(listOf("Today: Inspection — ABC College"), reminderLines(visits, today))
+    }
+
+    @Test fun visit_already_on_a_started_tour_is_skipped() {
+        val visits = listOf(
+            visit("1", startDate = "2026-07-10", institute = "Started", tripId = "trip-1"),
+            visit("2", startDate = "2026-07-10", institute = "Not started"),
+        )
+        assertEquals(listOf("Today: Inspection — Not started"), reminderLines(visits, today))
     }
 }

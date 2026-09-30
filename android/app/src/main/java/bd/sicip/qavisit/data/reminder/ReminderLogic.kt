@@ -9,7 +9,8 @@ import java.time.LocalDate
 // caller that passes a broader list (e.g. all visits) still gets correct output.
 fun reminderLines(visits: List<Visit>, today: LocalDate): List<String> {
     val tomorrow = today.plusDays(1)
-    fun eligible(v: Visit) = v.status == "scheduled" && !v.deleted
+    // tripId set = visit already started as part of a tour -- no point reminding
+    fun eligible(v: Visit) = v.status == "scheduled" && !v.deleted && v.tripId == null
     val todays = visits.filter { eligible(it) && it.startDate == today.toString() }
     val tomorrows = visits.filter { eligible(it) && it.startDate == tomorrow.toString() }
     return todays.map { "Today: ${it.purpose} — ${it.institute}" } +
