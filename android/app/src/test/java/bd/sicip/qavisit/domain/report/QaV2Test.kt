@@ -67,21 +67,21 @@ class QaV2Test {
     }
 
     @Test
-    fun `evidence keeps its first number`() {
+    fun `attachments keep their first number`() {
         var n = 0
         val newId = { "id-${++n}" }
         assertEquals("7.1b", place("s7", "s7_1b"))
         assertEquals("2.3", place("s2", "s2_3"))
         var data = ReportData.EMPTY
-        data = withEvidenceAdded(data, "7.1b", "s7_1b", "Trainers list", newId)
-        data = withEvidenceAdded(data, "7.1b", "s7_1b", "Appointment letters", newId)
-        data = withEvidenceAdded(data, "8.2", "s8_2", " trainers LIST ", newId)
-        assertEquals(listOf("7.1b.a", "7.1b.b"), itemEvidence(data, "s7_1b").map { it.no })
-        assertEquals(listOf(EvidenceEntry("id-1", "Trainers list", "7.1b.a")), itemEvidence(data, "s8_2"))
+        data = withEvidenceAdded(data, "s7_1b", "Trainers list", newId)
+        data = withEvidenceAdded(data, "s7_1b", "Appointment letters", newId)
+        data = withEvidenceAdded(data, "s8_2", " trainers LIST ", newId)
+        assertEquals(listOf("Trainers list (Attachment 1)", "Appointment letters (Attachment 2)"), itemEvidence(data, "s7_1b").map(::evidenceLabel))
+        assertEquals(listOf(EvidenceEntry("id-1", "Trainers list", "1")), itemEvidence(data, "s8_2"))
         data = withEvidenceRemoved(data, "s7_1b", "id-1")
-        assertEquals(listOf("7.1b.a", "7.1b.b"), usedEvidence(data).map { it.no })
-        data = withEvidenceAdded(data, "7.1b", "s7_1b", "Pay slips", newId)
-        assertEquals(listOf("7.1b.b", "7.1b.c"), itemEvidence(data, "s7_1b").map { it.no })
+        assertEquals(listOf("1", "2"), usedEvidence(data).map { it.no })
+        data = withEvidenceAdded(data, "s7_1b", "Pay slips", newId)
+        assertEquals(listOf("2", "3"), itemEvidence(data, "s7_1b").map { it.no })
         val suggestions = evidenceSuggestions(v2, data, "s7_1b")
         assertTrue(suggestions.contains("Table 1.20: Contract/MoU information"))
         assertFalse(suggestions.contains("Pay slips"))
@@ -121,7 +121,7 @@ class QaV2Test {
         assertEquals("not", data.criteriaOptValue("s8_5", "stock_register"))
         assertEquals("no fuel register", data.criteriaOptRemark("s8_6", "fuel_register"))
         assertEquals(listOf("cblm", "tdp"), data.criteriaTicks("s6_2"))
-        assertEquals(listOf("2.1.a Visit register", "2.1.b Logbook"), itemEvidence(data, "s2_1").map { "${it.no} ${it.name}" })
+        assertEquals(listOf("Visit register (Attachment 1)", "Logbook (Attachment 2)"), itemEvidence(data, "s2_1").map(::evidenceLabel))
         assertEquals(1, data.cards("plan").size)
     }
 
@@ -137,10 +137,11 @@ class QaV2Test {
                "rooms": [{"_id": "r1", "course": "Welding", "layout": "separate", "classroom_sft": "300", "workshop_sft": "800", "trainees": "25"}],
                "damaged": [{"_id": "d1", "course": "Welding", "equipment": "Grinder", "count": "2"}]},
              "checks": {}, "flags": [],
-             "criteria": {"s6_2": {"opts": {"learning_materials": {"v": "seen"}}, "ticks": ["cblm", "lesson_plan"]}}}
+             "criteria": {"s6_1": {"opts": {"cs_available": {"v": "seen", "courses": ["EIM", "PPF"]}}},
+               "s6_2": {"opts": {"learning_materials": {"v": "seen"}}, "ticks": ["cblm", "lesson_plan"]}}}
         """.trimIndent()).jsonObject)
-        data = withEvidenceAdded(data, "7.1a", "s7_1a", "Trainers list") { "e${++n}" }
-        data = withEvidenceAdded(data, "8.2", "s8_2", "Trainers list") { "e${++n}" }
+        data = withEvidenceAdded(data, "s7_1a", "Trainers list") { "e${++n}" }
+        data = withEvidenceAdded(data, "s8_2", "Trainers list") { "e${++n}" }
         val html = buildQaReportHtml(v2, data)
         assertFalse(html.contains("Annex-3"))
         assertTrue(html.contains("<td>BTEB</td><td>Yes</td><td>B-77</td><td>3</td><td>No</td>"))
@@ -150,7 +151,16 @@ class QaV2Test {
         assertTrue(html.contains("Classroom - 300 sft and workshop/lab - 800 sft"))
         assertTrue(html.contains("<td>Grinder</td><td>2</td>"))
         assertTrue(html.contains("Available CBLM and lesson plan indicate they cover every unit of competency."))
-        assertEquals(2, html.split("7.1a.a – Trainers list").size - 1)
-        assertTrue(html.contains("<td>7.1a.a</td><td>Trainers list</td><td>7.1a, 8.2</td>"))
+        assertEquals(2, html.split("Trainers list (Attachment 1)").size - 1)
+        assertTrue(html.contains("<td>Attachment 1</td><td>Trainers list</td><td>7.1a, 8.2</td>"))
+        assertTrue(html.contains("Competency standards / course outlines are available and used for EIM and PPF courses."))
+    }
+
+    @Test
+    fun `running courses come from current batches, else MoU courses`() {
+        val both = ReportData(Json.parseToJsonElement("""{"cards": {"batches": [{"course": "EIM"}, {"course": "PPF"}, {"course": "EIM"}], "mou_courses": [{"course": "X"}]}}""").jsonObject)
+        assertEquals(listOf("EIM", "PPF"), both.runningCourses())
+        val mouOnly = ReportData(Json.parseToJsonElement("""{"cards": {"batches": [{"course": " "}], "mou_courses": [{"course": "Welding"}]}}""").jsonObject)
+        assertEquals(listOf("Welding"), mouOnly.runningCourses())
     }
 }

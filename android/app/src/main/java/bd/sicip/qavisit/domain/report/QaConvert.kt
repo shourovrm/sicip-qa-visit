@@ -101,11 +101,9 @@ private fun convertCriteria(v2: ReportTemplate, v1Data: ReportData, v1Criteria: 
     v1Criteria.values.forEach { entry -> ((entry as? JsonObject)?.get("opts") as? JsonObject)?.let { v1Options.putAll(it) } }
 
     val criteria = linkedMapOf<String, MutableMap<String, JsonElement>>()
-    val placed = mutableMapOf<String, Triple<ReportSection, ReportBlock.Criteria, CriteriaItem>>()
     for (section in v2.sections) {
         for (block in section.blocks.filterIsInstance<ReportBlock.Criteria>()) {
             for (item in block.items.filterNot { it.heading }) {
-                placed[item.id] = Triple(section, block, item)
                 val opts = buildJsonObject {
                     item.options.forEach { option -> v1Options[OPTION_SOURCES[option.id] ?: option.id]?.let { put(option.id, it) } }
                 }
@@ -131,9 +129,8 @@ private fun convertCriteria(v2: ReportTemplate, v1Data: ReportData, v1Criteria: 
     var data = v1Data.withTopLevel("criteria", JsonObject(criteria.mapValues { JsonObject(it.value) }))
     v1Criteria.forEach { (v1ItemId, entry) ->
         val target = v2ItemFor(v1ItemId) ?: return@forEach
-        val (section, block, item) = placed.getValue(target)
         splitLines((entry as? JsonObject)?.text("evidence").orEmpty()).forEach { name ->
-            data = withEvidenceAdded(data, criteriaPath(section, block, item), target, name, newId)
+            data = withEvidenceAdded(data, target, name, newId)
         }
     }
     return data

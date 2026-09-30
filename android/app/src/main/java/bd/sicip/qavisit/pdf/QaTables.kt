@@ -7,6 +7,7 @@ import bd.sicip.qavisit.domain.report.Field
 import bd.sicip.qavisit.domain.report.ReportBlock
 import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportTemplate
+import bd.sicip.qavisit.domain.report.attachmentName
 import bd.sicip.qavisit.domain.report.criteriaPath
 import bd.sicip.qavisit.domain.report.evidenceLabel
 import bd.sicip.qavisit.domain.report.itemEvidence
@@ -130,7 +131,7 @@ fun cardsTable(block: ReportBlock.Cards, data: ReportData): PrintTable? {
 // a criterion's EVIDENCE cell: its numbered evidence, one per line
 fun evidenceLines(data: ReportData, itemId: String): List<String> = itemEvidence(data, itemId).map(::evidenceLabel)
 
-// closing list: every evidence in number order with the criteria that cite it
+// closing list: every attachment in number order with the criteria that cite it
 fun evidenceIndexTable(template: ReportTemplate, data: ReportData): PrintTable? {
     val used = usedEvidence(data)
     if (used.isEmpty()) return null
@@ -143,8 +144,8 @@ fun evidenceIndexTable(template: ReportTemplate, data: ReportData): PrintTable? 
         }
     }
     return PrintTable(
-        listOf("No.", "Evidence", "Criteria"),
-        used.map { listOf(it.no, it.name, citedBy.getValue(it.id).joinToString(", ")) },
-        "List of evidence",
+        listOf("Attachment", "Evidence", "Criteria"),
+        used.map { listOf(attachmentName(it), it.name, citedBy.getValue(it.id).joinToString(", ")) },
+        "List of attachments",
     )
 }

@@ -1,4 +1,4 @@
-// qa-v2 evidence for one criterion: numbered chips ("7.1b.a – Trainers list", × removes it from
+// qa-v2 evidence for one criterion: numbered chips ("Trainers list (Attachment 3)", × removes it from
 // this criterion only) and a box that lists matching suggestions while typing -- this report's
 // evidence, the app's own tables and the Word tables (domain/report/Evidence.kt). Add or a tapped
 // suggestion goes through withEvidenceAdded, so a reused name keeps its first number.
@@ -45,7 +45,6 @@ fun EvidencePicker(
     template: ReportTemplate,
     data: ReportData,
     itemId: String,
-    path: String,
     readOnly: Boolean,
     editor: ReportEditor,
 ) {
@@ -53,7 +52,7 @@ fun EvidencePicker(
     val entries = itemEvidence(data, itemId)
 
     fun add(name: String) {
-        editor.editNow(withEvidenceAdded(editor.data, path, itemId, name))
+        editor.editNow(withEvidenceAdded(editor.data, itemId, name))
         typed = ""
     }
 

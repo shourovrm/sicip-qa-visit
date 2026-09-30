@@ -71,14 +71,12 @@ import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportSection
 import bd.sicip.qavisit.domain.report.ReportTemplate
 import bd.sicip.qavisit.domain.report.buildRemarks
-import bd.sicip.qavisit.domain.report.criteriaPath
 import bd.sicip.qavisit.domain.report.printedRemarks
 import bd.sicip.qavisit.ui.theme.LocalToneColors
 
 @Composable
 fun CriteriaBlockView(
     block: ReportBlock.Criteria,
-    section: ReportSection,
     template: ReportTemplate,
     data: ReportData,
     readOnly: Boolean,
@@ -95,9 +93,7 @@ fun CriteriaBlockView(
                     modifier = Modifier.padding(top = 6.dp),
                 )
             } else {
-                // qa-v2 numbered evidence (template.evidenceRegister): its number prefix, e.g. "7.1b"
-                val evidencePath = if (template.evidenceRegister) criteriaPath(section, block, item) else null
-                CriteriaItemCard(item, template, evidencePath, data, readOnly, editor)
+                CriteriaItemCard(item, template, data, readOnly, editor)
             }
         }
     }
@@ -107,7 +103,6 @@ fun CriteriaBlockView(
 private fun CriteriaItemCard(
     item: CriteriaItem,
     template: ReportTemplate,
-    evidencePath: String?,
     data: ReportData,
     readOnly: Boolean,
     editor: ReportEditor,
@@ -126,8 +121,9 @@ private fun CriteriaItemCard(
             item.options.forEach { option ->
                 OptionRow(item.id, option, data, readOnly, editor)
             }
-            if (evidencePath != null) {
-                EvidencePicker(template, data, item.id, evidencePath, readOnly, editor)
+            // qa-v2: numbered attachments instead of a free "Evidence seen" box
+            if (template.evidenceRegister) {
+                EvidencePicker(template, data, item.id, readOnly, editor)
             } else {
                 OutlinedTextField(
                     value = data.criteriaEvidence(item.id),
@@ -205,6 +201,7 @@ private fun OptionRow(itemId: String, option: CriteriaOption, data: ReportData, 
             readOnly = readOnly,
             onSelect = { v -> editor.editNow(data.withCriteriaOpt(itemId, option.id, v = v)) },
         )
+        if (option.perCourse && (value == "seen" || value == "not")) CourseTicks(itemId, option, value, data, readOnly, editor)
         if (value == "seen" && !option.detail.isNullOrBlank()) {
             OutlinedTextField(
                 value = data.criteriaOptDetail(itemId, option.id),
@@ -231,6 +228,35 @@ private fun OptionRow(itemId: String, option: CriteriaOption, data: ReportData, 
             )
         } else if (!readOnly) {
             TextButton(onClick = { remarkOpen = true }) { Text("Add remark") }
+        }
+    }
+}
+
+// qa-v2 course-wise answer: tick the running courses it applies to (kept in running order)
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CourseTicks(itemId: String, option: CriteriaOption, value: String, data: ReportData, readOnly: Boolean, editor: ReportEditor) {
+    val courses = data.runningCourses()
+    if (courses.isEmpty()) {
+        Text("Add the running courses in section 1 (1.60) to tick them here.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        return
+    }
+    val chosen = data.criteriaOptCourses(itemId, option.id).toSet()
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(if (value == "seen") "Seen for:" else "Not seen for:", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            courses.forEach { course ->
+                val isOn = course in chosen
+                FilterChip(
+                    selected = isOn,
+                    enabled = !readOnly,
+                    onClick = {
+                        val next = if (isOn) chosen - course else chosen + course
+                        editor.editNow(editor.data.withCriteriaOptCourses(itemId, option.id, courses.filter { it in next }))
+                    },
+                    label = { Text(course) },
+                )
+            }
         }
     }
 }

@@ -1,7 +1,7 @@
 // QA v2 evidence register: one list per report (data.evidence = [{_id, name, no}]), each criteria
-// item points at entries by id (data.criteria[item].evidenceRefs). An entry's number is fixed
-// where it is first added ("7.1b.a" = section 7, criterion 1 b), first evidence there) and never
-// changes, so documents the officer already labelled at the institute keep matching the report.
+// item points at entries by id (data.criteria[item].evidenceRefs). Entries are "Attachment 1, 2,
+// 3..." in the order they were first added; a number never changes, so documents the officer
+// already labelled at the institute keep matching the report.
 // 1:1 port of web/src/lib/evidence.js.
 package bd.sicip.qavisit.domain.report
 
@@ -22,24 +22,14 @@ fun criteriaPath(section: ReportSection, block: ReportBlock.Criteria, item: Crit
     return section.number.orEmpty()
 }
 
-// first free suffix under this path: a, b, ... z, then 27, 28, ... (26+ items on one criterion
-// never happens in practice; numbers just keep it unique)
-private fun nextNumber(list: List<EvidenceEntry>, path: String): String {
-    val taken = list.map { it.no }.toSet()
-    var index = 0
-    while (true) {
-        val suffix = if (index < 26) ('a' + index).toString() else (index + 1).toString()
-        val candidate = "$path.$suffix"
-        if (candidate !in taken) return candidate
-        index++
-    }
-}
+// one past the highest attachment number so far
+private fun nextNumber(list: List<EvidenceEntry>): String =
+    ((list.mapNotNull { it.no.toIntOrNull() }.maxOrNull() ?: 0) + 1).toString()
 
 // add evidence `name` to an item: an entry with the same name (any case) is reused with its
-// number; otherwise a new entry is numbered at this item's path
+// number; otherwise it becomes the next attachment
 fun withEvidenceAdded(
     data: ReportData,
-    path: String,
     itemId: String,
     name: String,
     newId: () -> String = { UUID.randomUUID().toString() },
@@ -48,7 +38,7 @@ fun withEvidenceAdded(
     if (trimmed.isEmpty()) return data
     val list = data.evidenceList()
     var nextData = data
-    val entry = list.find { sameName(it.name, trimmed) } ?: EvidenceEntry(newId(), trimmed, nextNumber(list, path)).also {
+    val entry = list.find { sameName(it.name, trimmed) } ?: EvidenceEntry(newId(), trimmed, nextNumber(list)).also {
         nextData = data.withEvidenceList(list + it)
     }
     val refs = nextData.criteriaEvidenceRefs(itemId)
@@ -66,7 +56,10 @@ fun itemEvidence(data: ReportData, itemId: String): List<EvidenceEntry> {
     return data.criteriaEvidenceRefs(itemId).mapNotNull { byId[it] }
 }
 
-fun evidenceLabel(entry: EvidenceEntry): String = "${entry.no} – ${entry.name}"
+fun attachmentName(entry: EvidenceEntry): String = "Attachment ${entry.no}"
+
+// "Profile (Attachment 3)"
+fun evidenceLabel(entry: EvidenceEntry): String = "${entry.name} (${attachmentName(entry)})"
 
 // names offered while typing: this report's register (not already on the item), the app's own
 // tables (cards blocks with evidenceName), then the template's Word-table names; deduped by name
@@ -88,23 +81,8 @@ fun evidenceSuggestions(template: ReportTemplate, data: ReportData, itemId: Stri
     return out
 }
 
-// "7.1b.a" < "7.1b.b" < "8.2.a" < "10.1.a": number runs compared as numbers
-private val NUMBER_RUN = Regex("""\d+|\D+""")
-
-private fun naturalCompare(a: String, b: String): Int {
-    val left = NUMBER_RUN.findAll(a).map { it.value }.toList()
-    val right = NUMBER_RUN.findAll(b).map { it.value }.toList()
-    for (i in 0 until minOf(left.size, right.size)) {
-        val x = left[i]
-        val y = right[i]
-        val result = if (x[0].isDigit() && y[0].isDigit()) x.toBigInteger().compareTo(y.toBigInteger()) else x.compareTo(y)
-        if (result != 0) return result
-    }
-    return left.size - right.size
-}
-
-// every entry some item still points at, in number order -- the report's closing evidence list
+// every entry some item still points at, in number order -- the report's closing attachment list
 fun usedEvidence(data: ReportData): List<EvidenceEntry> {
     val used = data.criteriaItemIds().flatMap { data.criteriaEvidenceRefs(it) }.toSet()
-    return data.evidenceList().filter { it.id in used }.sortedWith { a, b -> naturalCompare(a.no, b.no) }
+    return data.evidenceList().filter { it.id in used }.sortedBy { it.no.toIntOrNull() ?: Int.MAX_VALUE }
 }

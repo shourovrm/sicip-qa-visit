@@ -42,14 +42,21 @@ fun tickedSays(item: CriteriaItem, data: ReportData): List<String> {
     return item.ticks.filter { it.id in ticked }.map { it.say.ifBlank { it.label } }
 }
 
+// "EIM course" / "EIM and PPF courses"
+fun coursePhrase(courses: List<String>): String = joinLabels(courses) + if (courses.size == 1) " course" else " courses"
+
 // one MARKED option -> its fixed sentence ({...$...} resolved) + typed remark, one string
 // (reference.py option_text; shared by buildRemarks and Drafts.kt's componentNotes). With ticked
 // boxes and a "<answer>Ticks" sentence, that sentence is used with "@" = the ticked boxes.
 fun optionText(itemId: String, option: CriteriaOption, data: ReportData, ticks: List<String> = emptyList()): String {
     val remark = ensureStop(data.criteriaOptRemark(itemId, option.id).trim())
     val answer = data.criteriaOptValue(itemId, option.id)
+    val courses = data.criteriaOptCourses(itemId, option.id).filter { it.isNotBlank() }
+    val withCourses = option.coursesSentence(answer)
     val withTicks = option.ticksSentence(answer)
-    val sentenceTemplate = if (ticks.isNotEmpty() && withTicks != null) {
+    val sentenceTemplate = if (option.perCourse && courses.isNotEmpty() && withCourses != null) {
+        withCourses.replace("@", coursePhrase(courses))
+    } else if (ticks.isNotEmpty() && withTicks != null) {
         withTicks.replace("@", joinLabels(ticks))
     } else {
         when (answer) {

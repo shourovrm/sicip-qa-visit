@@ -191,6 +191,27 @@ data class ReportData(val root: JsonObject) {
     fun criteriaOptRemark(itemId: String, optionId: String): String =
         ((criteriaEntry(itemId).opts()[optionId] as? JsonObject)?.get("remark"))?.jsonPrimitive?.contentOrNull ?: ""
 
+    // qa-v2 course-wise option: the running courses its answer applies to
+    fun criteriaOptCourses(itemId: String, optionId: String): List<String> =
+        ((criteriaEntry(itemId).opts()[optionId] as? JsonObject)?.get("courses") as? JsonArray)
+            ?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList()
+
+    fun withCriteriaOptCourses(itemId: String, optionId: String, courses: List<String>): ReportData =
+        withCriteriaEntry(itemId) { entry ->
+            val opts = (entry["opts"] as? JsonObject)?.toMutableMap() ?: mutableMapOf()
+            val existingOpt = (opts[optionId] as? JsonObject)?.toMutableMap() ?: mutableMapOf()
+            existingOpt["courses"] = JsonArray(courses.map { JsonPrimitive(it) })
+            opts[optionId] = JsonObject(existingOpt)
+            entry["opts"] = JsonObject(opts)
+        }
+
+    // qa-v2 course tick boxes: the running courses (1.60 current batches), else the MoU courses
+    // (1.40) while no batch is entered yet; distinct names in card order
+    fun runningCourses(): List<String> {
+        fun names(key: String) = cards(key).mapNotNull { it["course"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf { name -> name.isNotEmpty() } }.distinct()
+        return names("batches").ifEmpty { names("mou_courses") }
+    }
+
     fun criteriaEvidence(itemId: String): String = criteriaEntry(itemId)["evidence"]?.jsonPrimitive?.contentOrNull ?: ""
 
     fun criteriaNote(itemId: String): String = criteriaEntry(itemId)["note"]?.jsonPrimitive?.contentOrNull ?: ""

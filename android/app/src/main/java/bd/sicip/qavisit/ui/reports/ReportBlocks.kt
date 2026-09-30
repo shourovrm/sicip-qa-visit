@@ -797,10 +797,7 @@ fun ReportBlockView(
         is ReportBlock.Checklist -> ChecklistBlockView(block, answers, data, readOnly, editor)
         is ReportBlock.Cards -> CardsBlockView(block, data, readOnly, editor, template, onOpenSection)
         is ReportBlock.Flags -> FlagsBlockView(block, data, readOnly, editor)
-        is ReportBlock.Criteria -> {
-            val section = template.sections.first { block in it.blocks }
-            CriteriaBlockView(block, section, template, data, readOnly, editor)
-        }
+        is ReportBlock.Criteria -> CriteriaBlockView(block, template, data, readOnly, editor)
         is ReportBlock.Remarks -> {
             val section = template.sections.first { block in it.blocks }
             RemarksBlockView(block, section, template, data, readOnly, editor)

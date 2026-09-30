@@ -66,10 +66,21 @@ data class CriteriaOption(
     val na: String = "",
     val seenTicks: String? = null,
     val notTicks: String? = null,
+    // qa-v2 course-wise option: after Seen / Not seen the officer ticks the running courses;
+    // seenCourses/notCourses "@" = "EIM and PPF courses"
+    val perCourse: Boolean = false,
+    val seenCourses: String? = null,
+    val notCourses: String? = null,
 ) {
     fun ticksSentence(answer: String): String? = when (answer) {
         "seen" -> seenTicks
         "not" -> notTicks
+        else -> null
+    }
+
+    fun coursesSentence(answer: String): String? = when (answer) {
+        "seen" -> seenCourses
+        "not" -> notCourses
         else -> null
     }
 }
