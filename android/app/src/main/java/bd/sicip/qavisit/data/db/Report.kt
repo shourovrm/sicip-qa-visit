@@ -34,6 +34,10 @@ data class Report(
     @ColumnInfo(name = "updated_at") val updatedAt: String,
     val deleted: Boolean = false,
     val dirty: Boolean = false,
+    // local only, never pushed: the server's `data` this copy was last in step with -- the base
+    // of the three-way merge (domain/report/ReportMerge.kt) that stops a stale phone copy
+    // overwriting web edits. null = synced before this column existed (merge without a base).
+    @ColumnInfo(name = "base_data") val baseData: String? = null,
 )
 
 @Dao
@@ -59,6 +63,22 @@ interface ReportDao {
     // sync needs this to check "already had this row?" and "is it locally dirty?" before overwriting.
     @Query("SELECT * FROM reports WHERE id = :id")
     suspend fun byId(id: String): Report?
+
+    // editor writes touch only these columns, so a sync merge that moved base_data meanwhile is
+    // never rolled back by the editor's older in-memory row
+    @Query("UPDATE reports SET data = :data, updated_at = :updatedAt, dirty = 1 WHERE id = :id")
+    suspend fun updateData(id: String, data: String, updatedAt: String)
+
+    @Query("UPDATE reports SET status = :status, submitted_at = :submittedAt, updated_at = :updatedAt, dirty = 1 WHERE id = :id")
+    suspend fun updateStatus(id: String, status: String, submittedAt: String?, updatedAt: String)
+
+    @Query("UPDATE reports SET data = :data, template_version = :templateVersion, updated_at = :updatedAt, dirty = 1 WHERE id = :id")
+    suspend fun updateDataAndVersion(id: String, data: String, templateVersion: Int, updatedAt: String)
+
+    // after a push: what the server now holds becomes the base; data too when the push merged
+    // in server edits -- only if nobody edited the row while the push was in flight
+    @Query("UPDATE reports SET data = :data, base_data = :data, dirty = 0 WHERE id = :id AND updated_at = :updatedAt")
+    suspend fun markPushed(id: String, data: String, updatedAt: String)
 
     @Query("UPDATE reports SET deleted = 1, dirty = 1, updated_at = :now WHERE id = :id")
     suspend fun softDelete(id: String, now: String)

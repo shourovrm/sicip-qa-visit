@@ -233,6 +233,8 @@ fun JsonObject.toReport(): Report = Report(
     updatedAt = str("updated_at"),
     deleted = bool("deleted"),
     dirty = false,
+    // a pulled row is in step with the server by definition
+    baseData = getValue("data").toString(),
 )
 
 // ============ officers (pull-only, no toJson -- we never push officer rows) ============

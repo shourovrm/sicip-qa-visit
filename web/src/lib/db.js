@@ -147,6 +147,20 @@ export async function updateReport(id, patch) {
   return data
 }
 
+export async function getReport(id) {
+  const { data, error } = await supabase.from('reports').select('*').eq('id', id).single()
+  if (error) throw error
+  return data
+}
+
+// write only if the row is still the version we merged against; null = someone else wrote
+// in between (caller re-reads and merges again)
+export async function updateReportIfUnchanged(id, patch, updatedAt) {
+  const { data, error } = await supabase.from('reports').update(patch).eq('id', id).eq('updated_at', updatedAt).select()
+  if (error) throw error
+  return data[0] ?? null
+}
+
 // autosave: only the data jsonb blob changes -- server owns updated_at via the moddatetime trigger.
 export async function updateReportData(id, reportData) {
   return updateReport(id, { data: reportData })

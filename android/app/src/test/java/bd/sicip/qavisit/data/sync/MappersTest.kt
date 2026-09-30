@@ -289,7 +289,8 @@ class MappersTest {
                 it["created_at"] = JsonPrimitive(report.createdAt)
             },
         )
-        assertEquals(report, pulled.toReport())
+        // a pulled row is its own merge base
+        assertEquals(report.copy(baseData = report.data), pulled.toReport())
     }
 
     @Test
@@ -316,7 +317,8 @@ class MappersTest {
                 it["created_at"] = JsonPrimitive(report.createdAt)
             },
         )
-        assertEquals(report, pulled.toReport())
+        // a pulled row is its own merge base
+        assertEquals(report.copy(baseData = report.data), pulled.toReport())
     }
 
     @Test

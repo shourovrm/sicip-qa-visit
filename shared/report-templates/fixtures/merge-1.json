@@ -1,0 +1,771 @@
+[
+ {
+  "name": "stale local copy keeps server edits",
+  "base": {
+   "fields": {
+    "a": "x",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "local": {
+   "fields": {
+    "a": "x",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "server": {
+   "fields": {
+    "a": "x",
+    "b": "y",
+    "c": "web text"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": [],
+   "criteria": {
+    "s2_1": {
+     "opts": {
+      "x": {
+       "v": "seen"
+      }
+     }
+    }
+   }
+  },
+  "expected": {
+   "fields": {
+    "a": "x",
+    "b": "y",
+    "c": "web text"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": [],
+   "criteria": {
+    "s2_1": {
+     "opts": {
+      "x": {
+       "v": "seen"
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "name": "different fields edited on each side both survive",
+  "base": {
+   "fields": {
+    "a": "x",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "local": {
+   "fields": {
+    "a": "phone",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "server": {
+   "fields": {
+    "a": "x",
+    "b": "web"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "expected": {
+   "fields": {
+    "a": "phone",
+    "b": "web"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": []
+  }
+ },
+ {
+  "name": "same field edited on both: local wins",
+  "base": {
+   "fields": {
+    "a": "x",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "local": {
+   "fields": {
+    "a": "phone",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "server": {
+   "fields": {
+    "a": "web",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "expected": {
+   "fields": {
+    "a": "phone",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": []
+  }
+ },
+ {
+  "name": "local clear of an unchanged server value sticks",
+  "base": {
+   "fields": {
+    "a": "x",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "local": {
+   "fields": {
+    "a": "",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "server": {
+   "fields": {
+    "a": "x",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "expected": {
+   "fields": {
+    "a": "",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": []
+  }
+ },
+ {
+  "name": "cards added on both sides + server edit of a shared card",
+  "base": {
+   "fields": {
+    "a": "x",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "local": {
+   "fields": {
+    "a": "x",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     },
+     {
+      "_id": "p3",
+      "name": "phone"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "server": {
+   "fields": {
+    "a": "x",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A2"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     },
+     {
+      "_id": "p4",
+      "name": "web"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "expected": {
+   "fields": {
+    "a": "x",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A2"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     },
+     {
+      "_id": "p3",
+      "name": "phone"
+     },
+     {
+      "_id": "p4",
+      "name": "web"
+     }
+    ]
+   },
+   "flags": []
+  }
+ },
+ {
+  "name": "card removed locally, untouched on server: removed",
+  "base": {
+   "fields": {
+    "a": "x",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "local": {
+   "fields": {
+    "a": "x",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "server": {
+   "fields": {
+    "a": "x",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "expected": {
+   "fields": {
+    "a": "x",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     }
+    ]
+   },
+   "flags": []
+  }
+ },
+ {
+  "name": "card removed locally but edited on server: kept",
+  "base": {
+   "fields": {
+    "a": "x",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "local": {
+   "fields": {
+    "a": "x",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "server": {
+   "fields": {
+    "a": "x",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B edited"
+     }
+    ]
+   },
+   "flags": []
+  },
+  "expected": {
+   "fields": {
+    "a": "x",
+    "b": "y"
+   },
+   "checks": {
+    "q1": {
+     "answer": "yes",
+     "remarks": ""
+    }
+   },
+   "cards": {
+    "persons": [
+     {
+      "_id": "p1",
+      "name": "A"
+     },
+     {
+      "_id": "p2",
+      "name": "B edited"
+     }
+    ]
+   },
+   "flags": []
+  }
+ },
+ {
+  "name": "no base: blank local never hides a filled server value",
+  "base": null,
+  "local": {
+   "fields": {
+    "a": "",
+    "b": "phone"
+   }
+  },
+  "server": {
+   "fields": {
+    "a": "web",
+    "b": "web"
+   },
+   "criteria": {}
+  },
+  "expected": {
+   "fields": {
+    "a": "web",
+    "b": "phone"
+   },
+   "criteria": {}
+  }
+ }
+]

@@ -10,7 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [Officer::class, Trip::class, Visit::class, TravelLeg::class, Activity::class, Bill::class, Report::class],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 abstract class AppDb : RoomDatabase() {
@@ -89,13 +89,20 @@ abstract class AppDb : RoomDatabase() {
             }
         }
 
+        // reports.base_data: merge base for sync (domain/report/ReportMerge.kt); null on old rows
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE reports ADD COLUMN base_data TEXT")
+            }
+        }
+
         // single instance per process (room recommends this); double-checked lock avoids
         // two screens racing to open the db file at once.
         @Volatile private var instance: AppDb? = null
 
         fun get(context: Context): AppDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, AppDb::class.java, "app.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                 .build()
                 .also { instance = it }
         }

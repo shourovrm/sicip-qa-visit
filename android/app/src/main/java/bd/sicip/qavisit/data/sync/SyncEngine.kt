@@ -13,7 +13,10 @@ import androidx.core.app.NotificationManagerCompat
 import bd.sicip.qavisit.data.auth.SessionStore
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.remote.SupabaseClient
+import bd.sicip.qavisit.domain.report.mergeReportData
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -154,13 +157,23 @@ class SyncEngine(
         return dirty.size
     }
 
+    // reports are edited on both platforms: never push a whole blob blind. Each dirty row is
+    // three-way merged with the server's current data first (base = what this phone last
+    // synced), so web edits made meanwhile survive; the merged result becomes local + base.
     private suspend fun pushReports(token: String): Int {
         val dao = db.reportDao()
         val dirty = dao.dirtyRows()
         if (dirty.isEmpty()) return 0
-        client.upsert("reports", JsonArray(dirty.map { it.toJson() }), token)
-        dao.clearDirty(dirty.map { it.id to it.updatedAt })
-        return dirty.size
+        val serverData = client.select("reports", mapOf("id" to "in.(${dirty.joinToString(",") { it.id }})", "select" to "id,data"), token)
+            .associate { it.jsonObject.getValue("id").jsonPrimitive.content to it.jsonObject["data"] }
+        val merged = dirty.map { row ->
+            val server = serverData[row.id] as? JsonObject ?: return@map row
+            val base = row.baseData?.let { Json.parseToJsonElement(it) as? JsonObject }
+            row.copy(data = mergeReportData(base, Json.parseToJsonElement(row.data).jsonObject, server).toString())
+        }
+        client.upsert("reports", JsonArray(merged.map { it.toJson() }), token)
+        merged.forEach { dao.markPushed(it.id, it.data, it.updatedAt) }
+        return merged.size
     }
 
     // ---- pull: rows newer than our watermark in, skipping ones we have unpushed edits for ----
@@ -357,8 +370,14 @@ class SyncEngine(
             val local = dao.byId(remote.id)
             if (shouldApplyRemote(localDirty = local?.dirty ?: false)) {
                 dao.upsert(remote)
-                applied++
+            } else if (local != null) {
+                // unpushed local edits: fold the server's edits in instead of skipping them
+                // for good (the watermark moves past this row either way)
+                val base = local.baseData?.let { Json.parseToJsonElement(it) as? JsonObject }
+                val merged = mergeReportData(base, Json.parseToJsonElement(local.data).jsonObject, Json.parseToJsonElement(remote.data).jsonObject)
+                dao.upsert(local.copy(data = merged.toString(), baseData = remote.data, updatedAt = Instant.now().toString(), dirty = true))
             }
+            applied++
         }
         syncState.setWatermark("reports", advanceWatermark(watermark, remoteRows.map { it.updatedAt }))
         return applied
