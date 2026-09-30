@@ -81,6 +81,19 @@ class SupabaseClient(
         Unit
     }
 
+    // insert that silently skips rows hitting the unique index named by onConflict (columns csv).
+    suspend fun insertIgnoreDuplicates(table: String, onConflict: String, rows: JsonArray, accessToken: String) =
+        withContext(Dispatchers.IO) {
+            request(
+                "POST",
+                "$baseUrl/rest/v1/$table?on_conflict=${URLEncoder.encode(onConflict, "UTF-8")}",
+                rows.toString(),
+                authToken = accessToken,
+                extraHeaders = mapOf("Prefer" to "resolution=ignore-duplicates,return=minimal"),
+            )
+            Unit
+        }
+
     // blocking http call, always run from withContext(Dispatchers.IO) above.
     // returns body text on 2xx; throws SupabaseException otherwise, IOException on network failure.
     private fun request(

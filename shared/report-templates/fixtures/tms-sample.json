@@ -1,0 +1,774 @@
+{
+ "_note": "anonymised sample for unit tests; visit date 2026-05-13",
+ "configurations/tranche/list": {
+  "status": "success",
+  "data": [
+   {
+    "id": 1,
+    "label": "Phase-1",
+    "short_name": "Ph-1",
+    "active_status": 1
+   }
+  ]
+ },
+ "entity/list": {
+  "status": "success",
+  "data": [
+   {
+    "id": 7,
+    "entity_short_name": "PARTNER",
+    "entity_name": "Test Partner Association"
+   }
+  ]
+ },
+ "institute/filterList": {
+  "status": "success",
+  "data": [
+   {
+    "id": 1,
+    "entity_id": 7,
+    "training_institute_no": "0000001",
+    "short_name": "Test Institute",
+    "institute_name": "Test Training Institute",
+    "address": "1 Test Road, Testville",
+    "district": "1"
+   }
+  ]
+ },
+ "institutetarget/all-list": {
+  "status": "success",
+  "data": [
+   {
+    "id": 101,
+    "tranche": 1,
+    "entity_id": 7,
+    "code": "TEST-A",
+    "course_name": "Course A",
+    "total_target_batches": 10,
+    "trainee_per_batch": 20,
+    "total_target_trainee": 200
+   },
+   {
+    "id": 102,
+    "tranche": 1,
+    "entity_id": 7,
+    "code": "TEST-B",
+    "course_name": "Course B",
+    "total_target_batches": 6,
+    "trainee_per_batch": 25,
+    "total_target_trainee": 150
+   }
+  ]
+ },
+ "batch/list": {
+  "status": "success",
+  "data": [
+   {
+    "id": 9001,
+    "tranche_id": 1,
+    "entity_id": 7,
+    "institute_info_id": 1,
+    "course_info_id": 101,
+    "batch_number": 1,
+    "start_date": "2025-10-05",
+    "end_date": "2025-12-29",
+    "total_training_days": 60,
+    "total_training_hours": 300
+   },
+   {
+    "id": 9002,
+    "tranche_id": 1,
+    "entity_id": 7,
+    "institute_info_id": 1,
+    "course_info_id": 101,
+    "batch_number": 2,
+    "start_date": "2026-04-12",
+    "end_date": "2026-07-09",
+    "total_training_days": 60,
+    "total_training_hours": 300
+   },
+   {
+    "id": 9003,
+    "tranche_id": 1,
+    "entity_id": 7,
+    "institute_info_id": 1,
+    "course_info_id": 102,
+    "batch_number": 1,
+    "start_date": "2025-10-05",
+    "end_date": "2025-12-29",
+    "total_training_days": 48,
+    "total_training_hours": 240
+   },
+   {
+    "id": 9004,
+    "tranche_id": 1,
+    "entity_id": 7,
+    "institute_info_id": 1,
+    "course_info_id": 102,
+    "batch_number": 2,
+    "start_date": "2026-05-20",
+    "end_date": "2026-08-20",
+    "total_training_days": 48,
+    "total_training_hours": 240
+   }
+  ]
+ },
+ "enrollment/batch_summary": {
+  "status": "success",
+  "data": [
+   {
+    "course_info": {
+     "id": 101,
+     "tranche": 1,
+     "entity_id": 7,
+     "code": "TEST-A",
+     "course_name": "Course A",
+     "total_target_batches": 10,
+     "trainee_per_batch": 20,
+     "total_target_trainee": 200
+    },
+    "batch_summary": [
+     {
+      "enroll_trainee": "10",
+      "enroll_female_trainee": 4,
+      "assessed_trainee": "8",
+      "assessed_female_trainee": 3,
+      "certification_trainee": "8",
+      "certification_female_trainee": 3,
+      "employment_trainee": "6",
+      "employment_female_trainee": 2,
+      "batch_info": {
+       "id": 9001,
+       "tranche_id": 1,
+       "entity_id": 7,
+       "institute_info_id": 1,
+       "course_info_id": 101,
+       "batch_number": 1,
+       "start_date": "2025-10-05",
+       "end_date": "2025-12-29",
+       "total_training_days": 60,
+       "total_training_hours": 300
+      }
+     },
+     {
+      "enroll_trainee": 12,
+      "enroll_female_trainee": 5,
+      "assessed_trainee": 0,
+      "assessed_female_trainee": 0,
+      "certification_trainee": 0,
+      "certification_female_trainee": 0,
+      "employment_trainee": 0,
+      "employment_female_trainee": 0,
+      "batch_info": {
+       "id": 9002,
+       "tranche_id": 1,
+       "entity_id": 7,
+       "institute_info_id": 1,
+       "course_info_id": 101,
+       "batch_number": 2,
+       "start_date": "2026-04-12",
+       "end_date": "2026-07-09",
+       "total_training_days": 60,
+       "total_training_hours": 300
+      }
+     }
+    ],
+    "enroll_trainee": 22,
+    "enroll_female_trainee": 9,
+    "assessed_trainee": 8,
+    "assessed_female_trainee": 3,
+    "certification_trainee": 8,
+    "certification_female_trainee": 3,
+    "employment_trainee": 6,
+    "employment_female_trainee": 2
+   },
+   {
+    "course_info": {
+     "id": 102,
+     "tranche": 1,
+     "entity_id": 7,
+     "code": "TEST-B",
+     "course_name": "Course B",
+     "total_target_batches": 6,
+     "trainee_per_batch": 25,
+     "total_target_trainee": 150
+    },
+    "batch_summary": [
+     {
+      "enroll_trainee": "10",
+      "enroll_female_trainee": 4,
+      "assessed_trainee": 0,
+      "assessed_female_trainee": 0,
+      "certification_trainee": 0,
+      "certification_female_trainee": 0,
+      "employment_trainee": 0,
+      "employment_female_trainee": 0,
+      "batch_info": {
+       "id": 9003,
+       "tranche_id": 1,
+       "entity_id": 7,
+       "institute_info_id": 1,
+       "course_info_id": 102,
+       "batch_number": 1,
+       "start_date": "2025-10-05",
+       "end_date": "2025-12-29",
+       "total_training_days": 48,
+       "total_training_hours": 240
+      }
+     },
+     {
+      "enroll_trainee": 0,
+      "enroll_female_trainee": 0,
+      "assessed_trainee": 0,
+      "assessed_female_trainee": 0,
+      "certification_trainee": 0,
+      "certification_female_trainee": 0,
+      "employment_trainee": 0,
+      "employment_female_trainee": 0,
+      "batch_info": {
+       "id": 9004,
+       "tranche_id": 1,
+       "entity_id": 7,
+       "institute_info_id": 1,
+       "course_info_id": 102,
+       "batch_number": 2,
+       "start_date": "2026-05-20",
+       "end_date": "2026-08-20",
+       "total_training_days": 48,
+       "total_training_hours": 240
+      }
+     }
+    ],
+    "enroll_trainee": "10",
+    "enroll_female_trainee": 4,
+    "assessed_trainee": 0,
+    "assessed_female_trainee": 0,
+    "certification_trainee": 0,
+    "certification_female_trainee": 0,
+    "employment_trainee": 0,
+    "employment_female_trainee": 0
+   }
+  ]
+ },
+ "trainee/attendanceReport": {
+  "status": "success",
+  "data": [
+   {
+    "present": 56,
+    "absent": 4,
+    "trainee": {
+     "id": 1,
+     "gender": "Male"
+    }
+   }
+  ]
+ },
+ "trainee/date_wise_attendanceReport": {
+  "status": "success",
+  "date": "2026-05-13",
+  "data": [
+   {
+    "attendance": {
+     "is_present": 1,
+     "is_late": 0
+    },
+    "trainee": {
+     "id": 1,
+     "gender": "Male"
+    }
+   },
+   {
+    "attendance": {
+     "is_present": 1,
+     "is_late": 0
+    },
+    "trainee": {
+     "id": 2,
+     "gender": "Female"
+    }
+   },
+   {
+    "attendance": {
+     "is_present": 1,
+     "is_late": 0
+    },
+    "trainee": {
+     "id": 3,
+     "gender": "Male"
+    }
+   },
+   {
+    "attendance": {
+     "is_present": 1,
+     "is_late": 0
+    },
+    "trainee": {
+     "id": 4,
+     "gender": "Female"
+    }
+   },
+   {
+    "attendance": {
+     "is_present": 0,
+     "is_late": 0
+    },
+    "trainee": {
+     "id": 5,
+     "gender": "Male"
+    }
+   }
+  ]
+ },
+ "_date_wise_by_batch": {
+  "9002": {
+   "2026-05-13": {
+    "status": "success",
+    "date": "2026-05-13",
+    "data": [
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 1,
+       "gender": "Male"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 2,
+       "gender": "Female"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 3,
+       "gender": "Male"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 4,
+       "gender": "Female"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 0,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 5,
+       "gender": "Male"
+      }
+     }
+    ]
+   },
+   "2026-05-12": {
+    "status": "success",
+    "date": "2026-05-12",
+    "data": [
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 1,
+       "gender": "Male"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 2,
+       "gender": "Female"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 3,
+       "gender": "Male"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 4,
+       "gender": "Female"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 5,
+       "gender": "Male"
+      }
+     }
+    ]
+   },
+   "2026-05-11": {
+    "status": "success",
+    "date": "2026-05-11",
+    "data": [
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 1,
+       "gender": "Male"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 2,
+       "gender": "Female"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 3,
+       "gender": "Male"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 0,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 4,
+       "gender": "Female"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 0,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 5,
+       "gender": "Male"
+      }
+     }
+    ]
+   },
+   "2026-05-10": {
+    "status": "success",
+    "date": "2026-05-10",
+    "data": [
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 1,
+       "gender": "Male"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 2,
+       "gender": "Female"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 3,
+       "gender": "Male"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 4,
+       "gender": "Female"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 0,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 5,
+       "gender": "Male"
+      }
+     }
+    ]
+   },
+   "2026-05-07": {
+    "status": "success",
+    "date": "2026-05-07",
+    "data": [
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 1,
+       "gender": "Male"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 2,
+       "gender": "Female"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 3,
+       "gender": "Male"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 4,
+       "gender": "Female"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 5,
+       "gender": "Male"
+      }
+     }
+    ]
+   },
+   "2026-05-06": {
+    "status": "success",
+    "date": "2026-05-06",
+    "data": [
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 1,
+       "gender": "Male"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 2,
+       "gender": "Female"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 3,
+       "gender": "Male"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 4,
+       "gender": "Female"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 0,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 5,
+       "gender": "Male"
+      }
+     }
+    ]
+   },
+   "2026-05-05": {
+    "status": "success",
+    "date": "2026-05-05",
+    "data": [
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 1,
+       "gender": "Male"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 2,
+       "gender": "Female"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 3,
+       "gender": "Male"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 4,
+       "gender": "Female"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 0,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 5,
+       "gender": "Male"
+      }
+     }
+    ]
+   },
+   "2026-05-04": {
+    "status": "success",
+    "date": "2026-05-04",
+    "data": [
+     {
+      "attendance": {
+       "is_present": 1,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 1,
+       "gender": "Male"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 0,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 2,
+       "gender": "Female"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 0,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 3,
+       "gender": "Male"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 0,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 4,
+       "gender": "Female"
+      }
+     },
+     {
+      "attendance": {
+       "is_present": 0,
+       "is_late": 0
+      },
+      "trainee": {
+       "id": 5,
+       "gender": "Male"
+      }
+     }
+    ]
+   }
+  }
+ }
+}
