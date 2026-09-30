@@ -42,6 +42,10 @@
          blank the way a <select> would if its selected option disappears -->
     <input type="text" list={courseRefListId} placeholder={field.placeholder ?? ''} {value} {disabled} on:input={onInput} />
     <datalist id={courseRefListId}>{#each courseOptions as opt}<option value={opt} />{/each}</datalist>
+  {:else if field.kind === 'select' && field.options.length > 8}
+    <!-- long list (e.g. 1.21 partner): type-to-filter + free text, mirrors android -->
+    <input type="text" list={courseRefListId} {value} {disabled} on:input={onInput} />
+    <datalist id={courseRefListId}>{#each field.options as opt}<option value={opt} />{/each}</datalist>
   {:else if field.kind === 'select'}
     <select {value} {disabled} on:change={onInput}>
       <option value=""></option>

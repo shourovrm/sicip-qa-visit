@@ -161,13 +161,20 @@ fun FieldEditor(
             AnswerButtons(field.choiceOptions(), value, readOnly, onSelect = onImmediate)
         }
 
-        "select" -> PickerDropdown(
-            label = field.label,
-            options = field.selectOptions(),
-            selected = value,
-            onSelect = onImmediate,
-            modifier = modifier.fillMaxWidth(),
-        )
+        // long lists (e.g. 1.21 partner, 31 orgs) = type-to-filter + free text; short = plain pick
+        "select" -> {
+            val options = field.selectOptions()
+            val typeable = options.size > TYPEABLE_SELECT_MIN
+            PickerDropdown(
+                label = field.label,
+                options = options,
+                selected = value,
+                onSelect = onImmediate,
+                onTextChange = if (typeable) onImmediate else null,
+                searchable = typeable,
+                modifier = modifier.fillMaxWidth(),
+            )
+        }
 
         "courseRef" -> PickerDropdown(
             label = field.label,
@@ -857,3 +864,6 @@ private fun pairNumberFields(fields: List<Field>): List<List<Field>> {
     }
     return groups
 }
+
+// select lists longer than this get a keyboard (filter + free text)
+private const val TYPEABLE_SELECT_MIN = 8
