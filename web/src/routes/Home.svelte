@@ -13,6 +13,8 @@
   import Pill from '../components/Pill.svelte'
   import StartTourModal from '../components/StartTourModal.svelte'
   import EndTourModal from '../components/EndTourModal.svelte'
+  // QA visit pack for the institute: document checklist + table templates (shared/visit-kit)
+  import visitKitUrl from '../../../shared/visit-kit/SICIP-QA-visit-templates.zip?url'
 
   let visits = [], trips = []
   let loading = true
@@ -240,7 +242,10 @@
           <b>{v.institute}</b>
           <span class="muted">{v.district} · {v.start_date}</span>
         </div>
-        <Pill tone="visit">ONGOING</Pill>
+        <div class="row upcoming-actions">
+          {#if v.visit_type === 'qa'}<a class="btn-link" href={visitKitUrl} download="SICIP-QA-visit-templates.zip">Templates</a>{/if}
+          <Pill tone="visit">ONGOING</Pill>
+        </div>
       </div>
     {/each}
   {/if}
@@ -256,6 +261,7 @@
           <span class="muted">{v.district} · {v.start_date}</span>
         </div>
         <div class="row upcoming-actions">
+          {#if v.visit_type === 'qa'}<a class="btn-link" href={visitKitUrl} download="SICIP-QA-visit-templates.zip">Templates</a>{/if}
           <button class="btn-link" on:click={() => scheduleFromCard(v)}>+ Visit</button>
           <button class="btn btn-primary" on:click={() => openStartTour(v.id)}>Start</button>
         </div>
