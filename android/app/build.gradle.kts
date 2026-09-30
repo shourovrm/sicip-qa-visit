@@ -23,8 +23,8 @@ android {
         applicationId = "bd.sicip.qavisit"
         minSdk = 26
         targetSdk = 35
-        versionCode = 27
-        versionName = "1.19.1"
+        versionCode = 28
+        versionName = "1.20.0"
     }
 
     buildFeatures {
