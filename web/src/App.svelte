@@ -2,6 +2,7 @@
   import { session } from './lib/auth.js'
   import { route } from './lib/router.js'
   import TopBar from './components/TopBar.svelte'
+  import TmsErrorBanner from './components/TmsErrorBanner.svelte'
   import Login from './routes/Login.svelte'
   import ResetPassword from './routes/ResetPassword.svelte'
   import Home from './routes/Home.svelte'
@@ -32,6 +33,7 @@
 {:else if $session === null}
   <Login />
 {:else}
+  <TmsErrorBanner />
   <TopBar />
   <main>
     <svelte:component this={Page} />
