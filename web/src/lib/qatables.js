@@ -1,7 +1,7 @@
 // qa-v2 print tables as plain {headers, rows} (strings only) -- shared by qareporthtml.js and
 // qareportdocx.js so the PDF and the Word file can't drift. 1:1 port of android
 // pdf/QaTables.kt. A table with no filled row returns null (nothing printed).
-import { criteriaPath, evidenceLabel, itemEvidence, usedEvidence } from './evidence.js'
+import { attachmentName, criteriaPath, evidenceLabel, itemEvidence, usedEvidence } from './evidence.js'
 import { visitingOfficers } from './signoff.js'
 
 const text = (value) => String(value ?? '').trim()
@@ -130,7 +130,7 @@ export function evidenceLines(data, itemId) {
   return itemEvidence(data, itemId).map(evidenceLabel)
 }
 
-// closing list: every evidence in number order with the criteria that cite it
+// closing list: every attachment in number order with the criteria that cite it
 export function evidenceIndexTable(template, data) {
   const used = usedEvidence(data)
   if (used.length === 0) return null
@@ -144,9 +144,9 @@ export function evidenceIndexTable(template, data) {
     }
   }
   return {
-    heading: 'List of evidence',
-    headers: ['No.', 'Evidence', 'Criteria'],
-    rows: used.map((entry) => [entry.no, entry.name, citedBy.get(entry._id).join(', ')]),
+    heading: 'List of attachments',
+    headers: ['Attachment', 'Evidence', 'Criteria'],
+    rows: used.map((entry) => [attachmentName(entry), entry.name, citedBy.get(entry._id).join(', ')]),
   }
 }
 

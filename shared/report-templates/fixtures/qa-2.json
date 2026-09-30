@@ -332,6 +332,171 @@
    "printed": [
     "Available: oral checklist."
    ]
+  },
+  {
+   "case": "per-course seen, two courses",
+   "item": {
+    "id": "s6_1",
+    "no": "1.",
+    "text": "Competency-based training standards or modular course outlines and learning materials and assessment tools are available and used",
+    "evidence": "Standards and course outlines (CSs) are available with the centre (list of standards and courses implemented for SICIP)",
+    "options": [
+     {
+      "id": "cs_available",
+      "label": "Competency standards / course outlines available and used",
+      "short": "CS / course outlines",
+      "src": [
+       "A3"
+      ],
+      "seen": "Competency standards / course outlines are available and used, with a list of standards and courses implemented.",
+      "not": "No competency standards or course outlines were found.",
+      "na": "",
+      "perCourse": true,
+      "seenCourses": "Competency standards / course outlines are available and used for @.",
+      "notCourses": "Competency standards / course outlines are not available for @."
+     },
+     {
+      "id": "cs_uptodate",
+      "label": "Competency Based Learning Materials (CBLMs) and other learning materials are available and distributed",
+      "src": [
+       "CL"
+      ],
+      "seen": "Competency Based Learning Materials (CBLMs) and other learning materials are available and distributed.",
+      "not": "Competency Based Learning Materials (CBLMs) and other learning materials are not available or not distributed.",
+      "na": "",
+      "short": "CBLMs available and distributed",
+      "perCourse": true,
+      "seenCourses": "CBLMs and other learning materials are available and distributed for @.",
+      "notCourses": "CBLMs and other learning materials are not available or not distributed for @."
+     }
+    ]
+   },
+   "entry": {
+    "opts": {
+     "cs_available": {
+      "v": "seen",
+      "courses": [
+       "EIM",
+       "PPF"
+      ]
+     }
+    }
+   },
+   "bullets": [
+    "Competency standards / course outlines are available and used for EIM and PPF courses."
+   ],
+   "printed": [
+    "Competency standards / course outlines are available and used for EIM and PPF courses."
+   ]
+  },
+  {
+   "case": "per-course not seen, one course + remark",
+   "item": {
+    "id": "s6_1",
+    "no": "1.",
+    "text": "Competency-based training standards or modular course outlines and learning materials and assessment tools are available and used",
+    "evidence": "Standards and course outlines (CSs) are available with the centre (list of standards and courses implemented for SICIP)",
+    "options": [
+     {
+      "id": "cs_available",
+      "label": "Competency standards / course outlines available and used",
+      "short": "CS / course outlines",
+      "src": [
+       "A3"
+      ],
+      "seen": "Competency standards / course outlines are available and used, with a list of standards and courses implemented.",
+      "not": "No competency standards or course outlines were found.",
+      "na": "",
+      "perCourse": true,
+      "seenCourses": "Competency standards / course outlines are available and used for @.",
+      "notCourses": "Competency standards / course outlines are not available for @."
+     },
+     {
+      "id": "cs_uptodate",
+      "label": "Competency Based Learning Materials (CBLMs) and other learning materials are available and distributed",
+      "src": [
+       "CL"
+      ],
+      "seen": "Competency Based Learning Materials (CBLMs) and other learning materials are available and distributed.",
+      "not": "Competency Based Learning Materials (CBLMs) and other learning materials are not available or not distributed.",
+      "na": "",
+      "short": "CBLMs available and distributed",
+      "perCourse": true,
+      "seenCourses": "CBLMs and other learning materials are available and distributed for @.",
+      "notCourses": "CBLMs and other learning materials are not available or not distributed for @."
+     }
+    ]
+   },
+   "entry": {
+    "opts": {
+     "cs_uptodate": {
+      "v": "not",
+      "courses": [
+       "Welding"
+      ],
+      "remark": "CBLM print pending"
+     }
+    }
+   },
+   "bullets": [
+    "CBLMs and other learning materials are not available or not distributed for Welding course. CBLM print pending."
+   ],
+   "printed": [
+    "CBLMs and other learning materials are not available or not distributed for Welding course. CBLM print pending."
+   ]
+  },
+  {
+   "case": "per-course seen, no course ticked -> plain sentence",
+   "item": {
+    "id": "s6_1",
+    "no": "1.",
+    "text": "Competency-based training standards or modular course outlines and learning materials and assessment tools are available and used",
+    "evidence": "Standards and course outlines (CSs) are available with the centre (list of standards and courses implemented for SICIP)",
+    "options": [
+     {
+      "id": "cs_available",
+      "label": "Competency standards / course outlines available and used",
+      "short": "CS / course outlines",
+      "src": [
+       "A3"
+      ],
+      "seen": "Competency standards / course outlines are available and used, with a list of standards and courses implemented.",
+      "not": "No competency standards or course outlines were found.",
+      "na": "",
+      "perCourse": true,
+      "seenCourses": "Competency standards / course outlines are available and used for @.",
+      "notCourses": "Competency standards / course outlines are not available for @."
+     },
+     {
+      "id": "cs_uptodate",
+      "label": "Competency Based Learning Materials (CBLMs) and other learning materials are available and distributed",
+      "src": [
+       "CL"
+      ],
+      "seen": "Competency Based Learning Materials (CBLMs) and other learning materials are available and distributed.",
+      "not": "Competency Based Learning Materials (CBLMs) and other learning materials are not available or not distributed.",
+      "na": "",
+      "short": "CBLMs available and distributed",
+      "perCourse": true,
+      "seenCourses": "CBLMs and other learning materials are available and distributed for @.",
+      "notCourses": "CBLMs and other learning materials are not available or not distributed for @."
+     }
+    ]
+   },
+   "entry": {
+    "opts": {
+     "cs_available": {
+      "v": "seen",
+      "courses": []
+     }
+    }
+   },
+   "bullets": [
+    "Competency standards / course outlines are available and used, with a list of standards and courses implemented."
+   ],
+   "printed": [
+    "Competency standards / course outlines are available and used, with a list of standards and courses implemented."
+   ]
   }
  ],
  "data": {

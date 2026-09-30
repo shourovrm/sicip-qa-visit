@@ -1,4 +1,4 @@
-<!-- qa-v2 evidence for one criterion: numbered chips ("7.1b.a – Trainers list", × removes it from
+<!-- qa-v2 evidence for one criterion: numbered chips ("Trainers list (Attachment 3)", × removes it from
      this criterion only) and a box that suggests this report's evidence, the app's own tables and
      the Word tables while typing. Enter or Add dispatches `add` with the name; the parent applies
      lib/evidence.js so a reused name keeps its first number. -->

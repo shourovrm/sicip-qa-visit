@@ -3,13 +3,13 @@
      and qualifications ... match the requirements") prints as a plain divider row with no
      controls, immediately followed by its lettered sub-items (a), b), c)...), matching the
      printed layout's own grouping. qa-v2 (template.evidenceRegister): each item's evidence is a
-     numbered entry in data.evidence, added/removed here through lib/evidence.js. -->
+     numbered attachment in data.evidence, added/removed here through lib/evidence.js. -->
 <script>
   import CriteriaItem from './CriteriaItem.svelte'
-  import { criteriaPath, evidenceSuggestions, itemEvidence, withEvidenceAdded, withEvidenceRemoved } from '../../lib/evidence.js'
+  import { evidenceSuggestions, itemEvidence, withEvidenceAdded, withEvidenceRemoved } from '../../lib/evidence.js'
+  import { runningCourses } from '../../lib/reporttemplate.js'
 
   export let block // {type:"criteria", key, heading?, intro?, items:[...]}
-  export let section
   export let template
   export let data // whole report data, mutated in place
   export let disabled = false
@@ -17,6 +17,7 @@
 
   $: criteriaData = data.criteria ?? (data.criteria = {})
   $: register = Boolean(template.evidenceRegister)
+  $: courses = runningCourses(data)
 
   // withEvidenceAdded/Removed return new objects; copy their evidence + criteria back in place
   function applyEvidence(next) {
@@ -33,11 +34,11 @@
     {#if item.heading}
       <div class="parent-heading"><span class="no">{item.no}</span>{item.text}</div>
     {:else}
-      <CriteriaItem {item} entry={criteriaData[item.id]} {disabled}
+      <CriteriaItem {item} entry={criteriaData[item.id]} {disabled} {courses}
         evidenceEntries={register ? itemEvidence(data, item.id) : null}
         evidenceSuggestions={register ? evidenceSuggestions(template, data, item.id) : []}
         on:change={(e) => { criteriaData[item.id] = e.detail; onChange() }}
-        on:add={(e) => applyEvidence(withEvidenceAdded(data, criteriaPath(section, block, item), item.id, e.detail))}
+        on:add={(e) => applyEvidence(withEvidenceAdded(data, item.id, e.detail))}
         on:remove={(e) => applyEvidence(withEvidenceRemoved(data, item.id, e.detail))} />
     {/if}
   {/each}

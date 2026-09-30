@@ -100,7 +100,7 @@
         </div>
       {:else if block.type === 'criteria'}
         <div class="block">
-          <CriteriaBlock {block} {section} {template} {data} {disabled} {onChange} />
+          <CriteriaBlock {block} {template} {data} {disabled} {onChange} />
         </div>
       {/if}
     {/each}

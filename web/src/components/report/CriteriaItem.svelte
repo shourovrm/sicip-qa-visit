@@ -19,6 +19,7 @@
   // qa-v2 numbered evidence (template.evidenceRegister): chips + suggestions instead of the free box
   export let evidenceEntries = null // itemEvidence(...) or null for the v1 free "Evidence seen" box
   export let evidenceSuggestions = []
+  export let courses = [] // runningCourses(data): tick boxes under a course-wise (perCourse) answer
 
   const dispatch = createEventDispatcher()
 
@@ -51,6 +52,15 @@
     const current = opts[optId] ?? {}
     emit({ ...entry, opts: { ...opts, [optId]: { ...current, remark } } })
   }
+  // courses an answer applies to, kept in the running-course order
+  function setCourse(optId, course, ticked) {
+    const current = opts[optId] ?? {}
+    const chosen = new Set(current.courses ?? [])
+    if (ticked) chosen.add(course)
+    else chosen.delete(course)
+    emit({ ...entry, opts: { ...opts, [optId]: { ...current, courses: courses.filter((c) => chosen.has(c)) } } })
+  }
+
   // tick boxes in template order, whatever order they were clicked in
   function setTick(tickId, ticked) {
     const current = new Set(entry?.ticks ?? [])
@@ -90,6 +100,19 @@
       </div>
       <AnswerSegmented options={STATES} value={state.v ?? ''} {disabled} compact
         on:change={(e) => setOptState(option.id, e.detail)} />
+      {#if option.perCourse && (state.v === 'seen' || state.v === 'not')}
+        {#if courses.length}
+          <div class="ticks course-ticks">
+            <span class="ticks-label">{state.v === 'seen' ? 'Seen for' : 'Not seen for'}:</span>
+            {#each courses as course (course)}
+              <label class="tick"><input type="checkbox" checked={(state.courses ?? []).includes(course)} {disabled}
+                on:change={(e) => setCourse(option.id, course, e.target.checked)} /> {course}</label>
+            {/each}
+          </div>
+        {:else}
+          <p class="course-hint">Add the running courses in section 1 (1.60) to tick them here.</p>
+        {/if}
+      {/if}
       {#if option.detail && state.v === 'seen'}
         <input class="detail-in" type="text" placeholder={option.detail} value={state.detail ?? ''} {disabled}
           on:input={(e) => setOptDetail(option.id, e.target.value)} />
@@ -139,6 +162,8 @@
   .detail-in, .remark-in { width: 100%; margin-top: 6px; font-size: 13px; }
   .add-remark { margin-top: 6px; font-size: 12px; }
   .item-box { margin-top: 10px; }
+  .course-ticks { margin: 6px 0 0; }
+  .course-hint { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
   .ticks { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 4px 0 8px; font-size: 13px; }
   .ticks-label { font-weight: 700; color: var(--muted); }
   .tick { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }

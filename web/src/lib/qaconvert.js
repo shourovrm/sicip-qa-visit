@@ -7,7 +7,7 @@
 //   OPTION_SOURCES); item evidence text -> numbered evidence entries; item notes follow the item
 // - 6.2 "CBLM / lesson plan / TDP / job sheet available" answered Seen -> ticked boxes
 import { normalize } from './reporttemplate.js'
-import { criteriaPath, withEvidenceAdded } from './evidence.js'
+import { withEvidenceAdded } from './evidence.js'
 import { splitOfficerLine } from './signoff.js'
 
 // v2 option id -> the v1 option whose answer it takes over
@@ -72,13 +72,11 @@ function convertCriteria(v2, data, v1Criteria, newId) {
   const v1Options = {}
   for (const entry of Object.values(v1Criteria)) Object.assign(v1Options, entry?.opts ?? {})
   const criteria = {}
-  const placed = [] // [section, block, item] for the item-level evidence pass
   for (const section of v2.sections) {
     for (const block of section.blocks) {
       if (block.type !== 'criteria') continue
       for (const item of block.items) {
         if (item.heading) continue
-        placed.push([section, block, item])
         const opts = {}
         for (const option of item.options) {
           const state = v1Options[OPTION_SOURCES[option.id] ?? option.id]
@@ -101,9 +99,8 @@ function convertCriteria(v2, data, v1Criteria, newId) {
   for (const [v1ItemId, entry] of Object.entries(v1Criteria)) {
     const target = v2ItemFor(v1ItemId)
     if (!target) continue
-    const [section, block, item] = placed.find(([, , candidate]) => candidate.id === target)
     for (const name of splitLines(entry?.evidence)) {
-      data = withEvidenceAdded(data, criteriaPath(section, block, item), target, name, newId)
+      data = withEvidenceAdded(data, target, name, newId)
     }
   }
   return data

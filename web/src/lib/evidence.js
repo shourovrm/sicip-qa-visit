@@ -1,8 +1,7 @@
 // QA v2 evidence register: one list per report (data.evidence = [{_id, name, no}]), each criteria
-// item points at entries by id (data.criteria[item].evidenceRefs). An entry's number is fixed
-// where it is first added ("7.1b.a" = section 7, criterion 1 b), first evidence there) and never
-// changes, so documents the officer already labelled at the institute keep matching the report.
-// 1:1 port of android domain/report/Evidence.kt.
+// item points at entries by id (data.criteria[item].evidenceRefs). Entries are "Attachment 1, 2, 3..."
+// in the order they were first added; a number never changes, so documents the officer already
+// labelled at the institute keep matching the report. 1:1 port of android domain/report/Evidence.kt.
 
 const clean = (value) => String(value ?? '').trim()
 const sameName = (a, b) => clean(a).toLowerCase() === clean(b).toLowerCase()
@@ -28,15 +27,12 @@ export function criteriaPath(section, block, item) {
   return String(section.number ?? '')
 }
 
-// first free suffix under this path: a, b, ... z, then 27, 28, ... (26+ items on one criterion
-// never happens in practice; numbers just keep it unique)
-function nextNumber(list, path) {
-  const taken = new Set(list.map((entry) => entry.no))
-  for (let index = 0; ; index++) {
-    const suffix = index < 26 ? String.fromCharCode(97 + index) : String(index + 1)
-    const candidate = `${path}.${suffix}`
-    if (!taken.has(candidate)) return candidate
-  }
+const isAttachmentNumber = (no) => /^\d+$/.test(String(no ?? ''))
+
+// one past the highest attachment number so far
+function nextNumber(list) {
+  const numbers = list.map((entry) => entry.no).filter(isAttachmentNumber).map(Number)
+  return String(numbers.length ? Math.max(...numbers) + 1 : 1)
 }
 
 function withRefs(data, itemId, refs) {
@@ -46,15 +42,15 @@ function withRefs(data, itemId, refs) {
 }
 
 // add evidence `name` to an item: an entry with the same name (any case) is reused with its
-// number; otherwise a new entry is numbered at this item's path
-export function withEvidenceAdded(data, path, itemId, name, newId = () => crypto.randomUUID()) {
+// number; otherwise it becomes the next attachment
+export function withEvidenceAdded(data, itemId, name, newId = () => crypto.randomUUID()) {
   const trimmed = clean(name)
   if (!trimmed) return data
   const list = evidenceList(data)
   let entry = list.find((candidate) => sameName(candidate.name, trimmed))
   let nextData = data
   if (!entry) {
-    entry = { _id: newId(), name: trimmed, no: nextNumber(list, path) }
+    entry = { _id: newId(), name: trimmed, no: nextNumber(list) }
     nextData = { ...data, evidence: [...list, entry] }
   }
   const refs = evidenceRefs(nextData, itemId)
@@ -73,8 +69,13 @@ export function itemEvidence(data, itemId) {
   return evidenceRefs(data, itemId).map((id) => byId.get(id)).filter(Boolean)
 }
 
+export function attachmentName(entry) {
+  return `Attachment ${entry.no}`
+}
+
+// "Profile (Attachment 3)"
 export function evidenceLabel(entry) {
-  return `${entry.no} – ${entry.name}`
+  return `${entry.name} (${attachmentName(entry)})`
 }
 
 // names offered while typing: this report's register (not already on the item), the app's own
@@ -103,5 +104,5 @@ export function usedEvidence(data) {
   const used = new Set(Object.values(data.criteria ?? {}).flatMap((entry) => entry?.evidenceRefs ?? []))
   return evidenceList(data)
     .filter((entry) => used.has(entry._id))
-    .sort((a, b) => a.no.localeCompare(b.no, undefined, { numeric: true }))
+    .sort((a, b) => Number(a.no) - Number(b.no))
 }

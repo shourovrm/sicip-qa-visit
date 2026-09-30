@@ -143,9 +143,19 @@ def ticked_says(item, entry):
     return [t.get("say") or t["label"] for t in item.get("ticks", []) if t["id"] in ticked]
 
 
-# the sentence for a marked answer: "<v>Ticks" with "@" = the ticked boxes when any are ticked
-# and the option has one, else the plain "<v>" sentence
-def answer_sentence(option, v, ticks):
+# "EIM course" / "EIM and PPF courses"
+def course_phrase(courses):
+    return join_labels(courses) + (" course" if len(courses) == 1 else " courses")
+
+
+# the sentence for a marked answer: "<v>Courses" with "@" = the option's ticked courses (qa-v2
+# perCourse options), else "<v>Ticks" with "@" = the item's ticked boxes, else plain "<v>"
+def answer_sentence(option, state, ticks):
+    v = state.get("v") or ""
+    courses = [c for c in (state.get("courses") or []) if str(c).strip()]
+    with_courses = option.get(v + "Courses")
+    if option.get("perCourse") and courses and with_courses:
+        return with_courses.replace("@", course_phrase(courses))
     with_ticks = option.get(v + "Ticks")
     if ticks and with_ticks:
         return with_ticks.replace("@", join_labels(ticks))
@@ -190,7 +200,7 @@ def build_remarks(item, entry):
 def option_text(option, state, ticks=()):
     v = state.get("v") or ""
     remark = ensure_stop(str(state.get("remark") or "").strip())
-    sentence = answer_sentence(option, v, list(ticks))
+    sentence = answer_sentence(option, state, list(ticks))
     detail = str(state.get("detail") or "").strip()
 
     def repl(match):
@@ -771,6 +781,12 @@ def fixture_remarks_qa_2():
     add("seen without ticks -> plain sentence", "s6_2", {"opts": {"learning_materials": {"v": "seen"}}})
     add("n/a with ticks -> Available bullet kept", "s6_3",
         {"opts": {"tools_cover": {"v": "na"}}, "ticks": ["oral_checklist"]})
+    add("per-course seen, two courses", "s6_1",
+        {"opts": {"cs_available": {"v": "seen", "courses": ["EIM", "PPF"]}}})
+    add("per-course not seen, one course + remark", "s6_1",
+        {"opts": {"cs_uptodate": {"v": "not", "courses": ["Welding"], "remark": "CBLM print pending"}}})
+    add("per-course seen, no course ticked -> plain sentence", "s6_1",
+        {"opts": {"cs_available": {"v": "seen", "courses": []}}})
     data = {"criteria": {
         "s6_1": {"opts": {"cs_available": {"v": "seen"}}},
         "s6_2": {"opts": {"learning_materials": {"v": "seen"}}, "ticks": ["cblm", "tdp"]},

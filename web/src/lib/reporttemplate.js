@@ -173,6 +173,14 @@ export function refOptions(field, data, card = {}) {
     .map((source) => (source.batch ? `${source.course} · ${source.batch}` : source.course))
 }
 
+// qa-v2 course tick boxes: the running courses (1.60 current batches), else the MoU courses
+// (1.40) while no batch is entered yet; distinct names in card order
+export function runningCourses(data) {
+  const names = (key) => [...new Set((data.cards?.[key] ?? []).map((card) => String(card.course ?? '').trim()).filter(Boolean))]
+  const running = names('batches')
+  return running.length ? running : names('mou_courses')
+}
+
 // qa-v2 "showIf": {field, in:[...]} -- a field/block only shows (and only counts) while the
 // named value (top-level field, or the same card's field) is one of `in`
 export function isShown(thing, values) {

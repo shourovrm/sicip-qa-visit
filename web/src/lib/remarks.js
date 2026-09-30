@@ -19,7 +19,7 @@ const DETAIL_GROUP_RE = /\{([^}]*)\}/
 // the officer's remark, e.g. "Fire extinguishers are available, last examined on 12/02. Refilled."
 export function optionText(option, state, ticks = []) {
   const remark = ensureStop(String(state.remark ?? '').trim())
-  let sentence = answerSentence(option, state.v, ticks)
+  let sentence = answerSentence(option, state, ticks)
   const detail = String(state.detail ?? '').trim()
   // the `{...}` group is kept (with $ substituted) only when its detail box has text; blank
   // detail drops the WHOLE group, including its own leading punctuation/spacing.
@@ -40,9 +40,18 @@ export function tickedSays(item, entry) {
   return (item.ticks ?? []).filter((tick) => ticked.has(tick.id)).map((tick) => tick.say || tick.label)
 }
 
-// a marked answer's sentence: "<v>Ticks" with "@" = the ticked boxes when any are ticked and the
-// option has one, else the plain "<v>" sentence
-function answerSentence(option, v, ticks) {
+// "EIM course" / "EIM and PPF courses"
+export function coursePhrase(courses) {
+  return `${joinLabels(courses)} ${courses.length === 1 ? 'course' : 'courses'}`
+}
+
+// a marked answer's sentence: "<v>Courses" with "@" = the option's ticked courses (qa-v2
+// perCourse options), else "<v>Ticks" with "@" = the item's ticked boxes, else plain "<v>"
+function answerSentence(option, state, ticks) {
+  const v = state.v
+  const courses = (state.courses ?? []).filter((c) => String(c).trim())
+  const withCourses = option[`${v}Courses`]
+  if (option.perCourse && courses.length && withCourses) return withCourses.replace('@', coursePhrase(courses))
   const withTicks = option[`${v}Ticks`]
   if (ticks.length && withTicks) return withTicks.replace('@', joinLabels(ticks))
   return option[v] ?? ''

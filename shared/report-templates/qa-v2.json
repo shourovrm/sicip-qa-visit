@@ -1427,7 +1427,10 @@
          ],
          "seen": "Competency standards / course outlines are available and used, with a list of standards and courses implemented.",
          "not": "No competency standards or course outlines were found.",
-         "na": ""
+         "na": "",
+         "perCourse": true,
+         "seenCourses": "Competency standards / course outlines are available and used for @.",
+         "notCourses": "Competency standards / course outlines are not available for @."
         },
         {
          "id": "cs_uptodate",
@@ -1438,7 +1441,10 @@
          "seen": "Competency Based Learning Materials (CBLMs) and other learning materials are available and distributed.",
          "not": "Competency Based Learning Materials (CBLMs) and other learning materials are not available or not distributed.",
          "na": "",
-         "short": "CBLMs available and distributed"
+         "short": "CBLMs available and distributed",
+         "perCourse": true,
+         "seenCourses": "CBLMs and other learning materials are available and distributed for @.",
+         "notCourses": "CBLMs and other learning materials are not available or not distributed for @."
         }
        ]
       },
@@ -1969,7 +1975,10 @@
          ],
          "seen": "Training equipment, machinery and tools are sufficient and match the competency standard, with a list attached.",
          "not": "Training equipment, machinery or tools are not sufficient or do not match the standard.",
-         "na": ""
+         "na": "",
+         "perCourse": true,
+         "seenCourses": "Training equipment, machinery and tools are sufficient for @.",
+         "notCourses": "Training equipment, machinery and tools are not sufficient for @."
         },
         {
          "id": "tools_available_list",
@@ -2082,7 +2091,10 @@
          ],
          "seen": "Lists of consumables purchased and used per course are kept.",
          "not": "No list of consumables purchased or used was found.",
-         "na": ""
+         "na": "",
+         "perCourse": true,
+         "seenCourses": "Lists of consumables purchased and used are kept for @.",
+         "notCourses": "Lists of consumables purchased and used are not kept for @."
         }
        ]
       },
@@ -2405,7 +2417,10 @@
          ],
          "seen": "The lesson plan and job sheet show the 80:20 practice-to-theory ratio is maintained.",
          "not": "The 80:20 practice-to-theory ratio is not maintained.",
-         "na": ""
+         "na": "",
+         "perCourse": true,
+         "seenCourses": "The 80:20 practice-to-theory ratio is maintained in @.",
+         "notCourses": "The 80:20 practice-to-theory ratio is not maintained in @."
         },
         {
          "id": "ppe_consumables_use",
@@ -2519,7 +2534,10 @@
          ],
          "seen": "A formative and summative assessment plan is available in the training delivery plan (schedule and mode).",
          "not": "No formative/summative assessment plan was found.",
-         "na": ""
+         "na": "",
+         "perCourse": true,
+         "seenCourses": "A formative and summative assessment plan is available for @.",
+         "notCourses": "No formative and summative assessment plan was found for @."
         }
        ]
       },
@@ -2595,7 +2613,10 @@
          ],
          "seen": "Formative assessment results are recorded and maintained.",
          "not": "Formative assessment results are not recorded.",
-         "na": ""
+         "na": "",
+         "perCourse": true,
+         "seenCourses": "Formative assessment results are recorded for @.",
+         "notCourses": "Formative assessment results are not recorded for @."
         }
        ]
       },
@@ -2614,7 +2635,10 @@
          ],
          "seen": "Summative assessment work and results are recorded and maintained.",
          "not": "Summative assessment work or results are not recorded.",
-         "na": ""
+         "na": "",
+         "perCourse": true,
+         "seenCourses": "Summative assessment work and results are recorded for @.",
+         "notCourses": "Summative assessment work and results are not recorded for @."
         }
        ]
       },
@@ -2654,7 +2678,10 @@
          ],
          "seen": "Certification records by course and batch are maintained, with a graduate list and certificate register.",
          "not": "No certification records or graduate/certificate register were found.",
-         "na": ""
+         "na": "",
+         "perCourse": true,
+         "seenCourses": "Certification records are maintained for @.",
+         "notCourses": "Certification records are not maintained for @."
         }
        ]
       }
