@@ -18,7 +18,9 @@ sealed interface TmsAuthState {
 
     // expiresAt = epoch seconds; 0 until a login succeeded in this process (creds stored, token not yet fetched)
     data class LoggedIn(val displayName: String, val expiresAt: Long) : TmsAuthState
-    data class Failed(val message: String) : TmsAuthState
+    // credentialsStored: the officer did sign in and the vault still holds the login; only a
+    // background re-login failed. the account card keeps showing the signed-in view then.
+    data class Failed(val message: String, val credentialsStored: Boolean = false) : TmsAuthState
 }
 
 sealed interface TmsLoginResult {
@@ -45,8 +47,10 @@ class TmsAuth(
     private val _state = MutableStateFlow<TmsAuthState>(TmsAuthState.LoggedOut)
     val state: StateFlow<TmsAuthState> = _state
 
-    // call once at app start: shows LoggedIn when credentials are stored (token fetched lazily).
+    // app start: shows LoggedIn when credentials are stored (token fetched lazily). runs on every
+    // activity create, so it must never overwrite a live state (real name + expiry, or a failure).
     suspend fun restore() = lock.withLock {
+        if (_state.value != TmsAuthState.LoggedOut) return@withLock
         val credentials = vault.load() ?: return@withLock
         displayName = credentials.username
         _state.value = TmsAuthState.LoggedIn(displayName, 0)
@@ -72,6 +76,14 @@ class TmsAuth(
         _state.value = TmsAuthState.LoggedOut
     }
 
+    // officer tapped "Try again" after a failed background re-login: resend the stored login once.
+    suspend fun retry() = lock.withLock {
+        credentialsRejected = false
+        token = null
+        runCatching { silentLogin() }
+        Unit
+    }
+
     // token with >= 10 min left, else silent re-login. throws TmsException when none is possible.
     suspend fun bearer(): String = lock.withLock {
         val current = token
@@ -94,12 +106,12 @@ class TmsAuth(
                 return attemptLogin(credentials)
             } catch (e: TmsMessageException) {
                 credentialsRejected = true
-                _state.value = TmsAuthState.Failed(e.message ?: "Login failed")
+                _state.value = TmsAuthState.Failed(e.message ?: "Login failed", credentialsStored = true)
                 throw e
             } catch (e: TmsTransientException) {
                 if (e.offline) throw e // wait for the network, no banner
                 if (retriesDone >= RETRY_DELAYS_MS.size) {
-                    _state.value = TmsAuthState.Failed(e.message ?: "no connection")
+                    _state.value = TmsAuthState.Failed(e.message ?: "no connection", credentialsStored = true)
                     throw e
                 }
                 sleep(RETRY_DELAYS_MS[retriesDone++])

@@ -132,7 +132,41 @@ class TmsProtocolTest {
         assertThrows(TmsMessageException::class.java) { runBlocking { auth.bearer() } }
         assertThrows(TmsLoggedOutException::class.java) { runBlocking { auth.bearer() } }
         assertEquals(1, transport.calls)
-        assertEquals(TmsAuthState.Failed("UserName or Password Not Match!"), auth.state.value)
+        assertEquals(TmsAuthState.Failed("UserName or Password Not Match!", credentialsStored = true), auth.state.value)
+    }
+
+    // card bug: a failed background re-login must not drop the officer back to the login form
+    @Test
+    fun `failed silent relogin keeps stored credentials signed in`() {
+        val transport = ScriptedTransport(mutableListOf({ serverDown }, { serverDown }, { serverDown }))
+        val auth = TmsAuth(FakeVault(), transport, { 1_000L }, { })
+        assertThrows(TmsTransientException::class.java) { runBlocking { auth.bearer() } }
+        assertEquals(true, (auth.state.value as TmsAuthState.Failed).credentialsStored)
+    }
+
+    @Test
+    fun `restore does not overwrite a live session`() = runBlocking {
+        val auth = TmsAuth(FakeVault(), ScriptedTransport(mutableListOf({ success })), { 1_000L }, { })
+        assertEquals(TmsLoginResult.Success, auth.login("u", "p"))
+        auth.restore()
+        assertEquals(TmsAuthState.LoggedIn("Rina", 4102444800L), auth.state.value)
+    }
+
+    @Test
+    fun `restore shows stored credentials as signed in`() = runBlocking {
+        val auth = TmsAuth(FakeVault(), ScriptedTransport(mutableListOf()), { 1_000L }, { })
+        auth.restore()
+        assertEquals(TmsAuthState.LoggedIn("u", 0), auth.state.value)
+    }
+
+    @Test
+    fun `retry resends rejected credentials once`() = runBlocking {
+        val transport = ScriptedTransport(mutableListOf({ wrongPassword }, { success }))
+        val auth = TmsAuth(FakeVault(), transport, { 1_000L }, { })
+        runCatching { auth.bearer() }
+        auth.retry()
+        assertEquals(TmsAuthState.LoggedIn("Rina", 4102444800L), auth.state.value)
+        assertEquals(2, transport.calls)
     }
 
     @Test

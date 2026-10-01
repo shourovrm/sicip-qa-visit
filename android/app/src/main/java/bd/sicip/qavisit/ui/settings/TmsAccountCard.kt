@@ -23,6 +23,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +41,10 @@ import bd.sicip.qavisit.data.tms.TmsAuthState
 import bd.sicip.qavisit.data.tms.TmsLoginResult
 import bd.sicip.qavisit.data.tms.TmsServices
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun TmsAccountCard() {
@@ -49,8 +54,11 @@ fun TmsAccountCard() {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("TMS account", style = MaterialTheme.typography.titleMedium)
             when (val current = state) {
-                is TmsAuthState.LoggedIn -> SignedIn(auth, current.displayName)
-                is TmsAuthState.Failed -> {
+                is TmsAuthState.LoggedIn -> SignedIn(auth, current.displayName, current.expiresAt, failure = null)
+                // background re-login failed but the login is still stored: stay signed in, offer a retry
+                is TmsAuthState.Failed -> if (current.credentialsStored) {
+                    SignedIn(auth, displayName = null, expiresAt = 0, failure = current.message)
+                } else {
                     Text(current.message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     LoginForm(auth)
                 }
@@ -61,14 +69,37 @@ fun TmsAccountCard() {
 }
 
 @Composable
-private fun SignedIn(auth: TmsAuth, displayName: String) {
+private fun SignedIn(auth: TmsAuth, displayName: String?, expiresAt: Long, failure: String?) {
     val scope = rememberCoroutineScope()
-    Text("Signed in as $displayName", style = MaterialTheme.typography.bodyMedium)
+    // restored from the vault (expiresAt 0): fetch a token once so name + expiry are real
+    LaunchedEffect(displayName, expiresAt) {
+        if (displayName != null && expiresAt == 0L) runCatching { auth.bearer() }
+    }
+    if (displayName != null) Text("Signed in as $displayName", style = MaterialTheme.typography.bodyMedium)
+    if (expiresAt > 0) {
+        Text(
+            "Signed in until ${signedInUntilText(expiresAt)}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    if (failure != null) {
+        Text("Last TMS sign-in failed: $failure", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        OutlinedButton(
+            onClick = { scope.launch { auth.retry() } },
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+        ) { Text("Try again") }
+    }
     OutlinedButton(
         onClick = { scope.launch { auth.logout() } },
         modifier = Modifier.fillMaxWidth().height(48.dp),
-    ) { Text("Log out") }
+    ) { Text("Sign out") }
 }
+
+// "2 Oct, 1:23 PM" in the phone's zone
+private fun signedInUntilText(expiresAtSeconds: Long): String =
+    DateTimeFormatter.ofPattern("d MMM, h:mm a", Locale.ENGLISH)
+        .format(Instant.ofEpochSecond(expiresAtSeconds).atZone(ZoneId.systemDefault()))
 
 @Composable
 private fun LoginForm(auth: TmsAuth) {
