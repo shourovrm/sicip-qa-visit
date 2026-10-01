@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.domain.report.AnswerOption
 import bd.sicip.qavisit.domain.report.ChecklistItem
 import bd.sicip.qavisit.domain.report.Field
+import bd.sicip.qavisit.domain.report.newCard
 import bd.sicip.qavisit.domain.report.ReportBlock
 import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.TMS_BLOCK_KEYS
@@ -512,7 +513,7 @@ fun CardsBlockView(
             }
             link == null && !readOnly -> {
                 OutlinedButton(
-                    onClick = { editor.editNow(data.withCardAdded(block.key)) },
+                    onClick = { editor.editNow(data.withCardAdded(block.key, newCard(block, data))) },
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                 ) {
                     Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))

@@ -168,8 +168,9 @@ private fun coveredBlocks(section: ReportSection, remarks: ReportBlock.Remarks):
     return before.drop(lastRemarks + 1)
 }
 
+// a manual remarks block (K, L) builds nothing: the officer writes it by hand
 fun buildRemarkLines(template: ReportTemplate, section: ReportSection, remarks: ReportBlock.Remarks, data: ReportData): List<RemarkLine> =
-    coveredBlocks(section, remarks).flatMap { block ->
+    if (remarks.manual) emptyList() else coveredBlocks(section, remarks).flatMap { block ->
         when (block) {
             is ReportBlock.Checklist -> checklistLines(block, data, template.answers)
             is ReportBlock.Cards -> cardLines(block, data)
@@ -180,13 +181,17 @@ fun buildRemarkLines(template: ReportTemplate, section: ReportSection, remarks: 
 
 // what prints: the officer's edit while it is still fresh (source == built lines), else the
 // built lines. An edited line keeps neg only when it is word-for-word a built issue line.
+// A manual block prints its typed text, one line per non-blank line, never an issue.
 fun printedRemarkLines(template: ReportTemplate, section: ReportSection, remarks: ReportBlock.Remarks, data: ReportData): List<RemarkLine> {
+    if (remarks.manual) return textLines(data.remarksText(remarks.key)).map { RemarkLine(it, false) }
     val built = buildRemarkLines(template, section, remarks, data)
     val edited = data.remarksText(remarks.key)
     if (edited.isBlank() || data.remarksSource(remarks.key) != built.joinToString("\n") { it.text }) return built
     val negTexts = built.filter { it.neg }.map { it.text }.toSet()
-    return edited.lines().map { it.trim() }.filter { it.isNotEmpty() }.map { RemarkLine(it, it in negTexts) }
+    return textLines(edited).map { RemarkLine(it, it in negTexts) }
 }
+
+private fun textLines(value: String): List<String> = value.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
 // every remarks line of the report, issues first (template order within each group), no repeats
 fun findingCandidates(template: ReportTemplate, data: ReportData): List<RemarkLine> {

@@ -45,6 +45,23 @@ class SurpriseV2Test {
     }
 
     @Test
+    fun `manual remarks build nothing and print the typed lines`() {
+        val section = v2.sections.first { it.key == "interview" }
+        val block = section.blocks.filterIsInstance<ReportBlock.Remarks>().first { it.key == "interview_remarks" }
+        assertTrue(block.manual)
+        assertEquals(emptyList<RemarkLine>(), buildRemarkLines(v2, section, block, data))
+        val typed = data.withRemarks("interview_remarks", "", " First point \n\nSecond point")
+        assertEquals(listOf(RemarkLine("First point", false), RemarkLine("Second point", false)), printedRemarkLines(v2, section, block, typed))
+        assertEquals(emptyList<RemarkLine>(), printedRemarkLines(v2, section, block, data.withRemarksCleared("interview_remarks")))
+    }
+
+    @Test
+    fun `sections run A to N with registers after materials`() {
+        assertEquals("ABCDEFGHIJKLMN", v2.sections.joinToString("") { it.letter })
+        assertEquals(listOf("materials", "registers", "delivery"), v2.sections.map { it.key }.subList(4, 7))
+    }
+
+    @Test
     fun `optional segments and blank keys`() {
         val lookup = mapOf("a" to "A", "b" to "")
         assertEquals("A x.", fillSays("{a}[ y {b}] x", { lookup[it].orEmpty() }))

@@ -55,8 +55,37 @@ private fun RemarkBullet(line: RemarkLine) {
     }
 }
 
+// manual remarks (K, L): one plain box the officer types into; each non-blank line prints as a bullet
+@Composable
+private fun ManualRemarksView(block: ReportBlock.Remarks, section: ReportSection, data: ReportData, readOnly: Boolean, editor: ReportEditor) {
+    val text = data.remarksText(block.key)
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(block.heading ?: "Remarks", style = MaterialTheme.typography.titleSmall)
+            OutlinedTextField(
+                value = text,
+                onValueChange = { editor.editDebounced(editor.data.withRemarks(block.key, "", it)) },
+                readOnly = readOnly,
+                label = { Text("One point per line") },
+                minLines = 4,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            ImproveWordingButton(
+                text = text,
+                label = section.title,
+                readOnly = readOnly,
+                onApply = { editor.editNow(editor.data.withRemarks(block.key, "", it)) },
+            )
+        }
+    }
+}
+
 @Composable
 fun RemarksBlockView(block: ReportBlock.Remarks, section: ReportSection, template: ReportTemplate, data: ReportData, readOnly: Boolean, editor: ReportEditor) {
+    if (block.manual) {
+        ManualRemarksView(block, section, data, readOnly, editor)
+        return
+    }
     val built = buildRemarkLines(template, section, block, data)
     val builtSource = built.joinToString("\n") { it.text }
     val lines = printedRemarkLines(template, section, block, data)

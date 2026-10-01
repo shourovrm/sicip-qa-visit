@@ -180,6 +180,9 @@ data class Field(
     val optionsField: String? = null,
     val filterBy: FilterBy? = null,
     val showIf: ShowIf? = null,
+    // free-text input with a suggestion list: tmsCourse | tmsBatch | tmsTrainee | shared:equipment
+    // (ui/reports/Suggestions.kt). suggestions never restrict what can be typed.
+    val suggest: String? = null,
 ) {
     fun selectOptions(): List<String> =
         (options as? JsonArray)?.map { it.jsonPrimitive.content } ?: emptyList()
@@ -243,6 +246,8 @@ sealed class ReportBlock {
         // qa-v2: offered as an evidence name ("Table 1.20: ...", Evidence.kt)
         val evidenceName: String? = null,
         val showIf: ShowIf? = null,
+        // "firstCourse": a new card starts with course + batch of the first section-A course card
+        val newFrom: String? = null,
         val fields: List<Field>,
     ) : ReportBlock()
 
@@ -254,8 +259,9 @@ sealed class ReportBlock {
     // Annex-3 heading, printed once above the table (pdf/QaReportHtml.kt) and as a note in the UI.
     // surprise v2: the section's templated remarks -- lines built from the blocks above it
     // (back to the previous remarks block), editable (SectionRemarks.kt)
+    // manual (surprise K, L): nothing is built; the officer types the lines in one box
     @Serializable
-    data class Remarks(val key: String, val heading: String? = null) : ReportBlock()
+    data class Remarks(val key: String, val heading: String? = null, val manual: Boolean = false) : ReportBlock()
 
     // surprise v2: major findings picked from every remarks line of the report
     @Serializable
