@@ -1,12 +1,13 @@
 <!-- draft button above a field with `draftFrom`: findings <- s13 weaknesses (AI, preview first),
      QA v1 recommendations <- s16 plan actions (no AI; pre-filled on load when blank), QA v2
      recommendations <- one per s13 weakness (AI, preview first), surprise v2 recommendations <-
-     picked major findings (AI, preview first). -->
+     the Major findings box lines (AI, preview first). -->
 <script>
   import { onMount } from 'svelte'
   import DraftPreview from './DraftPreview.svelte'
   import { isBlank } from '../../lib/reporttemplate.js'
   import { allWeaknesses, recommendationsFromPlan } from '../../lib/drafts.js'
+  import { findingLines } from '../../lib/findingsbox.js'
   import { draftFindings, draftRecommendations } from '../../lib/draftrun.js'
 
   export let field // {key, draftFrom: 'weaknesses' | 'plan' | 'findings' | 'weaknessRecommendations'}
@@ -21,8 +22,9 @@
   $: fromPlan = field.draftFrom === 'plan'
   $: fromFindings = field.draftFrom === 'findings'
   $: perWeakness = field.draftFrom === 'weaknessRecommendations'
-  // what each recommendation is written for: picked major findings (surprise) or weaknesses (QA v2)
-  $: pickedFindings = (data.findings ?? []).map((f) => f.text).filter((t) => !isBlank(t))
+  // what each recommendation is written for: the Major findings box (surprise) or weaknesses (QA v2)
+  $: findingsBlock = template.sections.flatMap((s) => s.blocks).find((b) => b.type === 'findings')
+  $: pickedFindings = findingLines(findingsBlock, data)
   $: weaknesses = allWeaknesses(template, data)
   $: sourceText = fromPlan
     ? recommendationsFromPlan(data.cards?.plan ?? [])
@@ -79,7 +81,7 @@
   </button>
   {#if canUndo && !disabled}<button type="button" class="btn-link" on:click={useMine}>Use my words</button>{/if}
   {#if !sourceText}
-    <span class="hint">{fromPlan ? 'Add improvement actions in section 16 first' : fromFindings ? 'Select major findings above first' : 'Add weaknesses in section 13 first'}</span>
+    <span class="hint">{fromPlan ? 'Add improvement actions in section 16 first' : fromFindings ? 'Add lines to Major findings above first' : 'Add weaknesses in section 13 first'}</span>
   {/if}
 </div>
 {#if preview}

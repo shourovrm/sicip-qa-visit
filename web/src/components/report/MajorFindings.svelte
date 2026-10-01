@@ -1,108 +1,113 @@
-<!-- surprise v2 Major findings: every remarks line of the report is offered (issues first);
-     the AI pre-selects the major ones once per candidate list while nothing is picked yet.
-     Picked findings are data.findings = [{src, text}] (src = the line it came from, '' when
-     typed), each editable with Improve wording. data.findingsAi = the candidate list the AI
-     last ran for, so reopening the report never re-runs it by itself. -->
+<!-- surprise v2 N Major findings (spec 2026-10-02 item 6): every written line of the report as a
+     checklist in report order. Unticking leaves a line where it is. "Add selected to Major
+     findings" writes the ticked lines into ONE editable box (lib/findingsbox.js keys: box =
+     data.findingsText, ticks = data.findingsTicked); the box prints as the numbered list and the
+     recommendations draft reads it. "Suggest with AI" only ticks the lines the AI picks. -->
 <script>
-  import { onMount } from 'svelte'
   import ImproveWording from './ImproveWording.svelte'
-  import { findingCandidates } from '../../lib/sectionremarks.js'
+  import { reportLines } from '../../lib/sectionremarks.js'
   import { draftMajorFindings } from '../../lib/draftrun.js'
+  import { addSelectedText, setTicked, tickedLines } from '../../lib/findingsbox.js'
 
-  export let block // {type:'findings', key, heading?, note?}
+  export let block // {type:'findings', key, heading?, note?, boxKey, tickedKey}
   export let template
   export let data // mutated in place, then onChange()
   export let disabled = false
   export let onChange = () => {}
 
   let busy = false
-  let usedFallback = false
-  let undo = null
-  $: canUndo = undo !== null && data.findings === undo.after
+  let aiNote = ''
 
-  $: candidates = findingCandidates(template, data)
-  $: candidatesSource = candidates.map((l) => l.text).join('\n')
-  $: picks = data.findings ?? []
-  $: pickedSources = new Set(picks.map((f) => f.src))
-  $: others = candidates.filter((l) => !pickedSources.has(l.text))
+  $: lines = reportLines(template, data)
+  $: ticked = new Set(tickedLines(block, data, lines))
+  $: boxKey = block.boxKey ?? 'findingsText'
+  $: boxText = data[boxKey] ?? ''
 
-  function setPicks(next) {
-    data.findings = next
+  function tick(next) {
+    setTicked(block, data, next)
+    onChange()
+  }
+  function toggle(text) {
+    const next = new Set(ticked)
+    if (next.has(text)) next.delete(text)
+    else next.add(text)
+    tick(lines.map((l) => l.text).filter((t) => next.has(t)))
+  }
+
+  function setBox(text) {
+    data[boxKey] = text
     onChange()
   }
 
-  // AI suggestions replace the picks that came from the list; typed findings stay
+  function addSelected() {
+    const text = addSelectedText(block, data, lines)
+    if (String(boxText).trim() && !confirm('Replace the text in Major findings with the selected lines?')) return
+    setBox(text)
+  }
+
+  // the AI chooses from the issues-first list; its picks become ticks, nothing is written
   async function suggest() {
     busy = true
+    aiNote = ''
     try {
-      const result = await draftMajorFindings(candidates)
-      const current = data.findings ?? []
-      const kept = result.findings.map((s) => current.find((f) => f.src === s.src) ?? s)
-      const next = [...kept, ...current.filter((f) => !f.src)]
-      // the automatic first pre-select replaces nothing, so only a re-suggest is undoable
-      if (current.length > 0) undo = { before: current, after: next }
-      data.findingsAi = candidatesSource
-      setPicks(next)
-      usedFallback = result.usedFallback
+      const issuesFirst = [...lines.filter((l) => l.neg), ...lines.filter((l) => !l.neg)]
+      const result = await draftMajorFindings(issuesFirst)
+      const picked = new Set(result.findings.map((f) => f.src))
+      tick(lines.map((l) => l.text).filter((t) => picked.has(t)))
+      aiNote = result.usedFallback ? 'AI unavailable — every issue was ticked.' : ''
     } finally {
       busy = false
     }
   }
-
-  onMount(() => {
-    if (!disabled && picks.length === 0 && candidates.length > 0 && data.findingsAi !== candidatesSource) suggest()
-  })
-
-  const setText = (index, text) => setPicks(picks.map((f, i) => (i === index ? { ...f, text } : f)))
 </script>
 
 <div class="findings">
   <h4>{block.heading ?? 'Major findings'}</h4>
   {#if block.note}<p class="note">{block.note}</p>{/if}
-  {#if busy}<p class="muted">Choosing the major findings…</p>{/if}
-  {#if usedFallback}<p class="muted">AI unavailable — every issue was selected</p>{/if}
-  {#if picks.length === 0 && !busy}<p class="muted">No finding selected yet.</p>{/if}
 
-  {#each picks as finding, index (index)}
-    <div class="pick">
-      <input type="checkbox" checked {disabled} aria-label="Remove this finding"
-        on:change={() => setPicks(picks.filter((_, i) => i !== index))} />
-      <div class="pick-body">
-        <textarea rows="2" value={finding.text} {disabled} on:input={(e) => setText(index, e.target.value)}></textarea>
-        <ImproveWording text={finding.text} label="Major findings" {disabled} on:change={(e) => setText(index, e.detail)} />
+  {#if lines.length === 0}
+    <p class="muted">No written points in this report yet.</p>
+  {:else}
+    {#if !disabled}
+      <div class="row">
+        <button type="button" class="btn-link" on:click={() => tick(lines.map((l) => l.text))}>Select all</button>
+        <button type="button" class="btn-link" on:click={() => tick([])}>Deselect all</button>
+        <button type="button" class="btn-link" on:click={suggest} disabled={busy}>{busy ? 'Choosing…' : 'Suggest with AI'}</button>
+        <span class="count">{ticked.size} of {lines.length} selected</span>
       </div>
-    </div>
-  {/each}
-
-  {#if !disabled}
-    <div class="row">
-      <button type="button" class="btn" on:click={() => setPicks([...picks, { src: '', text: '' }])}>＋ Add finding</button>
-      <button type="button" class="btn" on:click={suggest} disabled={busy || candidates.length === 0}>Suggest again</button>
-      {#if canUndo}<button type="button" class="btn-link" on:click={() => { setPicks(undo.before); undo = null }}>Use my words</button>{/if}
-    </div>
+    {/if}
+    {#if aiNote}<p class="muted">{aiNote}</p>{/if}
+    <ul class="lines">
+      {#each lines as line (line.text)}
+        <li>
+          <label>
+            <input type="checkbox" checked={ticked.has(line.text)} {disabled} on:change={() => toggle(line.text)} />
+            <span>{#if line.neg}<b class="issue">Issue</b> {/if}{line.text}</span>
+          </label>
+        </li>
+      {/each}
+    </ul>
+    {#if !disabled}
+      <button type="button" class="btn" on:click={addSelected} disabled={ticked.size === 0}>Add selected to Major findings</button>
+    {/if}
   {/if}
 
-  {#if others.length}
-    <h5>Other points from this report</h5>
-    {#each others as line (line.text)}
-      <label class="other">
-        <input type="checkbox" checked={false} {disabled} on:change={() => setPicks([...picks, { src: line.text, text: line.text }])} />
-        <span>{#if line.neg}<b class="issue">Issue</b> {/if}{line.text}</span>
-      </label>
-    {/each}
-  {/if}
+  <label class="box-label" for="findings-box">Major findings <span class="muted">(one finding per line)</span></label>
+  <textarea id="findings-box" rows="6" value={boxText} {disabled} on:input={(e) => setBox(e.target.value)}></textarea>
+  <ImproveWording text={boxText} label="Major findings" {disabled} on:change={(e) => setBox(e.detail)} />
 </div>
 
 <style>
   h4 { margin: 0 0 4px; font-size: 13px; }
-  h5 { margin: 16px 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
   .note, .muted { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
-  .pick { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
-  .pick input[type='checkbox'] { margin-top: 10px; }
-  .pick-body { flex: 1; min-width: 0; }
-  .pick textarea { width: 100%; font-size: 13px; }
-  .row { display: flex; gap: 8px; margin: 4px 0 8px; }
-  .other { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; padding: 4px 0; cursor: pointer; }
-  .other input { margin-top: 3px; }
+  .row { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin: 4px 0 8px; }
+  .count { font-size: 12px; color: var(--muted); }
+  .lines { list-style: none; margin: 0 0 10px; padding: 0; max-height: 420px; overflow-y: auto; border: 1px solid var(--outline); border-radius: 8px; }
+  .lines li { border-top: 1px solid var(--outline); }
+  .lines li:first-child { border-top: 0; }
+  .lines label { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; padding: 6px 10px; cursor: pointer; }
+  .lines input { margin-top: 3px; }
   .issue { color: var(--danger); font-size: 11px; text-transform: uppercase; }
+  .box-label { display: block; font-weight: 700; font-size: 13px; margin: 14px 0 4px; }
+  textarea { width: 100%; font-size: 13px; }
 </style>

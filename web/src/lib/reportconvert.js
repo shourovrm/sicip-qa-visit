@@ -7,6 +7,7 @@
 // - J graduate "Course / batch" text -> course; Employment ids renamed to v2's
 // - M key findings -> major findings; instructions + follow-up -> recommendations
 import { normalize } from './reporttemplate.js'
+import { findingLines } from './findingsbox.js'
 
 const NAME_WITH_DESIGNATION = /^(.*?)\s*\((.+)\)\s*$/
 const EMPLOYMENT_V1_TO_V2 = { same: 'employed', other: 'other_job', none: 'not_employed' }
@@ -105,7 +106,8 @@ export function revertSurpriseV2ToV1(v1, v2Data) {
     return merged
   })
 
-  const findings = (data.findings ?? []).map((f) => String(f.text ?? '').trim()).filter(Boolean)
+  // the Major findings box (or, before it existed, the picked list)
+  const findings = findingLines(null, data)
   if (findings.length) data.fields.key_findings = findings.join('\n')
   if (text(data.fields, 'recommendations')) data.fields.instructions_given = data.fields.recommendations
 

@@ -7,6 +7,7 @@ import surpriseV1 from '../../../shared/report-templates/surprise-v1.json'
 import surpriseV2 from '../../../shared/report-templates/surprise-v2.json'
 import qaV1 from '../../../shared/report-templates/qa-v1.json'
 import qaV2 from '../../../shared/report-templates/qa-v2.json'
+import { findingLines } from './findingsbox.js'
 
 // the `reports.type` DB column predates the QA template (check constraint 'surprise'|'monitoring'
 // -- see supabase/migrations/010_reports.sql) -- 'monitoring' is qa-v1's DB-side type, so a QA
@@ -295,9 +296,9 @@ function sectionProgress(section, data) {
       const ticked = new Set(data.flags ?? [])
       if (block.items.some((item) => ticked.has(item.id))) flagged = true
     } else if (block.type === 'findings') {
-      // one item: at least one major finding picked (remarks blocks count nothing)
+      // one item: at least one line in the Major findings box (remarks blocks count nothing)
       total += 1
-      if ((data.findings ?? []).some((f) => !isBlank(f.text))) answered += 1
+      if (findingLines(block, data).length > 0) answered += 1
     }
   }
 
@@ -392,7 +393,7 @@ export function sectionHasContent(section, data) {
     }
     if (block.type === 'flags' && block.items.some((i) => (data.flags ?? []).includes(i.id))) return true
     if (block.type === 'remarks' && !isBlank(data.remarks?.[block.key]?.text)) return true
-    if (block.type === 'findings' && (data.findings ?? []).length > 0) return true
+    if (block.type === 'findings' && findingLines(block, data).length > 0) return true
   }
   return false
 }

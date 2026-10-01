@@ -198,8 +198,8 @@ export function printedRemarkLines(template, section, remarksBlock, data) {
 
 const textLines = (value) => String(value ?? '').split('\n').map((l) => l.trim()).filter(Boolean)
 
-// every remarks line of the report, issues first (template order within each group), no repeats
-export function findingCandidates(template, data) {
+// every remarks line of the report in report order, no repeats (the findings checklist)
+export function reportLines(template, data) {
   const seen = new Set()
   const all = []
   for (const section of template.sections) {
@@ -212,6 +212,12 @@ export function findingCandidates(template, data) {
       }
     }
   }
+  return all
+}
+
+// the same lines, issues first (template order within each group) -- what the AI picks from
+export function findingCandidates(template, data) {
+  const all = reportLines(template, data)
   return [...all.filter((l) => l.neg), ...all.filter((l) => !l.neg)]
 }
 

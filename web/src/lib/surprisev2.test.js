@@ -95,6 +95,9 @@ describe('convertSurpriseV1ToV2', () => {
     expect(back.checks.registers_3.answer).toBe('no')
     expect(back.cards.attendance[0].trainers_present).toBe('2')
     expect(back.cards.graduate[0]).toMatchObject({ batch: 'Welding 05', course: '', confirmed: 'same' })
+    // the Major findings box wins over the old picked list
+    out.findingsText = 'Box finding one\nBox finding two'
+    expect(revertSurpriseV2ToV1(templateFor('surprise', 1), out).fields.key_findings).toBe('Box finding one\nBox finding two')
   })
 })
 
