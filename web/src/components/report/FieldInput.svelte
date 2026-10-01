@@ -6,7 +6,8 @@
   import { createEventDispatcher } from 'svelte'
   import AnswerSegmented from './AnswerSegmented.svelte'
   import ImproveWording from './ImproveWording.svelte'
-  import { mergeOptions } from '../../lib/suggest.js'
+  import SuggestList from '../SuggestList.svelte'
+  import { labelled, mergeLabelled, SOURCE_SECTION_A, sourceLabelFor } from '../../lib/suggestoptions.js'
 
   export let field
   export let value = ''
@@ -20,7 +21,10 @@
   const courseRefListId = `courseref-${Math.random().toString(36).slice(2, 9)}`
   $: hintListId = suggestions.length ? courseRefListId : undefined
   // a courseRef with its own suggest (L course) offers section A courses and TMS courses together
-  $: refChoices = suggestions.length ? mergeOptions(courseOptions, suggestions) : courseOptions
+  $: hintOptions = labelled(suggestions, sourceLabelFor(field.suggest))
+  $: refChoices = suggestions.length
+    ? mergeLabelled(labelled(courseOptions, SOURCE_SECTION_A), hintOptions)
+    : labelled(courseOptions, '')
 
   function onInput(event) {
     dispatch('change', event.target.value)
@@ -46,7 +50,7 @@
          its source course/batch card is edited or removed, instead of silently reverting to
          blank the way a <select> would if its selected option disappears -->
     <input type="text" list={courseRefListId} placeholder={field.placeholder ?? ''} {value} {disabled} on:input={onInput} />
-    <datalist id={courseRefListId}>{#each refChoices as opt}<option value={opt} />{/each}</datalist>
+    <SuggestList id={courseRefListId} options={refChoices} />
   {:else if field.kind === 'select' && field.options.length > 8}
     <!-- long list (e.g. 1.21 partner): type-to-filter + free text, mirrors android -->
     <input type="text" list={courseRefListId} {value} {disabled} on:input={onInput} />
@@ -70,7 +74,7 @@
     <input type="text" list={hintListId} placeholder={field.placeholder ?? ''} {value} {disabled} on:input={onInput} />
   {/if}
   {#if hintListId && field.kind !== 'courseRef'}
-    <datalist id={hintListId}>{#each suggestions as opt}<option value={opt} />{/each}</datalist>
+    <SuggestList id={hintListId} options={hintOptions} />
   {/if}
 </label>
 {#if field.kind === 'longtext' && field.rewrite}
