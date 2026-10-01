@@ -12,7 +12,11 @@ const catalog = buildCourseCatalog(
   [],
 )
 const hints = [{ name: 'Test Trainee One', mobile: '01700000001' }, { name: 'Test Trainee Two', mobile: '' }]
-const context = { catalog, trainees: new Map([['2218:7483', hints]]), equipment: ['Grinder', 'Pipe threader'] }
+const trainers = [
+  { name: 'Test Trainer Elsewhere', designation: '', courseIds: [], masterBatchIds: [], associateBatchIds: [] },
+  { name: 'Test Trainer Batch Four', designation: '', courseIds: [2218], masterBatchIds: [7483], associateBatchIds: [] },
+]
+const context = { catalog, trainees: new Map([['2218:7483', hints]]), trainers, equipment: ['Grinder', 'Pipe threader'] }
 
 describe('traineeBatchOf', () => {
   it('reads course + batch fields (L) or a courseRef "Course · N" (D)', () => {
@@ -28,6 +32,7 @@ describe('suggestionsFor', () => {
     expect(suggestionsFor({ suggest: 'tmsCourse' }, {}, context)).toEqual(['Plumbing and Pipe Fitting'])
     expect(suggestionsFor({ suggest: 'tmsBatch' }, { course: 'plumbing and pipe fitting' }, context)).toEqual(['4', '1'])
     expect(suggestionsFor({ suggest: 'tmsTrainee' }, { batch: 'Plumbing and Pipe Fitting · 4' }, context)).toEqual(['Test Trainee One', 'Test Trainee Two'])
+    expect(suggestionsFor({ suggest: 'tmsTrainer' }, { batch: 'Plumbing and Pipe Fitting · 4' }, context)).toEqual(['Test Trainer Batch Four', 'Test Trainer Elsewhere'])
     expect(suggestionsFor({ suggest: 'shared:equipment' }, {}, context)).toEqual(['Grinder', 'Pipe threader'])
   })
   it('gives nothing without TMS data or a suggest key', () => {

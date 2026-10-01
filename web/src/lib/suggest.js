@@ -1,7 +1,9 @@
 // field "suggest" -> the typing hints a report field offers. Suggestions never restrict input:
 // they only feed a datalist. Context = {catalog (tmscatalog.js) | null, trainees: Map of
-// "courseId:batchId" -> [{name, mobile}], equipment: [names]} -- all in memory only.
+// "courseId:batchId" -> [{name, mobile}], trainers: tmstrainers.js hints, equipment: [names]}
+// -- all in memory only.
 import { batchNumbersFor, courseBatchOfRef, findBatch } from './tmscatalog.js'
+import { trainersFor } from './tmstrainers.js'
 
 // the TMS batch a trainee field points at: the card's own course + batch (L graduate) or its
 // courseRef "Course · N" batch field (D identity)
@@ -22,6 +24,7 @@ export function suggestionsFor(field, card, context) {
   if (!context.catalog) return []
   if (kind === 'tmsCourse') return context.catalog.courseNames
   if (kind === 'tmsBatch') return batchNumbersFor(context.catalog, card?.course)
+  if (kind === 'tmsTrainer') return trainersFor(context.trainers, traineeBatchOf(card, context.catalog)).map((hint) => hint.name)
   if (kind === 'tmsTrainee') {
     const hints = context.trainees.get(traineeKey(traineeBatchOf(card, context.catalog))) ?? []
     return hints.map((hint) => hint.name)
