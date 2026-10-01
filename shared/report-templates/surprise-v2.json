@@ -57,7 +57,8 @@
       {
        "key": "address",
        "label": "Address and contact",
-       "kind": "longtext"
+       "kind": "longtext",
+       "tmsFill": "instituteAddress"
       },
       {
        "key": "visit_date",
@@ -265,12 +266,14 @@
       {
        "key": "enrolled_total",
        "label": "Enrolled, total",
-       "kind": "number"
+       "kind": "number",
+       "tmsFill": "batchEnrolled"
       },
       {
        "key": "enrolled_female",
        "label": "Enrolled, female",
-       "kind": "number"
+       "kind": "number",
+       "tmsFill": "batchEnrolledFemale"
       },
       {
        "key": "present_total",
@@ -291,15 +294,18 @@
       {
        "key": "tms_avg7",
        "label": "Average presence in last 7 days (TMS)",
-       "kind": "number"
+       "kind": "number",
+       "tmsFill": "batchAvg7"
       },
       {
        "key": "remarks",
        "label": "Remarks",
        "kind": "longtext",
-       "rewrite": true
+       "rewrite": true,
+       "tmsFill": "batchAvg7Note"
       }
-     ]
+     ],
+     "tmsRows": "runningBatches"
     },
     {
      "type": "cards",
@@ -381,7 +387,8 @@
       {
        "key": "name",
        "label": "Name",
-       "kind": "text"
+       "kind": "text",
+       "suggest": "tmsTrainer"
       },
       {
        "key": "designation",
@@ -1014,7 +1021,7 @@
       ]
      },
      "says": {
-      "text": "{course}[ batch-{batch}]: {trainees_interviewed} trainees interviewed[; technical question on {tech_topic}: {tech_result}][. Complaints or other feedback: {feedback}]"
+      "text": "{course}[ batch-{batch}]: technical question on {tech_topic}: {tech_result}[. Complaints or other feedback: {feedback}]"
      },
      "sayPrefix": "{course}[ batch-{batch}]: ",
      "fields": [
@@ -1027,12 +1034,6 @@
        "key": "batch",
        "label": "Batch no.",
        "kind": "text"
-      },
-      {
-       "key": "trainees_interviewed",
-       "label": "Trainees interviewed",
-       "kind": "number",
-       "required": true
       },
       {
        "key": "q1",
@@ -1474,7 +1475,16 @@
        "placeholder": "Job related to the trade? How long employed?"
       }
      ],
-     "newFrom": "firstCourse"
+     "newFrom": "firstCourse",
+     "formOrder": [
+      "course",
+      "batch",
+      "name",
+      "phone",
+      "call",
+      "confirmed",
+      "remarks"
+     ]
     },
     {
      "type": "remarks",
@@ -1632,7 +1642,9 @@
      "type": "findings",
      "key": "findings",
      "heading": "Major findings",
-     "note": "Tick the findings that matter most. AI pre-selects the major ones; edit or improve the wording of any of them."
+     "note": "Tick the points that matter most, then add them to Major findings. Edit the box freely: one finding per line.",
+     "boxKey": "findingsText",
+     "tickedKey": "findingsTicked"
     },
     {
      "type": "fields",

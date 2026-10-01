@@ -114,7 +114,8 @@ describe('surprise v2 prints', () => {
       expect(html).not.toContain('<span class="label">Remarks')
       expect(html).not.toContain('Officer:')
       expect(html).toContain('10:43 AM')
-      expect(html).toContain('Trainees interviewed')
+      expect(html).toContain('Classes run on all scheduled days and hours')
+      expect(html).not.toContain('Trainees interviewed') // field dropped 2026-10-02, old value ignored
       expect(html).not.toContain('Trainees get enough hands-on practice')
     })
   }
@@ -136,7 +137,8 @@ describe('layout v3 in Word', async () => {
       expect(xml.match(/<w:numPr>/g)?.length).toBe(4) // 2 findings + 2 recommendations
       expect(xml).toContain('10:43 AM')
       expect(xml).not.toContain('10:43:00')
-      expect(xml).toContain('Trainees interviewed') // answered by the welding batch
+      expect(xml).toContain('Classes run on all scheduled days and hours') // answered by the welding batch
+      expect(xml).not.toContain('Trainees interviewed') // field dropped 2026-10-02, old value ignored
       expect(xml).not.toContain('Trainees get enough hands-on practice') // q-row nobody answered
     })
   }

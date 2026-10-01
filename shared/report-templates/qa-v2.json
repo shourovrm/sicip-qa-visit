@@ -35,7 +35,8 @@
       {
        "key": "address",
        "label": "Address of Training Institute and Contact",
-       "kind": "longtext"
+       "kind": "longtext",
+       "tmsFill": "instituteAddress"
       },
       {
        "key": "date_from",
@@ -465,7 +466,8 @@
       {
        "key": "course",
        "label": "Training Course",
-       "kind": "text"
+       "kind": "text",
+       "tmsFill": "courseName"
       },
       {
        "key": "target",
@@ -475,7 +477,8 @@
       {
        "key": "duration",
        "label": "Duration",
-       "kind": "text"
+       "kind": "text",
+       "tmsFill": "courseDuration"
       },
       {
        "key": "batches",
@@ -485,9 +488,11 @@
       {
        "key": "batch_size",
        "label": "Batch Size",
-       "kind": "number"
+       "kind": "number",
+       "tmsFill": "courseBatchSize"
       }
-     ]
+     ],
+     "tmsRows": "courses"
     },
     {
      "type": "cards",
@@ -502,7 +507,8 @@
        "key": "course",
        "label": "Course Name",
        "kind": "courseRef",
-       "optionsFrom": "mou_courses"
+       "optionsFrom": "mou_courses",
+       "tmsFill": "courseName"
       },
       {
        "key": "target",
@@ -512,44 +518,53 @@
       {
        "key": "enrolled_t",
        "label": "Enrolled, T",
-       "kind": "number"
+       "kind": "number",
+       "tmsFill": "courseEnrolled"
       },
       {
        "key": "enrolled_f",
        "label": "Enrolled, F",
-       "kind": "number"
+       "kind": "number",
+       "tmsFill": "courseEnrolledFemale"
       },
       {
        "key": "certified_t",
        "label": "Certified, T",
-       "kind": "number"
+       "kind": "number",
+       "tmsFill": "courseCertified"
       },
       {
        "key": "certified_f",
        "label": "Certified, F",
-       "kind": "number"
+       "kind": "number",
+       "tmsFill": "courseCertifiedFemale"
       },
       {
        "key": "placed_t",
        "label": "Job Placed, T",
-       "kind": "number"
+       "kind": "number",
+       "tmsFill": "coursePlaced"
       },
       {
        "key": "placed_f",
        "label": "Job Placed, F",
-       "kind": "number"
+       "kind": "number",
+       "tmsFill": "coursePlacedFemale"
       },
       {
        "key": "dropout_t",
        "label": "No. of dropouts, T",
-       "kind": "number"
+       "kind": "number",
+       "tmsFill": "courseDropouts"
       },
       {
        "key": "dropout_f",
        "label": "No. of dropouts, F",
-       "kind": "number"
+       "kind": "number",
+       "tmsFill": "courseDropoutsFemale"
       }
-     ]
+     ],
+     "tmsRows": "courses"
     },
     {
      "type": "cards",
@@ -563,37 +578,44 @@
        "key": "course",
        "label": "Course Name",
        "kind": "courseRef",
-       "optionsFrom": "mou_courses"
+       "optionsFrom": "mou_courses",
+       "tmsFill": "batchCourse"
       },
       {
        "key": "batch",
        "label": "Batch No.",
-       "kind": "text"
+       "kind": "text",
+       "tmsFill": "batchNumber"
       },
       {
        "key": "start_end",
        "label": "Start and End Date",
-       "kind": "text"
+       "kind": "text",
+       "tmsFill": "batchStartEnd"
       },
       {
        "key": "enrolled",
        "label": "Total Number of Enrolled Trainees",
-       "kind": "number"
+       "kind": "number",
+       "tmsFill": "batchEnrolled"
       },
       {
        "key": "female",
        "label": "Number of Female Trainees",
-       "kind": "number"
+       "kind": "number",
+       "tmsFill": "batchEnrolledFemale"
       },
       {
        "key": "attendance_today",
        "label": "Attendance on Visit Date",
-       "kind": "number"
+       "kind": "number",
+       "tmsFill": "batchPresentToday"
       },
       {
        "key": "attendance_7day",
        "label": "Attendance (07-day average)",
-       "kind": "number"
+       "kind": "number",
+       "tmsFill": "batchAvg7"
       },
       {
        "key": "tms_mismatch",
@@ -605,22 +627,25 @@
        "label": "No. of Dropouts",
        "kind": "number"
       }
-     ]
+     ],
+     "tmsRows": "runningBatches"
     },
     {
      "type": "fields",
      "fields": [
       {
        "key": "dropout_reasons",
-       "label": "1.61 Please give major reasons for dropouts (one point per line)",
+       "label": "1.61 Please give major reasons for dropouts",
        "kind": "longtext",
-       "rewrite": true
+       "rewrite": true,
+       "placeholder": "One point per line"
       },
       {
        "key": "dropout_steps",
-       "label": "1.62 Steps taken by the TI management to mitigate dropouts (one point per line)",
+       "label": "1.62 Steps taken by the TI management to mitigate dropouts",
        "kind": "longtext",
-       "rewrite": true
+       "rewrite": true,
+       "placeholder": "One point per line"
       }
      ]
     }
@@ -3230,10 +3255,11 @@
      "fields": [
       {
        "key": "findings",
-       "label": "Major findings (one point per line)",
+       "label": "Major findings",
        "kind": "longtext",
        "rewrite": true,
-       "draftFrom": "weaknesses"
+       "draftFrom": "weaknesses",
+       "placeholder": "One point per line"
       }
      ]
     }
@@ -3251,10 +3277,11 @@
      "fields": [
       {
        "key": "recommendations",
-       "label": "Recommendations (one point per line)",
+       "label": "Recommendations",
        "kind": "longtext",
        "rewrite": true,
-       "draftFrom": "weaknessRecommendations"
+       "draftFrom": "weaknessRecommendations",
+       "placeholder": "One point per line"
       }
      ]
     }
