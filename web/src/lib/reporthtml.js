@@ -12,7 +12,7 @@
 // (countsAsFlags) flags as extra ticked rows.
 import {
   CELL_PADDING_CSS, CHECKLIST_COLUMNS, FLAGS_COLUMNS, INTERVIEW_NOTE_COLUMNS, INTERVIEW_TICK_COLUMNS, PAGE_MARGIN_CSS,
-  TICK_CHECKED, TICK_UNCHECKED, TONE_COLOR, answeredQuestionFields, columnWeight, footerTitle, isCentredField,
+  TICK_CHECKED, TICK_UNCHECKED, TONE_COLOR, answeredQuestionFields, cardsColumnLayout, footerTitle, isCentredField,
   cellOrDash, isStandardAnswerChoice, displayTime,
 } from './reportlayout.js'
 import * as reportTemplateModule from './reporttemplate.js'
@@ -139,11 +139,18 @@ export function fieldCellHtml(field, rawValue) {
   return `<td${isCentredField(field) ? ' class="c"' : ''}>${fieldCellContentHtml(field, rawValue)}</td>`
 }
 
-export function cardsColgroupHtml(fields) {
-  const weights = fields.map(columnWeight)
-  const total = weights.reduce((a, b) => a + b, 0)
-  return `<colgroup>${weights.map((w) => `<col style="width:${((w / total) * 100).toFixed(2)}%">`).join('')}</colgroup>`
+// <table> + <colgroup> of a cards table: widths that never break a word (reportlayout
+// cardsColumnLayout); a dense table gets the 8 pt header + narrow padding CSS
+export function cardsTableOpenHtml(fields, cards) {
+  const { percents, dense } = cardsColumnLayout(fields, cards)
+  const cols = percents.map((p) => `<col style="width:${p.toFixed(2)}%">`).join('')
+  return `<table class="cards-table${dense ? ' dense' : ''}"><colgroup>${cols}</colgroup>`
 }
+
+// dense cards tables: 8 pt header, 3 pt side padding (shared by the form and narrative CSS)
+export const DENSE_TABLE_CSS = `
+  table.dense th { font-size: 8pt; }
+  table.dense th, table.dense td { padding-left: 3pt; padding-right: 3pt; }`
 
 function fieldsBlockHtml(block, data) {
   return `<div class="details">${fieldsListHtml(block.fields, data.fields || {})}</div>`
@@ -230,7 +237,7 @@ function cardsBlockHtml(block, data) {
     const which = mismatchedRows.length === entries.length ? '' : ` (row${mismatchedRows.length > 1 ? 's' : ''} ${mismatchedRows.join(', ')})`
     warning = `<p class="mismatch-msg">${esc(block.compare.message)}${which}</p>`
   }
-  return `${heading}${note}<table class="cards-table">${cardsColgroupHtml(block.fields)}<thead><tr>${headerRow}</tr></thead><tbody>${rows}</tbody></table>${warning}`
+  return `${heading}${note}${cardsTableOpenHtml(block.fields, entries)}<thead><tr>${headerRow}</tr></thead><tbody>${rows}</tbody></table>${warning}`
 }
 
 // linked cards block with display:"tabs" (section I "interviews"): tabs are an editor-only
@@ -410,7 +417,7 @@ export function reportHtml(template, data, meta) {
     .filter((s) => !s.optional || sectionHasContent(s, normalizedData))
     .map((s) => sectionHtml(s, normalizedData, template, answerMap))
     .join('')
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(template.title)}</title><style>${pageCss(template)}\n${SIGNOFF_CSS}</style></head><body>` +
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(template.title)}</title><style>${pageCss(template)}\n${DENSE_TABLE_CSS}\n${SIGNOFF_CSS}</style></head><body>` +
     headerHtml(template) + sections + signoffHtml(normalizedData) +
     '</body></html>'
 }

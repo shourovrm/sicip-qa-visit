@@ -15,7 +15,7 @@ import { printedRemarks } from './remarks.js'
 import { feedbackGrid } from './feedbackgrid.js'
 import { signoffDocx } from './signoffdocx.js'
 import {
-  batchesTable, contractsTable, criteriaCardsTable, cumulativeTable, evidenceIndexTable, evidenceLines, headerRowsOf,
+  batchesTable, contractsTable, criteriaCardsTable, cumulativeTable, evidenceIndexTable, evidenceLines, fittedTable, headerRowsOf, strengthsLayout,
   mouCoursesTable, mouTable, officersLine, personsTable, planTable, registrationTable, withoutLineHint,
 } from './qatables.js'
 import * as reportTemplateModule from './reporttemplate.js'
@@ -196,11 +196,11 @@ function headerRowsDocx(table, widths) {
 
 // qatables.js {heading?, headers | headerRows, rows, weights?, note?, dense?} -> [heading?, table, note?];
 // null -> nothing. Tables without weights keep the old rule: narrow S.N./No. column, equal rest.
-function tableDocx(table, headingOverride) {
-  if (!table) return []
+function tableDocx(rawTable, headingOverride) {
+  if (!rawTable) return []
+  const table = fittedTable(rawTable)
   const heading = headingOverride ?? table.heading
-  const weights = table.weights ?? table.headers.map((h) => (h === 'S.N.' || h === 'No.' ? 7 : 20))
-  const widths = weightedWidths(CONTENT_WIDTH_TWIPS, weights)
+  const widths = weightedWidths(CONTENT_WIDTH_TWIPS, table.weights ?? table.headers.map(() => 1))
   const bodyRows = table.rows.map((row) => bodyTableRow(row.map((cell, i) => bodyCell(widths[i], [cellText(cell)]))))
   const note = table.note
     ? [new Paragraph({ spacing: { before: 40, after: 80 }, children: [run(table.note, { italics: true, size: SMALL_SIZE, color: NOTE_COLOR })] })]
@@ -316,14 +316,15 @@ function criteriaBlockDocx(block, data, template) {
 function feedbackDocx(block, data) {
   const entries = (data.cards && data.cards[block.key]) || []
   const { tables, comments } = feedbackGrid(block, entries)
-  const out = tables.map((table) => {
-    const respondentWeights = table.headers.slice(1).map(() => 13)
-    const widths = weightedWidths(CONTENT_WIDTH_TWIPS, [100 - 13 * respondentWeights.length, ...respondentWeights])
-    const headerRow = headerTableRow(table.headers.map((h, i) => headerCell(h, widths[i])))
+  const out = tables.map((grid) => {
+    const table = fittedTable({ ...grid, weights: [61, ...grid.headers.slice(1).map(() => 13)] })
+    const widths = weightedWidths(CONTENT_WIDTH_TWIPS, table.weights)
+    const headerSize = table.dense ? DENSE_HEADER_SIZE : SMALL_SIZE
+    const headerRow = headerTableRow(table.headers.map((h, i) => headerCell(h, widths[i], { size: headerSize })))
     const rows = table.rows.map((row) => bodyTableRow(
       row.map((value, i) => bodyCell(widths[i], [new Paragraph({ alignment: i === 0 ? AlignmentType.LEFT : AlignmentType.CENTER, children: [run(i === 0 ? value : cellOrDash(value), { size: TABLE_SIZE })] })])),
     ))
-    return fixedTable(widths, [headerRow, ...rows])
+    return fixedTable(widths, [headerRow, ...rows], table.dense ? DENSE_CELL_MARGINS_TWIPS : CELL_MARGINS_TWIPS)
   })
   if (comments.length) {
     out.push(subheadParagraph('Comments'))
@@ -336,15 +337,17 @@ function feedbackDocx(block, data) {
 
 function strengthsWeaknessesDocx(block, data) {
   const f = fieldsMap(data)
-  const widths = weightedWidths(CONTENT_WIDTH_TWIPS, [6, 24, 35, 35])
-  const headerRow = headerTableRow(['S.N.', 'Component', 'Strengths', 'Weakness'].map((t, i) => headerCell(t, widths[i])))
+  const layout = strengthsLayout(block, f)
+  const widths = weightedWidths(CONTENT_WIDTH_TWIPS, layout.weights)
+  const headerSize = layout.dense ? DENSE_HEADER_SIZE : SMALL_SIZE
+  const headerRow = headerTableRow(['S.N.', 'Component', 'Strengths', 'Weakness'].map((t, i) => headerCell(t, widths[i], { size: headerSize })))
   const rows = block.pairs.map((pair, i) => bodyTableRow([
     bodyCell(widths[0], [cellText(`${i + 1}.`)]),
     bodyCell(widths[1], [cellText(pair.component)]),
     bodyCell(widths[2], [cellMultiline(f[pair.strength], { size: TABLE_SIZE })]),
     bodyCell(widths[3], [cellMultiline(f[pair.weakness], { size: TABLE_SIZE })]),
   ]))
-  return [fixedTable(widths, [headerRow, ...rows])]
+  return [fixedTable(widths, [headerRow, ...rows], layout.dense ? DENSE_CELL_MARGINS_TWIPS : CELL_MARGINS_TWIPS)]
 }
 
 // ---- section 16: improvement plan, minimum 3 rows ----

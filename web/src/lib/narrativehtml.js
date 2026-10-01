@@ -3,7 +3,7 @@
 // (cards blocks). Checklists print nothing themselves -- their answers are the bullets.
 // Port target: android pdf/NarrativeHtml.kt; keep the two in lockstep.
 import {
-  cardsColgroupHtml, esc, fieldCellContentHtml, fieldCellHtml, fieldValueHtml, headerHtml, numberedListHtml, openPrintWindow, pageCss,
+  cardsTableOpenHtml, DENSE_TABLE_CSS, esc, fieldCellContentHtml, fieldCellHtml, fieldValueHtml, headerHtml, numberedListHtml, openPrintWindow, pageCss,
   remarkBulletsHtml, withNormalizedData,
 } from './reporthtml.js'
 import { answeredQuestionFields, narrativeColumns } from './reportlayout.js'
@@ -55,7 +55,7 @@ function cardsTableHtml(block, data) {
   const rows = cards.map((c) => `<tr>${columns.map((f) => fieldCellHtml(f, value(c, f.key))).join('')}</tr>`).join('')
   const heading = block.heading ? `<h3>${esc(block.heading)}</h3>` : ''
   const noteList = notes.length ? remarkBulletsHtml(notes.map((text) => ({ text, neg: false }))) : ''
-  return `${heading}<table class="cards-table">${cardsColgroupHtml(columns)}<thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>${noteList}`
+  return `${heading}${cardsTableOpenHtml(columns, cards)}<thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>${noteList}`
 }
 
 // interviews: questions down, courses across; a question nobody answered is left out, its
@@ -102,7 +102,7 @@ export function narrativeHtml(template, data, meta) {
     .filter((s) => !s.optional || sectionHasContent(s, normalized))
     .map((s) => `<h2><span class="letter">${esc(s.letter)}</span>${esc(s.title)}</h2>${s.blocks.map((b) => blockHtml(b, s, normalized, template)).join('')}`)
     .join('')
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(template.title)}</title><style>${pageCss(template)}\n${NARRATIVE_CSS}\n${SIGNOFF_CSS}</style></head><body>` +
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(template.title)}</title><style>${pageCss(template)}\n${NARRATIVE_CSS}\n${DENSE_TABLE_CSS}\n${SIGNOFF_CSS}</style></head><body>` +
     headerHtml(template) + sections + signoffHtml(normalized) + '</body></html>'
 }
 

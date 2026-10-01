@@ -96,3 +96,42 @@ describe('narrativeColumns', () => {
     expect(notes).toEqual([])
   })
 })
+
+describe('cardsColumnLayout (no mid-word breaks in table headers)', async () => {
+  const { cardsColumnLayout, minColumnPt, CONTENT_WIDTH_PT } = await import('./reportlayout.js')
+  const { templateFor } = await import('./reporttemplate.js')
+  const blocks = templateFor('surprise').sections.flatMap((s) => s.blocks)
+  const attendance = blocks.find((b) => b.key === 'attendance')
+  const graduate = blocks.find((b) => b.key === 'graduate')
+  const widthsPt = (layout) => layout.percents.map((p) => (p / 100) * CONTENT_WIDTH_PT)
+
+  it('C attendance: too wide at 9 pt, so the header drops to 8 pt and every column fits its longest word', () => {
+    const cards = [{ course: 'Electrical Installation and Maintenance', batch: '3', enrolled_total: '25', remarks: 'On September 22 and 23 the entries were not recorded.' }]
+    const layout = cardsColumnLayout(attendance.fields, cards)
+    expect(layout.dense).toBe(true)
+    expect(layout.percents.reduce((a, b) => a + b, 0)).toBeCloseTo(100, 5)
+    widthsPt(layout).forEach((width, i) => expect(width).toBeGreaterThanOrEqual(minColumnPt(attendance.fields[i], cards, true) - 0.01))
+  })
+
+  it('L graduate: Employment header and an 11-digit phone stay whole', () => {
+    const cards = [{ name: 'Test Graduate', course: 'EIM', batch: '2', phone: '01800000000', call: 'reached', confirmed: 'not_employed', remarks: 'Works elsewhere now.' }]
+    const layout = cardsColumnLayout(graduate.fields, cards)
+    widthsPt(layout).forEach((width, i) => expect(width).toBeGreaterThanOrEqual(minColumnPt(graduate.fields[i], cards, layout.dense) - 0.01))
+  })
+
+  it('a table that fits at 9 pt keeps its weights', () => {
+    const fields = [{ key: 'name', label: 'Name', kind: 'text' }, { key: 'designation', label: 'Designation', kind: 'text' }]
+    expect(cardsColumnLayout(fields, [{ name: 'A', designation: 'B' }])).toEqual({ percents: [50, 50], dense: false })
+  })
+})
+
+describe('tableColumnLayout (QA plain tables)', async () => {
+  const { tableColumnLayout, CONTENT_WIDTH_PT } = await import('./reportlayout.js')
+  it('widens a narrow S.N. column and feedback columns holding "Entrepreneurship"', () => {
+    const sn = tableColumnLayout(['S.N.', 'Component', 'Strengths', 'Weakness'], [['1.', 'Budgeting', 'Plans', 'None']], [6, 24, 35, 35])
+    expect((sn.percents[0] / 100) * CONTENT_WIDTH_PT).toBeGreaterThanOrEqual(4 * 0.6 * 9 + 13 - 0.01)
+    const trade = 'Food and Beverage Production and Entrepreneurship Development'
+    const feedback = tableColumnLayout(['Question', 'Trainee 1', 'Trainee 2', 'Trainee 3'], [['Trade', trade, trade, trade]], [61, 13, 13, 13])
+    feedback.percents.slice(1).forEach((p) => expect((p / 100) * CONTENT_WIDTH_PT).toBeGreaterThanOrEqual(16 * 0.56 * 9 + 7))
+  })
+})

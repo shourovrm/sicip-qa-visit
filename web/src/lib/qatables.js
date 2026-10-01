@@ -8,6 +8,24 @@
 // header, see headerRowsOf), `note` (printed under it) and `dense` (8 pt headers for 9+ columns).
 import { attachmentName, criteriaPath, evidenceLabel, itemEvidence, usedEvidence } from './evidence.js'
 import { visitingOfficers } from './signoff.js'
+import { tableColumnLayout } from './reportlayout.js'
+
+const defaultWeight = (header) => (header === 'S.N.' || header === 'No.' ? 7 : 20)
+
+// section 13 S.N. | Component | Strengths | Weakness widths ({weights, dense})
+export function strengthsLayout(block, fields) {
+  const rows = block.pairs.map((pair, i) => [`${i + 1}.`, pair.component, text(fields[pair.strength]), text(fields[pair.weakness])])
+  return fittedTable({ headers: ['S.N.', 'Component', 'Strengths', 'Weakness'], rows, weights: [6, 24, 35, 35] })
+}
+
+// a one-header-row table with widths that never break a word (reportlayout columnLayout):
+// weights become percents and a crowded table turns dense. Two-level headers keep their
+// hand-set weights.
+export function fittedTable(table) {
+  if (!table || table.headerRows) return table
+  const layout = tableColumnLayout(table.headers, table.rows, table.weights ?? table.headers.map(defaultWeight))
+  return { ...table, weights: layout.percents, dense: Boolean(table.dense) || layout.dense }
+}
 
 const text = (value) => String(value ?? '').trim()
 const cardsOf = (data, key) => data.cards?.[key] ?? []

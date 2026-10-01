@@ -19,7 +19,7 @@ import {
 } from 'docx'
 import {
   CELL_MARGINS_TWIPS, CHECKLIST_COLUMNS, CONTENT_WIDTH_TWIPS, FLAGS_COLUMNS, INTERVIEW_NOTE_COLUMNS, INTERVIEW_TICK_COLUMNS,
-  TICK_CHECKED, TICK_UNCHECKED, TONE_COLOR, answeredQuestionFields, columnWeight, footerTitle, isCentredField,
+  TICK_CHECKED, TICK_UNCHECKED, TONE_COLOR, answeredQuestionFields, cardsColumnLayout, DENSE_CELL_MARGINS_TWIPS, DENSE_HEADER_HALF_POINTS, footerTitle, isCentredField,
   cellOrDash, isStandardAnswerChoice, weightedWidths,
   displayTime,
 } from './reportlayout.js'
@@ -95,13 +95,13 @@ const TABLE_BORDERS = {
 // content instead of respecting the per-cell widths below, which is what caused the CHANGE SET 2
 // bug report (Item column ~10% wide, tick columns huge): the per-cell widths were being computed
 // correctly but silently ignored at render time.
-export function fixedTable(widths, rows) {
+export function fixedTable(widths, rows, margins = CELL_MARGINS_TWIPS) {
   return new Table({
     width: { size: CONTENT_WIDTH_TWIPS, type: WidthType.DXA },
     columnWidths: widths,
     layout: TableLayoutType.FIXED,
     borders: TABLE_BORDERS,
-    margins: CELL_MARGINS_TWIPS,
+    margins,
     rows,
   })
 }
@@ -166,13 +166,24 @@ export function fieldValueRuns(field, rawValue, size = BODY_SIZE) {
   return [run(opt ? opt.label : String(rawValue), { size, bold: true, color: opt ? TONE_COLOR[opt.tone] : undefined })]
 }
 
-export function headerCellDxa(text, widthTwips) {
+export function headerCellDxa(text, widthTwips, size = TABLE_SIZE) {
   return new TableCell({
     width: { size: widthTwips, type: WidthType.DXA },
     borders: CELL_BORDERS,
     shading: { type: ShadingType.CLEAR, fill: HEADER_FILL },
-    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [cellRun(text, { bold: true })] })],
+    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [cellRun(text, { bold: true, size })] })],
   })
+}
+
+// a cards table whose columns never break a word (reportlayout cardsColumnLayout): widths in
+// twips, header text size and cell margins (8 pt header + narrow padding when dense)
+export function cardsTableGeometry(fields, cards) {
+  const { percents, dense } = cardsColumnLayout(fields, cards)
+  return {
+    widths: weightedWidths(CONTENT_WIDTH_TWIPS, percents),
+    headerSize: dense ? DENSE_HEADER_HALF_POINTS : TABLE_SIZE,
+    margins: dense ? DENSE_CELL_MARGINS_TWIPS : CELL_MARGINS_TWIPS,
+  }
 }
 
 export function bodyCellDxa(widthTwips, paragraphs) {
@@ -351,14 +362,14 @@ function cardsBlockDocx(block, data) {
     out.push(new Paragraph({ children: [run('No entries.', { italics: true, color: GRAY })] }))
     return out
   }
-  const widths = weightedWidths(CONTENT_WIDTH_TWIPS, block.fields.map(columnWeight))
-  const headerRow = headerTableRow(block.fields.map((f, i) => headerCellDxa(f.label, widths[i])))
+  const { widths, headerSize, margins } = cardsTableGeometry(block.fields, entries)
+  const headerRow = headerTableRow(block.fields.map((f, i) => headerCellDxa(f.label, widths[i], headerSize)))
   const mismatchedRows = []
   const rows = entries.map((entry, i) => {
     if (cardMismatch(block.compare, entry)) mismatchedRows.push(i + 1)
     return bodyTableRow(block.fields.map((f, i2) => bodyCellDxa(widths[i2], [fieldValueParagraph(f, entry[f.key])])))
   })
-  out.push(fixedTable(widths, [headerRow, ...rows]))
+  out.push(fixedTable(widths, [headerRow, ...rows], margins))
   if (mismatchedRows.length > 0 && block.compare) {
     const which = mismatchedRows.length === entries.length ? '' : ` (row${mismatchedRows.length > 1 ? 's' : ''} ${mismatchedRows.join(', ')})`
     out.push(new Paragraph({ children: [run(`${block.compare.message}${which}`, { bold: true, color: TONE_COLOR.no })] }))

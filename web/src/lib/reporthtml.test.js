@@ -136,8 +136,8 @@ it('cards block renders one table per block, one row per card, and flags compare
   }
   const html = reportHtml(template, data, meta)
   const cSection = html.slice(html.indexOf('>C<'), html.indexOf('>D<'))
-  expect((cSection.match(/<table class="cards-table">/g) || []).length).toBe(1) // one table for the whole block
-  const cardsTable = cSection.slice(cSection.indexOf('<table class="cards-table">'), cSection.indexOf('</table>') + '</table>'.length)
+  expect((cSection.match(/<table class="cards-table[ "]/g) || []).length).toBe(1) // one table for the whole block
+  const cardsTable = cSection.slice(cSection.indexOf('<table class="cards-table'), cSection.indexOf('</table>') + '</table>'.length)
   const tbody = cardsTable.slice(cardsTable.indexOf('<tbody>'))
   expect((tbody.match(/<tr>/g) || []).length).toBe(2) // one row per card (2 cards), not one table per card
   expect(cardsTable).toContain('Welding (SMAW)')

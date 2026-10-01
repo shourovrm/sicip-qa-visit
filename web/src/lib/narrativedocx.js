@@ -3,10 +3,10 @@
 // and footer come from reportdocx.js (packDocx/headerParagraphs) so both Word files match.
 import { Paragraph } from 'docx'
 import {
-  CONTENT_WIDTH_TWIPS, answeredQuestionFields, columnWeight, footerTitle, narrativeColumns, weightedWidths,
+  CONTENT_WIDTH_TWIPS, answeredQuestionFields, footerTitle, narrativeColumns, weightedWidths,
 } from './reportlayout.js'
 import {
-  bodyCellDxa, bodyTableRow, bulletParagraphs, cellParagraph, cellRun, fieldValueParagraph, fieldValueRuns, fixedTable, headerCellDxa,
+  bodyCellDxa, bodyTableRow, bulletParagraphs, cardsTableGeometry, cellParagraph, cellRun, fieldValueParagraph, fieldValueRuns, fixedTable, headerCellDxa,
   headerParagraphs, headerTableRow, numberedListParagraphs, packDocx, reportFilename, run, saveDocx, sectionHeadingParagraph,
   subheadParagraph, withNormalizedData,
 } from './reportdocx.js'
@@ -57,7 +57,10 @@ function cardsDocx(block, data) {
   const { columns, notes } = narrativeColumns(block, cards)
   if (columns.length === 0) return []
   const out = block.heading ? [subheadParagraph(block.heading)] : []
-  out.push(table(columns.map((f) => f.label), cards.map((c) => columns.map((f) => fieldValueParagraph(f, value(c, f.key)))), columns.map(columnWeight)))
+  const { widths, headerSize, margins } = cardsTableGeometry(columns, cards)
+  const head = headerTableRow(columns.map((f, i) => headerCellDxa(f.label, widths[i], headerSize)))
+  const body = cards.map((c) => bodyTableRow(columns.map((f, i) => bodyCellDxa(widths[i], [fieldValueParagraph(f, value(c, f.key))]))))
+  out.push(fixedTable(widths, [head, ...body], margins))
   out.push(...bulletParagraphs(notes.map((text) => ({ text, neg: false }))))
   return out
 }

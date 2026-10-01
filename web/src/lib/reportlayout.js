@@ -175,3 +175,79 @@ export function narrativeColumns(block, cards) {
   }
   return { columns: used.filter((f) => f.kind !== 'longtext'), notes }
 }
+
+// ---- cards table column widths that never break a word (2026-10-02) ----
+// Word and the browser break a word that is wider than its column ("Enrolle d"). Each column
+// gets at least the width of its longest header word and its longest short value token; a
+// table that cannot fit that at the 9 pt header drops the header to 8 pt with 3 pt side
+// padding (`dense`). Widths are estimated from average Arial glyph widths (em fractions).
+export const CONTENT_WIDTH_PT = CONTENT_WIDTH_TWIPS / 20
+const BOLD_EM = 0.6
+const REGULAR_EM = 0.56
+const BODY_PT = 9
+const MAX_TOKEN_CHARS = 18 // "Entrepreneurship" fits; anything longer may still wrap
+const PADDING_PT = { normal: 6, dense: 3 }
+const HEADER_PT = { normal: 9, dense: 8 }
+
+const longestWord = (text) => String(text ?? '').split(/\s+/).reduce((max, word) => Math.max(max, word.length), 0)
+
+function printedText(field, value) {
+  if (field.kind === 'choice') return field.options?.find((o) => o.id === value)?.label ?? String(value ?? '')
+  return String(value ?? '')
+}
+
+// the narrowest a column may be, in pt: its longest header word or body word
+function minTextPt(label, texts, dense) {
+  const headerPt = dense ? HEADER_PT.dense : HEADER_PT.normal
+  const padding = dense ? PADDING_PT.dense : PADDING_PT.normal
+  const header = longestWord(label) * BOLD_EM * headerPt
+  const bodyChars = Math.min(MAX_TOKEN_CHARS, Math.max(1, ...texts.map(longestWord)))
+  return Math.max(header, bodyChars * REGULAR_EM * BODY_PT) + 2 * padding + 1
+}
+
+export function minColumnPt(field, cards, dense) {
+  return minTextPt(field.label, (cards ?? []).map((card) => printedText(field, card?.[field.key])), dense)
+}
+
+// weights -> pt widths where no column is under its minimum; null when the minimums don't fit
+function fitWidths(minimums, weights, total) {
+  if (minimums.reduce((a, b) => a + b, 0) > total) return null
+  const pinned = new Set()
+  for (;;) {
+    const free = total - [...pinned].reduce((sum, i) => sum + minimums[i], 0)
+    const weightSum = weights.reduce((sum, w, i) => (pinned.has(i) ? sum : sum + w), 0)
+    const widths = weights.map((w, i) => (pinned.has(i) ? minimums[i] : (w / weightSum) * free))
+    const short = widths.map((w, i) => i).filter((i) => !pinned.has(i) && widths[i] < minimums[i])
+    if (short.length === 0) return widths
+    short.forEach((i) => pinned.add(i))
+  }
+}
+
+// columns = [{label, texts (printed cell strings), weight}] -> {percents (of the content width,
+// sum 100), dense}
+export function columnLayout(columns) {
+  const weights = columns.map((c) => c.weight)
+  for (const dense of [false, true]) {
+    const widths = fitWidths(columns.map((c) => minTextPt(c.label, c.texts, dense)), weights, CONTENT_WIDTH_PT)
+    if (widths) return { percents: widths.map((w) => (w / CONTENT_WIDTH_PT) * 100), dense }
+  }
+  const total = weights.reduce((a, b) => a + b, 0)
+  return { percents: weights.map((w) => (w / total) * 100), dense: true }
+}
+
+export function cardsColumnLayout(fields, cards) {
+  return columnLayout(fields.map((field) => ({
+    label: field.label,
+    texts: (cards ?? []).map((card) => printedText(field, card?.[field.key])),
+    weight: columnWeight(field),
+  })))
+}
+
+// a plain {headers, rows} table (QA prints): headers + string rows + starting weights
+export function tableColumnLayout(headers, rows, weights) {
+  return columnLayout(headers.map((label, i) => ({ label, texts: rows.map((row) => String(row[i] ?? '')), weight: weights[i] })))
+}
+
+// Word: dense tables use 3 pt side padding; dense header text is 8 pt (half-points 16)
+export const DENSE_CELL_MARGINS_TWIPS = { top: 80, bottom: 80, left: 60, right: 60 }
+export const DENSE_HEADER_HALF_POINTS = 16

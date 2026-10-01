@@ -11,7 +11,7 @@ import { feedbackGrid } from './feedbackgrid.js'
 import { SIGNOFF_CSS, signoffHtml } from './signoff.js'
 import { CELL_PADDING_CSS, PAGE_MARGIN_CSS, cellOrDash, footerTitle, isShortValue } from './reportlayout.js'
 import {
-  batchesTable, contractsTable, criteriaCardsTable, cumulativeTable, evidenceIndexTable, evidenceLines, headerRowsOf,
+  batchesTable, contractsTable, criteriaCardsTable, cumulativeTable, evidenceIndexTable, evidenceLines, fittedTable, headerRowsOf, strengthsLayout,
   mouCoursesTable, mouTable, officersLine, personsTable, planTable, registrationTable, withoutLineHint,
 } from './qatables.js'
 
@@ -95,8 +95,9 @@ function colgroupHtml(weights) {
 
 // qatables.js {heading?, headers | headerRows, rows, weights?, note?, dense?} -> a grid table with
 // its header rows in <thead> (repeats on every page); null -> nothing
-function tableHtml(table, headingOverride) {
-  if (!table) return ''
+function tableHtml(rawTable, headingOverride) {
+  if (!rawTable) return ''
+  const table = fittedTable(rawTable)
   const heading = headingOverride ?? table.heading
   const head = headerRowsOf(table).map((cells) => `<tr>${cells.map(headerCellHtml).join('')}</tr>`).join('')
   const body = table.rows.map((row) => `<tr>${row.map(cellHtml).join('')}</tr>`).join('')
@@ -217,10 +218,11 @@ function criteriaBlockHtml(block, data, template) {
 function feedbackTableHtml(block, data) {
   const entries = (data.cards && data.cards[block.key]) || []
   const { tables, comments } = feedbackGrid(block, entries)
-  const tablesHtml = tables.map((table) => {
+  const tablesHtml = tables.map((grid) => {
+    const table = fittedTable({ ...grid, weights: [61, ...grid.headers.slice(1).map(() => 13)] })
     const header = `<tr>${table.headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>`
     const body = table.rows.map((row) => `<tr><td>${esc(row[0])}</td>${row.slice(1).map((v) => `<td class="c">${esc(cellOrDash(v))}</td>`).join('')}</tr>`).join('')
-    return `<table class="grid"><thead>${header}</thead><tbody>${body}</tbody></table>`
+    return `<table class="grid fixed${table.dense ? ' dense' : ''}">${colgroupHtml(table.weights)}<thead>${header}</thead><tbody>${body}</tbody></table>`
   }).join('')
   const commentsHtml = comments.length ? `<div class="sub-h">Comments</div><ul>${comments.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : ''
   return `${tablesHtml}${commentsHtml}`
@@ -232,7 +234,8 @@ function strengthsWeaknessesHtml(block, data) {
   const rows = block.pairs.map((pair, i) =>
     `<tr><td>${i + 1}.</td><td>${esc(pair.component)}</td><td>${escMultiline(cellOrDash(f[pair.strength]))}</td><td>${escMultiline(cellOrDash(f[pair.weakness]))}</td></tr>`,
   ).join('')
-  return `<table class="grid"><thead><tr><th>S.N.</th><th>Component</th><th>Strengths</th><th>Weakness</th></tr></thead><tbody>${rows}</tbody></table>`
+  const layout = strengthsLayout(block, f)
+  return `<table class="grid fixed${layout.dense ? ' dense' : ''}">${colgroupHtml(layout.weights)}<thead><tr><th>S.N.</th><th>Component</th><th>Strengths</th><th>Weakness</th></tr></thead><tbody>${rows}</tbody></table>`
 }
 
 // ---- section 16: improvement plan ----
@@ -311,7 +314,7 @@ const CSS = `
   thead { display: table-header-group; }
   tr { break-inside: avoid; page-break-inside: avoid; }
   table.grid th { font-weight: 700; text-align: center; background: #eee; }
-  table.grid td.c { text-align: center; width: 13%; }
+  table.grid td.c { text-align: center; }
   table.criteria th { text-align: left; }
   table.criteria .heading-row td { font-weight: 700; background: #f4f4f4; }
   table.criteria td.rm ul { margin: 0; padding-left: 14pt; }
