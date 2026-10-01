@@ -19,7 +19,7 @@ class TmsSnapshotInput(
 
 // TMS course_name is often abbreviated ("Beautification and ED"); the master list holds the
 // full name. the alias is not always fuller ("Welding" vs "Advanced Welding"), so keep the longer.
-private fun displayName(shortName: String, aliasName: String?): String =
+internal fun fullCourseName(shortName: String, aliasName: String?): String =
     if (aliasName != null && aliasName.length > shortName.length) aliasName else shortName
 
 // present trainees in one day's report; null = no rows (no class that day).
@@ -51,7 +51,7 @@ private fun JsonObject.toBatchRow() = BatchRow(
     hours = this["total_training_hours"].lenientInt(),
 )
 
-private fun parseDate(text: String): LocalDate? = runCatching { LocalDate.parse(text.take(10)) }.getOrNull()
+internal fun parseDate(text: String): LocalDate? = runCatching { LocalDate.parse(text.take(10)) }.getOrNull()
 
 // (course id, batch id, date) -> present count, null when the day has no rows.
 typealias TmsPresentOn = suspend (Long, Long, LocalDate) -> Int?
@@ -76,7 +76,7 @@ suspend fun buildTmsSnapshot(
 
     val aliasNames = input.aliases.map { it.objectOrEmpty() }
         .associate { it["id"].lenientLong() to it["name"].lenientText() }
-    fun fullNameOf(courseRow: JsonObject) = displayName(
+    fun fullNameOf(courseRow: JsonObject) = fullCourseName(
         courseRow["course_name"].lenientText(),
         aliasNames[courseRow["x_course_name_id"].lenientLong()],
     )
