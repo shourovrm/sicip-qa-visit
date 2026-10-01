@@ -48,12 +48,20 @@ it('document.xml contains the institute name from data.fields', async () => {
   expect(xml).toContain('Bangladesh-Korea TTC, Mirpur')
 })
 
-it('document.xml carries the report title, program, and officer', async () => {
+it('document.xml carries the report title and program, no subtitle or officer/status line', async () => {
   const blob = await buildReportDocx(template, fixture.data, meta)
   const xml = await documentXml(blob)
   expect(xml).toContain(template.title)
   expect(xml).toContain(template.program)
-  expect(xml).toContain('Mahfuzul Islam')
+  expect(xml).not.toContain('Mahfuzul Islam')
+  expect(xml).not.toContain('Status: Draft')
+  expect(xml).not.toContain(template.subtitle)
+})
+
+it('A4 with 1 in top/bottom and 0.75 in side margins, padded cells', async () => {
+  const xml = await documentXml(await buildReportDocx(template, fixture.data, meta))
+  expect(xml).toMatch(/<w:pgMar w:top="1440" w:right="1080" w:bottom="1440" w:left="1080"/)
+  expect(xml).toContain('<w:tblCellMar><w:top w:type="dxa" w:w="80"/>')
 })
 
 it('escapes xml-significant characters in user text', async () => {
@@ -184,7 +192,8 @@ it('footer carries "Page x of y" fields', async () => {
   const footerFile = Object.keys(zip.files).find((name) => /word\/footer\d*\.xml/.test(name))
   expect(footerFile).toBeTruthy()
   const footerXml = await zip.file(footerFile).async('string')
-  expect(footerXml).toContain('SICIP Surprise Visit Report')
+  expect(footerXml).toContain('Surprise Visit Report')
+  expect(footerXml).not.toContain('SICIP')
   expect(footerXml).toContain('PAGE')
   expect(footerXml).toContain('NUMPAGES')
 })

@@ -101,6 +101,7 @@ describe('convertSurpriseV1ToV2', () => {
 describe('surprise v2 prints', () => {
   const data = { ...structuredClone(fixture.data), findings: [{ src: '', text: 'Low attendance in EIM 03' }] }
   data.fields.recommendations = 'The institute should fix it.'
+  data.fields.arrival_time = '10:43:00'
   const meta = { officerName: 'Officer', status: 'draft' }
   for (const [name, build] of [['form', reportHtml], ['narrative', narrativeHtml]]) {
     it(`${name}: remarks as bullets, findings numbered, no legend or gap warning`, () => {
@@ -110,6 +111,33 @@ describe('surprise v2 prints', () => {
       expect(html).toContain('<li>The institute should fix it.</li>')
       expect(html).not.toContain('Training Management System')
       expect(html).not.toContain('Headcount is far below')
+      expect(html).not.toContain('<span class="label">Remarks')
+      expect(html).not.toContain('Officer:')
+      expect(html).toContain('10:43 AM')
+      expect(html).toContain('Trainees interviewed')
+      expect(html).not.toContain('Trainees get enough hands-on practice')
+    })
+  }
+})
+
+describe('layout v3 in Word', async () => {
+  const JSZip = (await import('jszip')).default
+  const { buildReportDocx } = await import('./reportdocx.js')
+  const { buildNarrativeDocx } = await import('./narrativedocx.js')
+  const documentXml = async (blob) => (await JSZip.loadAsync(await blob.arrayBuffer())).file('word/document.xml').async('string')
+  const data = structuredClone(fixture.data)
+  data.findings = [{ src: '', text: 'Finding one' }, { src: '', text: 'Finding two' }]
+  data.fields.recommendations = 'Fix the register.\nHire a trainer.'
+  data.fields.arrival_time = '10:43:00'
+  const meta = { officerName: 'Officer', status: 'draft' }
+  for (const [name, build] of [['form', buildReportDocx], ['narrative', buildNarrativeDocx]]) {
+    it(`${name}: real numbered lists, h:mm AM/PM, unanswered K rows left out`, async () => {
+      const xml = await documentXml(await build(v2, data, meta))
+      expect(xml.match(/<w:numPr>/g)?.length).toBe(4) // 2 findings + 2 recommendations
+      expect(xml).toContain('10:43 AM')
+      expect(xml).not.toContain('10:43:00')
+      expect(xml).toContain('Trainees interviewed') // answered by the welding batch
+      expect(xml).not.toContain('Trainees get enough hands-on practice') // q-row nobody answered
     })
   }
 })

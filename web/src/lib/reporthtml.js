@@ -11,9 +11,9 @@
 // with one row per card; flags always list every fixed item (ticked or not) plus any custom
 // (countsAsFlags) flags as extra ticked rows.
 import {
-  CHECKLIST_COLUMNS, FLAGS_COLUMNS, INTERVIEW_NOTE_COLUMNS, INTERVIEW_TICK_COLUMNS, TICK_CHECKED, TICK_UNCHECKED,
-  TONE_COLOR, isStandardAnswerChoice,
-  displayTime,
+  CELL_PADDING_CSS, CHECKLIST_COLUMNS, FLAGS_COLUMNS, INTERVIEW_NOTE_COLUMNS, INTERVIEW_TICK_COLUMNS, PAGE_MARGIN_CSS,
+  TICK_CHECKED, TICK_UNCHECKED, TONE_COLOR, answeredQuestionFields, columnWeight, footerTitle, isCentredField,
+  isStandardAnswerChoice, displayTime,
 } from './reportlayout.js'
 import * as reportTemplateModule from './reporttemplate.js'
 import { compareMismatch, sectionHasContent } from './reporttemplate.js'
@@ -123,10 +123,21 @@ export function remarkBulletsHtml(lines) {
   return `<ul class="bul">${lines.map((l) => `<li${l.neg ? ' class="neg"' : ''}>${esc(l.text)}</li>`).join('')}</ul>`
 }
 
-function remarksBoxHtml(block, section, data, template) {
+// bullets straight after the table, no "Remarks" label (layout v3)
+function remarksHtml(block, section, data, template) {
   const lines = printedRemarkLines(template, section, block, data)
-  if (lines.length === 0) return ''
-  return `<div class="remark-box"><span class="label">${esc(block.heading ?? 'Remarks')}</span>${remarkBulletsHtml(lines)}</div>`
+  return lines.length ? remarkBulletsHtml(lines) : ''
+}
+
+// a table cell for one field value, centred for counts / batch no. / short answers
+export function fieldCellHtml(field, rawValue) {
+  return `<td${isCentredField(field) ? ' class="c"' : ''}>${fieldValueHtml(field, rawValue)}</td>`
+}
+
+export function cardsColgroupHtml(fields) {
+  const weights = fields.map(columnWeight)
+  const total = weights.reduce((a, b) => a + b, 0)
+  return `<colgroup>${weights.map((w) => `<col style="width:${((w / total) * 100).toFixed(2)}%">`).join('')}</colgroup>`
 }
 
 function fieldsBlockHtml(block, data) {
@@ -206,7 +217,7 @@ function cardsBlockHtml(block, data) {
   const rows = entries
     .map((entry, i) => {
       if (cardMismatch(block.compare, entry)) mismatchedRows.push(i + 1)
-      return `<tr>${block.fields.map((f) => `<td>${fieldValueHtml(f, entry[f.key])}</td>`).join('')}</tr>`
+      return `<tr>${block.fields.map((f) => fieldCellHtml(f, entry[f.key])).join('')}</tr>`
     })
     .join('')
   let warning = ''
@@ -214,7 +225,7 @@ function cardsBlockHtml(block, data) {
     const which = mismatchedRows.length === entries.length ? '' : ` (row${mismatchedRows.length > 1 ? 's' : ''} ${mismatchedRows.join(', ')})`
     warning = `<p class="mismatch-msg">${esc(block.compare.message)}${which}</p>`
   }
-  return `${heading}${note}<table class="cards-table"><thead><tr>${headerRow}</tr></thead><tbody>${rows}</tbody></table>${warning}`
+  return `${heading}${note}<table class="cards-table">${cardsColgroupHtml(block.fields)}<thead><tr>${headerRow}</tr></thead><tbody>${rows}</tbody></table>${warning}`
 }
 
 // linked cards block with display:"tabs" (section I "interviews"): tabs are an editor-only
@@ -225,11 +236,11 @@ function cardsBlockHtml(block, data) {
 function tabsCardsBlockHtml(block, data, template, answerMap) {
   const entries = (data.cards && data.cards[block.key]) || []
   if (entries.length === 0) return '<p class="empty">Add courses in section A.</p>'
-  const linkedKeys = new Set((block.linkFrom && block.linkFrom.fields) || [])
-  const tickFields = block.fields.filter((f) => !linkedKeys.has(f.key) && isStandardAnswerChoice(f, template))
-  const tickFieldKeys = new Set(tickFields.map((f) => f.key))
+  // a question nobody answered for any course is left out
+  const questionFields = answeredQuestionFields(block, entries)
+  const tickFields = questionFields.filter((f) => isStandardAnswerChoice(f, template))
   const noteFields = block.fields.filter((f) => f.noteFor)
-  const otherFields = block.fields.filter((f) => !linkedKeys.has(f.key) && !tickFieldKeys.has(f.key) && !f.noteFor)
+  const otherFields = questionFields.filter((f) => !isStandardAnswerChoice(f, template))
   const answerIds = template.answers.map((a) => a.id)
   const columns = noteFields.length ? INTERVIEW_NOTE_COLUMNS : INTERVIEW_TICK_COLUMNS
   return entries
@@ -284,7 +295,7 @@ function blockHtml(block, section, data, template, answerMap) {
   if (block.type === 'fields') return fieldsBlockHtml(block, data)
   if (block.type === 'checklist') return checklistBlockHtml(block, data, template, answerMap)
   if (block.type === 'cards') return block.display === 'tabs' ? tabsCardsBlockHtml(block, data, template, answerMap) : cardsBlockHtml(block, data)
-  if (block.type === 'remarks') return remarksBoxHtml(block, section, data, template)
+  if (block.type === 'remarks') return remarksHtml(block, section, data, template)
   if (block.type === 'findings') return numberedListHtml(block.heading ?? 'Major findings', (data.findings ?? []).map((f) => f.text))
   return '' // unknown block type (flags/countsAsFlags cards handled in sectionHtml) -- ignore
 }
@@ -307,84 +318,69 @@ function sectionHtml(section, data, template, answerMap) {
   return `<section><h2><span class="letter">${esc(section.letter)}</span>${esc(section.title)}${optionalTag}${note}</h2>${blocks}</section>`
 }
 
-function statusLabel(status) {
-  return status === 'submitted' ? 'Submitted' : 'Draft'
+// program line + title over a rule; no subtitle and no officer/status line (layout v3)
+export function headerHtml(template) {
+  return `<header><div class="program">${esc(template.program)}</div><h1>${esc(template.title)}</h1></header>`
 }
 
-function metaHtml(meta) {
-  const status = statusLabel(meta.status)
-  const submitted = meta.status === 'submitted' && !blank(meta.submittedAt) ? ` &middot; submitted ${esc(meta.submittedAt)}` : ''
-  return `<div class="meta">Officer: ${esc(meta.officerName)} &middot; ${status}${submitted}</div>`
-}
-
-export function headerHtml(template, meta) {
-  return `<header>
-    <div>
-      <div class="program">${esc(template.program)}</div>
-      <h1>${esc(template.title)}</h1>
-      ${metaHtml(meta)}
-    </div>
-    <div class="form-code">${esc(template.subtitle)}</div>
-  </header>`
-}
-
-// print CSS -- A4 portrait, margins top 10mm/sides 11mm/bottom 12mm (paper form geometry),
-// page numbers via @page counters. Column widths for checklist/interview-tick/flags tables come
-// from ./reportlayout.js (colgroupHtml), not hardcoded here.
-export const CSS = `
+// print CSS -- A4 portrait, layout v3 (2026-10-01): margins 1 in top/bottom, 0.75 in sides;
+// body 10 pt, tables 9 pt, section heading 11 pt, sub-heading 10 pt, title 15 pt, program 9 pt,
+// footer 8 pt "<title> ... Page X of Y". Checklist/interview/flags column widths come from
+// ./reportlayout.js (colgroupHtml), not hardcoded here.
+export function pageCss(template) {
+  const footer = footerTitle(template).replace(/"/g, '')
+  return `
   @page {
     size: A4 portrait;
-    margin: 10mm 11mm 12mm;
-    @bottom-left { content: "SICIP Surprise Visit Report"; font: 7pt "Noto Sans", Arial, sans-serif; color: #555; }
-    @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 7pt "Noto Sans", Arial, sans-serif; color: #555; }
+    margin: ${PAGE_MARGIN_CSS};
+    @bottom-left { content: "${footer}"; font: 8pt Arial, sans-serif; color: #333; }
+    @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 8pt Arial, sans-serif; color: #333; }
   }
+  ${CSS}`
+}
+
+export const CSS = `
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: "Noto Sans", "Segoe UI", Arial, sans-serif; font-size: 8.4pt; line-height: 1.25; color: #111; }
+  body { margin: 0; font-family: Arial, "Noto Sans", sans-serif; font-size: 10pt; line-height: 1.3; color: #000; }
 
-  header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.6pt solid #111; padding-bottom: 4pt; margin-bottom: 6pt; }
-  header .program { font-size: 8pt; }
-  header h1 { margin: 1pt 0 0; font-size: 13pt; font-weight: 700; letter-spacing: 0.01em; }
-  header .form-code { font-size: 7.5pt; text-align: right; color: #333; }
-  .meta { margin-top: 2pt; font-size: 7.5pt; color: #333; }
+  header { border-bottom: 1.5pt solid #111; padding-bottom: 4pt; margin-bottom: 8pt; }
+  header .program { font-size: 9pt; }
+  header h1 { margin: 2pt 0 0; font-size: 15pt; font-weight: 700; }
 
-  h2 { display: flex; align-items: baseline; gap: 5pt; margin: 8pt 0 3pt; font-size: 9.2pt; font-weight: 700; break-after: avoid; }
-  h2 .letter { display: inline-block; min-width: 13pt; padding: 0.5pt 0; text-align: center; background: #111; color: #fff; font-size: 8pt; }
-  h2 .note { margin-left: auto; font-weight: 400; font-size: 7.4pt; font-style: italic; color: #333; }
-  h2 .optional-tag { font-weight: 700; font-size: 6.6pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8a4600; border: 0.6pt solid #8a4600; border-radius: 3pt; padding: 0.5pt 3pt; }
-  h3 { margin: 4pt 0 2pt; font-size: 8.2pt; font-weight: 700; }
+  h2 { display: flex; align-items: baseline; gap: 6pt; margin: 12pt 0 4pt; font-size: 11pt; font-weight: 700; break-after: avoid; }
+  h2 .letter { display: inline-block; min-width: 14pt; padding: 0.5pt 0; text-align: center; background: #111; color: #fff; font-size: 10pt; }
+  h2 .note { margin-left: auto; font-weight: 400; font-size: 9pt; font-style: italic; color: #333; }
+  h2 .optional-tag { font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8a4600; border: 0.6pt solid #8a4600; border-radius: 3pt; padding: 0.5pt 3pt; }
+  h3 { margin: 8pt 0 3pt; font-size: 10pt; font-weight: 700; break-after: avoid; }
 
-  .details { margin: 0 0 2pt; }
-  .details .line { display: flex; align-items: baseline; gap: 4pt; min-height: 12pt; padding: 0.5pt 0; }
+  .details { margin: 0 0 3pt; }
+  .details .line { display: flex; align-items: baseline; gap: 4pt; min-height: 13pt; padding: 1pt 0; }
   .details .label { white-space: nowrap; font-weight: 700; }
   .details .label::after { content: ':'; }
   .details .label.question::after { content: ''; }
   .details .value { flex: 1; border-bottom: 0.6pt solid #ccc; }
-  .field-box { margin: 2pt 0 5pt; }
+  .field-box { margin: 3pt 0 6pt; }
   .field-box .label { font-weight: 700; display: block; margin-bottom: 1pt; }
-  .field-box .box { border: 0.6pt solid #666; min-height: 20pt; padding: 2pt 3pt; }
+  .field-box .box { border: 0.6pt solid #666; min-height: 22pt; padding: 4pt 6pt; }
   .choice-line .choices { display: flex; flex-wrap: wrap; gap: 2pt 8pt; }
   .choice-opt { white-space: nowrap; }
   .choice-opt.checked { font-weight: 700; }
 
-  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  th, td { border: 0.6pt solid #666; padding: 2pt 3pt; vertical-align: middle; }
-  th { background: #e6e6e6; font-weight: 700; font-size: 7.4pt; text-align: center; line-height: 1.15; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0 0 4pt; }
+  th, td { border: 0.6pt solid #666; padding: ${CELL_PADDING_CSS}; vertical-align: middle; font-size: 9pt; }
+  th { background: #e6e6e6; font-weight: 700; text-align: center; line-height: 1.2; }
   tr { break-inside: avoid; }
-  td.num, th.num { text-align: center; }
+  td.num, th.num, td.c { text-align: center; }
 
-  .checklist td { height: 14pt; }
   .checklist td.num { color: #333; text-align: center; }
   .checklist td.question { text-align: left; }
-  .per-course-line { font-size: 6.8pt; font-weight: 400; color: #444; margin-top: 1pt; }
-  .per-course-tag { font-weight: 700; font-size: 6.2pt; text-transform: uppercase; letter-spacing: 0.02em; color: #4c4f66; border: 0.6pt solid #4c4f66; border-radius: 3pt; padding: 0 2pt; margin-left: 3pt; }
+  .per-course-line { font-size: 8pt; font-weight: 400; color: #444; margin-top: 1pt; }
 
   .tick-cell { text-align: center; }
-  .tick { font-size: 9pt; font-weight: 700; }
+  .tick { font-size: 10pt; font-weight: 700; }
 
-  .cards-table th { font-size: 7pt; }
-  .cards-table td { font-size: 7.6pt; }
-  .mismatch-msg { color: #b3261e; font-weight: 700; font-size: 7.6pt; margin: -2pt 0 5pt; }
-  p.empty, .block-note { color: #666; font-style: italic; margin: 2pt 0 6pt; font-size: 7.4pt; }
+  .mismatch-msg { color: #b3261e; font-weight: 700; font-size: 9pt; margin: -2pt 0 5pt; }
+  p.empty, .block-note { color: #666; font-style: italic; margin: 2pt 0 6pt; font-size: 9pt; }
 
   .flags-table td.flag-text { text-align: left; }
   .flags-table td.flag-text.checked { font-weight: 700; color: #b3261e; }
@@ -394,10 +390,7 @@ export const CSS = `
 
   .ans { font-weight: 700; }
 
-
-  .remark-box { border: 0.6pt solid #666; border-left: 2.4pt solid #111; padding: 3pt 5pt; margin: 3pt 0 6pt; break-inside: avoid; }
-  .remark-box .label { font-weight: 700; font-size: 7.2pt; text-transform: uppercase; letter-spacing: .03em; color: #333; display: block; margin-bottom: 1pt; }
-  ol.findings, ul.bul { margin: 2pt 0 6pt; padding-left: 14pt; }
+  ol.findings, ul.bul { margin: 3pt 0 6pt; padding-left: 16pt; }
   ol.findings li, ul.bul li { margin: 0 0 2pt; }
   ul.bul li.neg::marker { color: #b3261e; }
 `
@@ -411,8 +404,8 @@ export function reportHtml(template, data, meta) {
     .filter((s) => !s.optional || sectionHasContent(s, normalizedData))
     .map((s) => sectionHtml(s, normalizedData, template, answerMap))
     .join('')
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(template.title)}</title><style>${CSS}\n${SIGNOFF_CSS}</style></head><body>` +
-    headerHtml(template, meta) + sections + signoffHtml(normalizedData) +
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(template.title)}</title><style>${pageCss(template)}\n${SIGNOFF_CSS}</style></head><body>` +
+    headerHtml(template) + sections + signoffHtml(normalizedData) +
     '</body></html>'
 }
 

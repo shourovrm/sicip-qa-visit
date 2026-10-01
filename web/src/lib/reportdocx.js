@@ -14,16 +14,16 @@
 // everywhere, blank = an empty box/line/tick, and every width below comes from reportlayout.js).
 // driven purely by the template's sections/blocks -- never hardcode a question here.
 import {
-  AlignmentType, BorderStyle, Document, Footer, Packer, PageNumber, PageOrientation, Paragraph,
-  ShadingType, Tab, Table, TableCell, TableLayoutType, TableRow, TabStopType, TextRun, WidthType,
+  AlignmentType, BorderStyle, Document, Packer, Paragraph,
+  ShadingType, Table, TableCell, TableLayoutType, TableRow, TabStopType, TextRun, WidthType,
 } from 'docx'
 import {
-  CHECKLIST_COLUMNS, CONTENT_WIDTH_TWIPS, FLAGS_COLUMNS, INTERVIEW_NOTE_COLUMNS, INTERVIEW_TICK_COLUMNS,
-  MARGIN_BOTTOM_TWIPS, MARGIN_LEFT_TWIPS, MARGIN_RIGHT_TWIPS, MARGIN_TOP_TWIPS, PAGE_HEIGHT_TWIPS,
-  PAGE_WIDTH_TWIPS, TICK_CHECKED, TICK_UNCHECKED, TONE_COLOR, isStandardAnswerChoice,
-  weightedWidths,
+  CELL_MARGINS_TWIPS, CHECKLIST_COLUMNS, CONTENT_WIDTH_TWIPS, FLAGS_COLUMNS, INTERVIEW_NOTE_COLUMNS, INTERVIEW_TICK_COLUMNS,
+  TICK_CHECKED, TICK_UNCHECKED, TONE_COLOR, answeredQuestionFields, columnWeight, footerTitle, isCentredField,
+  isStandardAnswerChoice, weightedWidths,
   displayTime,
 } from './reportlayout.js'
+import { A4_PAGE, NUMBERING, numberedParagraphs, pageFooter } from './docxparts.js'
 import * as reportTemplateModule from './reporttemplate.js'
 import { compareMismatch, sectionHasContent } from './reporttemplate.js'
 import { printedRemarkLines } from './sectionremarks.js'
@@ -39,17 +39,18 @@ const GRAY = '888888'
 const NOTE_COLOR = '333333'
 const OPTIONAL_COLOR = '8a4600' // "partial" tone -- reused as the Optional-tag colour
 
-const PROGRAM_SIZE = 16 // 8pt
-const TITLE_SIZE = 26 // 13pt
-const SUBTITLE_SIZE = 15 // 7.5pt
-const META_SIZE = 15
-const BADGE_SIZE = 18 // 9pt
-const SECTION_TITLE_SIZE = 19 // 9.5pt
-const NOTE_SIZE = 15 // 7.5pt
-const SUBHEAD_SIZE = 17 // 8.5pt (block heading, e.g. "Persons met")
-const TABLE_HEADER_SIZE = 15 // 7.5pt
-const BODY_SIZE = 17 // 8.5pt
-const SMALL_SIZE = 13 // 6.5pt (per-course line, tags, footer)
+// layout v3 (2026-10-01): body 10 pt, tables 9 pt, section heading 11 pt, sub-heading 10 pt,
+// title 15 pt, program line 9 pt, footer 8 pt
+const PROGRAM_SIZE = 18 // 9pt
+const TITLE_SIZE = 30 // 15pt
+const BADGE_SIZE = 20 // 10pt
+const SECTION_TITLE_SIZE = 22 // 11pt
+const NOTE_SIZE = 18 // 9pt
+const SUBHEAD_SIZE = 20 // 10pt (block heading, e.g. "Persons met")
+const TABLE_SIZE = 18 // 9pt, every table cell incl. headers
+const BODY_SIZE = 20 // 10pt
+const SMALL_SIZE = 16 // 8pt (per-course line, tags)
+const FOOTER_SIZE = 16 // 8pt
 
 function blank(v) {
   return v == null || String(v).trim() === ''
@@ -99,12 +100,23 @@ export function fixedTable(widths, rows) {
     columnWidths: widths,
     layout: TableLayoutType.FIXED,
     borders: TABLE_BORDERS,
+    margins: CELL_MARGINS_TWIPS,
     rows,
   })
 }
 
 export function run(text, opts = {}) {
   return new TextRun({ text, font: FONT, size: BODY_SIZE, ...opts })
+}
+
+// table text is a size smaller than body text
+export function cellRun(text, opts = {}) {
+  return run(text, { size: TABLE_SIZE, ...opts })
+}
+
+// one table-cell paragraph, centred for counts / batch no. / short answers
+export function cellParagraph(children, centred = false) {
+  return new Paragraph({ alignment: centred ? AlignmentType.CENTER : AlignmentType.LEFT, children })
 }
 
 // text (possibly multi-line, from a longtext field) -> a single Paragraph with explicit line
@@ -122,17 +134,19 @@ function multilineParagraph(value, opts = {}, paraOpts = {}) {
 // answered"); every other kind -> plain (possibly multi-line) text. Used inside card table
 // cells, where a tick-box row per option (see inlineChoiceParagraph) wouldn't fit.
 export function fieldValueParagraph(field, rawValue) {
-  if (field.kind === 'choice') return new Paragraph({ children: fieldValueRuns(field, rawValue) })
-  return multilineParagraph(rawValue)
+  const alignment = isCentredField(field) ? AlignmentType.CENTER : AlignmentType.LEFT
+  if (field.kind === 'choice' || field.kind === 'time') return new Paragraph({ alignment, children: fieldValueRuns(field, rawValue, TABLE_SIZE) })
+  return multilineParagraph(rawValue, { size: TABLE_SIZE }, { alignment })
 }
 
 // one line of a value as runs (choice = its label, bold in its tone colour) -- for callers
 // that put the value inside a sentence of their own (narrativedocx.js)
-export function fieldValueRuns(field, rawValue) {
-  if (blank(rawValue)) return [run('')]
-  if (field.kind !== 'choice') return [run(String(rawValue))]
+export function fieldValueRuns(field, rawValue, size = BODY_SIZE) {
+  if (blank(rawValue)) return [run('', { size })]
+  if (field.kind === 'time') return [run(displayTime(rawValue), { size })]
+  if (field.kind !== 'choice') return [run(String(rawValue), { size })]
   const opt = (field.options || []).find((o) => o.id === rawValue)
-  return [run(opt ? opt.label : String(rawValue), { bold: true, color: opt ? TONE_COLOR[opt.tone] : undefined })]
+  return [run(opt ? opt.label : String(rawValue), { size, bold: true, color: opt ? TONE_COLOR[opt.tone] : undefined })]
 }
 
 export function headerCellDxa(text, widthTwips) {
@@ -140,7 +154,7 @@ export function headerCellDxa(text, widthTwips) {
     width: { size: widthTwips, type: WidthType.DXA },
     borders: CELL_BORDERS,
     shading: { type: ShadingType.CLEAR, fill: HEADER_FILL },
-    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [run(text, { bold: true, size: TABLE_HEADER_SIZE })] })],
+    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [cellRun(text, { bold: true })] })],
   })
 }
 
@@ -150,13 +164,13 @@ export function bodyCellDxa(widthTwips, paragraphs) {
 
 function tickParagraph(checked, tone) {
   const color = checked ? TONE_COLOR[tone] : undefined
-  return new Paragraph({ alignment: AlignmentType.CENTER, children: [run(checked ? TICK_CHECKED : TICK_UNCHECKED, { bold: checked, color })] })
+  return new Paragraph({ alignment: AlignmentType.CENTER, children: [cellRun(checked ? TICK_CHECKED : TICK_UNCHECKED, { bold: checked, color })] })
 }
 
 // block/subsection heading, e.g. "Persons met", "Attendance register" -- bold body-weight text,
 // smaller and lighter than the black-badge section heading.
 export function subheadParagraph(text) {
-  return new Paragraph({ spacing: { before: 100, after: 40 }, children: [run(text, { bold: true, size: SUBHEAD_SIZE })] })
+  return new Paragraph({ keepNext: true, spacing: { before: 160, after: 60 }, children: [run(text, { bold: true, size: SUBHEAD_SIZE })] })
 }
 
 function noteParagraph(text) {
@@ -211,22 +225,27 @@ function longtextBoxParagraphs(field, rawValue) {
 
 // shared by top-level fields blocks and the interview per-course "other fields" -- one field ->
 // one or more Paragraphs, dispatched by kind.
-// surprise v2 "Major findings" / "Recommendations" and section remarks: heading + one
-// paragraph per point, "1." numbered or "•" bulleted (issues' bullet in the "no" colour)
-export function listParagraphs(heading, lines, numbered) {
+// surprise v2 "Major findings" / "Recommendations": heading + a real Word numbered list
+export function numberedListParagraphs(heading, lines) {
   const out = [subheadParagraph(heading)]
-  const items = lines.filter((l) => !blank(l.text))
+  const items = lines.map((l) => String(l ?? '').trim()).filter(Boolean)
   if (items.length === 0) return [...out, new Paragraph({ children: [run('None.', { italics: true, color: GRAY })] })]
-  items.forEach((line, i) => out.push(new Paragraph({
+  return [...out, ...numberedParagraphs(items, (text) => [run(text)])]
+}
+
+// section remarks: one "•" paragraph per line straight after the table, no "Remarks" label
+// (issues' bullet in the "no" colour)
+export function bulletParagraphs(lines) {
+  return lines.filter((l) => !blank(l.text)).map((line, i) => new Paragraph({
+    spacing: { before: i === 0 ? 80 : 0, after: 20 },
     indent: { left: 280, hanging: 280 },
-    children: [run(numbered ? `${i + 1}.\t` : '•\t', { color: line.neg ? TONE_COLOR.no : undefined }), run(line.text)],
+    children: [run('•\t', { color: line.neg ? TONE_COLOR.no : undefined }), run(line.text)],
     tabStops: [{ type: TabStopType.LEFT, position: 280 }],
-  })))
-  return out
+  }))
 }
 
 function fieldParagraphs(field, rawValue) {
-  if (field.draftFrom === 'findings') return listParagraphs(field.label, String(rawValue ?? '').split('\n').map((text) => ({ text })), true)
+  if (field.draftFrom === 'findings') return numberedListParagraphs(field.label, String(rawValue ?? '').split('\n'))
   if (field.kind === 'choice' || field.kind === 'select') return [inlineChoiceParagraph(field, rawValue)]
   if (field.kind === 'longtext') return longtextBoxParagraphs(field, rawValue)
   return [plainFieldParagraph(field, rawValue)]
@@ -280,16 +299,17 @@ function checklistBlockDocx(block, data, template, answerMap) {
   const rows = block.items.map((item, i) => {
     const entry = checks[item.id] || {}
     const tickCells = answerIds.map((id, ci) => bodyCellDxa(widths[2 + ci], [tickParagraph(entry.answer === id, answerMap[id]?.tone)]))
-    const itemChildren = [run(item.text)]
+    const itemChildren = [cellRun(item.text)]
     const itemParas = [new Paragraph({ children: itemChildren })]
     const perCourseText = perCourseLineText(item, entry, courses, answerMap)
     if (perCourseText) itemParas.push(new Paragraph({ children: [run(perCourseText, { size: SMALL_SIZE, color: NOTE_COLOR })] }))
     return new TableRow({
+      cantSplit: true,
       children: [
-        bodyCellDxa(widths[0], [new Paragraph({ alignment: AlignmentType.CENTER, children: [run(String(i + 1))] })]),
+        bodyCellDxa(widths[0], [cellParagraph([cellRun(String(i + 1))], true)]),
         bodyCellDxa(widths[1], itemParas),
         ...tickCells,
-        bodyCellDxa(widths[6], [multilineParagraph(entry.remarks)]),
+        bodyCellDxa(widths[6], [multilineParagraph(entry.remarks, { size: TABLE_SIZE })]),
       ],
     })
   })
@@ -317,7 +337,7 @@ function cardsBlockDocx(block, data) {
     out.push(new Paragraph({ children: [run('No entries.', { italics: true, color: GRAY })] }))
     return out
   }
-  const widths = weightedWidths(CONTENT_WIDTH_TWIPS, block.fields.map(() => 1))
+  const widths = weightedWidths(CONTENT_WIDTH_TWIPS, block.fields.map(columnWeight))
   const headerRow = new TableRow({ children: block.fields.map((f, i) => headerCellDxa(f.label, widths[i])) })
   const mismatchedRows = []
   const rows = entries.map((entry, i) => {
@@ -345,11 +365,11 @@ function interviewTickWidths(columns) {
 function tabsCardsBlockDocx(block, data, template, answerMap) {
   const entries = (data.cards && data.cards[block.key]) || []
   if (entries.length === 0) return [new Paragraph({ children: [run('Add courses in section A.', { italics: true, color: GRAY })] })]
-  const linkedKeys = new Set((block.linkFrom && block.linkFrom.fields) || [])
-  const tickFields = block.fields.filter((f) => !linkedKeys.has(f.key) && isStandardAnswerChoice(f, template))
-  const tickFieldKeys = new Set(tickFields.map((f) => f.key))
+  // a question nobody answered for any course is left out
+  const questionFields = answeredQuestionFields(block, entries)
+  const tickFields = questionFields.filter((f) => isStandardAnswerChoice(f, template))
   const noteFields = block.fields.filter((f) => f.noteFor)
-  const otherFields = block.fields.filter((f) => !linkedKeys.has(f.key) && !tickFieldKeys.has(f.key) && !f.noteFor)
+  const otherFields = questionFields.filter((f) => !isStandardAnswerChoice(f, template))
   const answerIds = template.answers.map((a) => a.id)
   const columns = noteFields.length ? INTERVIEW_NOTE_COLUMNS : INTERVIEW_TICK_COLUMNS
   const widths = interviewTickWidths(columns)
@@ -363,10 +383,10 @@ function tabsCardsBlockDocx(block, data, template, answerMap) {
       const headerRow = new TableRow({ children: columns.map((c, i) => headerCellDxa(c.label, widths[i])) })
       const rows = tickFields.map((f) => {
         const note = noteFields.find((n) => n.noteFor === f.key)
-        const noteCell = noteFields.length ? [bodyCellDxa(widths[1 + answerIds.length], [multilineParagraph(note ? entry[note.key] : '')])] : []
+        const noteCell = noteFields.length ? [bodyCellDxa(widths[1 + answerIds.length], [multilineParagraph(note ? entry[note.key] : '', { size: TABLE_SIZE })])] : []
         return new TableRow({
           children: [
-            bodyCellDxa(widths[0], [new Paragraph({ children: [run(f.label)] })]),
+            bodyCellDxa(widths[0], [cellParagraph([cellRun(f.label)])]),
             ...answerIds.map((id, ci) => bodyCellDxa(widths[1 + ci], [tickParagraph(entry[f.key] === id, answerMap[id]?.tone)])),
             ...noteCell,
           ],
@@ -393,7 +413,7 @@ function flagRow(checked, text, widths) {
   return new TableRow({
     children: [
       bodyCellDxa(widths[0], [tickParagraph(checked, 'no')]),
-      bodyCellDxa(widths[1], [new Paragraph({ children: [run(text, { bold: checked, color })] })]),
+      bodyCellDxa(widths[1], [cellParagraph([cellRun(text, { bold: checked, color })])]),
     ],
   })
 }
@@ -420,23 +440,20 @@ function blockDocx(block, section, data, template, answerMap) {
   if (block.type === 'fields') return fieldsBlockDocx(block, data)
   if (block.type === 'checklist') return checklistBlockDocx(block, data, template, answerMap)
   if (block.type === 'cards') return block.display === 'tabs' ? tabsCardsBlockDocx(block, data, template, answerMap) : cardsBlockDocx(block, data)
-  if (block.type === 'remarks') {
-    const lines = printedRemarkLines(template, section, block, data)
-    return lines.length ? listParagraphs(block.heading ?? 'Remarks', lines, false) : []
-  }
-  if (block.type === 'findings') return listParagraphs(block.heading ?? 'Major findings', (data.findings ?? []).map((f) => ({ text: f.text })), true)
+  if (block.type === 'remarks') return bulletParagraphs(printedRemarkLines(template, section, block, data))
+  if (block.type === 'findings') return numberedListParagraphs(block.heading ?? 'Major findings', (data.findings ?? []).map((f) => f.text))
   return [] // unknown block type (flags/countsAsFlags cards handled in sectionDocx) -- ignore
 }
 
 // black letter-badge heading, e.g. " C  Attendance in each course" -- matches the reference
 // docx's badge run (bold white-on-black) + heading run (bold, two leading spaces).
-function sectionHeadingParagraph(section) {
+export function sectionHeadingParagraph(section) {
   const children = [
     run(` ${section.letter} `, { bold: true, color: 'FFFFFF', size: BADGE_SIZE, shading: { type: ShadingType.CLEAR, fill: BADGE_BG } }),
     run(`  ${section.title}`, { bold: true, size: SECTION_TITLE_SIZE }),
   ]
   if (section.optional) children.push(run('   (Optional)', { bold: true, italics: true, size: NOTE_SIZE, color: OPTIONAL_COLOR }))
-  return new Paragraph({ keepNext: true, spacing: { before: 200, after: 60 }, children })
+  return new Paragraph({ keepNext: true, spacing: { before: 240, after: 80 }, children })
 }
 
 function sectionDocx(section, data, template, answerMap) {
@@ -456,79 +473,40 @@ function sectionDocx(section, data, template, answerMap) {
   return out
 }
 
-function statusLabel(status) {
-  return status === 'submitted' ? 'Submitted' : 'Draft'
-}
-
-// program line + title/subtitle line (bottom border, subtitle right-tabbed to the content edge,
-// same as the reference docx) + a meta line (officer/status/submitted -- not in the paper form,
-// but useful on an exported copy).
-export function headerParagraphs(template, meta) {
-  const titleLine = new Paragraph({
-    border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: BADGE_BG, space: 4 } },
-    tabStops: [{ type: TabStopType.RIGHT, position: CONTENT_WIDTH_TWIPS }],
-    spacing: { after: 120 },
-    children: [
-      run(template.title, { bold: true, size: TITLE_SIZE }),
-      new TextRun({ children: [new Tab()], font: FONT, size: SUBTITLE_SIZE, color: NOTE_COLOR }),
-      run(template.subtitle, { size: SUBTITLE_SIZE, color: NOTE_COLOR }),
-    ],
-  })
-  let metaText = `Officer: ${meta.officerName || ''}    Status: ${statusLabel(meta.status)}`
-  if (meta.status === 'submitted' && !blank(meta.submittedAt)) metaText += `    Submitted: ${meta.submittedAt}`
+// program line + title over a rule; no subtitle and no officer/status line (layout v3)
+export function headerParagraphs(template) {
   return [
     new Paragraph({ children: [run(template.program, { size: PROGRAM_SIZE })] }),
-    titleLine,
-    new Paragraph({ spacing: { after: 160 }, children: [run(metaText, { size: META_SIZE, color: NOTE_COLOR })] }),
+    new Paragraph({
+      border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: BADGE_BG, space: 4 } },
+      spacing: { after: 160 },
+      children: [run(template.title, { bold: true, size: TITLE_SIZE })],
+    }),
   ]
-}
-
-// footer: "SICIP Surprise Visit Report" bottom-left, "Page x of y" bottom-right -- mirrors
-// reporthtml.js's @bottom-left/@bottom-right @page rules.
-function pageFooter() {
-  return new Footer({
-    children: [
-      new Paragraph({
-        tabStops: [{ type: TabStopType.RIGHT, position: CONTENT_WIDTH_TWIPS }],
-        children: [
-          run('SICIP Surprise Visit Report', { size: SMALL_SIZE, color: NOTE_COLOR }),
-          new TextRun({ children: [new Tab()], font: FONT, size: SMALL_SIZE, color: NOTE_COLOR }),
-          run('Page ', { size: SMALL_SIZE, color: NOTE_COLOR }),
-          new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: SMALL_SIZE, color: NOTE_COLOR }),
-          run(' of ', { size: SMALL_SIZE, color: NOTE_COLOR }),
-          new TextRun({ children: [PageNumber.TOTAL_PAGES], font: FONT, size: SMALL_SIZE, color: NOTE_COLOR }),
-        ],
-      }),
-    ],
-  })
 }
 
 // pure fn: template + report data + {officerName, submittedAt?, status} -> Promise<Blob> (.docx).
 export function buildReportDocx(template, data, meta) {
   const normalizedData = withNormalizedData(template, data)
   const answerMap = answerMapOf(template)
-  const children = headerParagraphs(template, meta)
+  const children = headerParagraphs(template)
   for (const section of template.sections || []) {
     // an optional section (K) nobody touched is left out of the report entirely
     if (section.optional && !sectionHasContent(section, normalizedData)) continue
     children.push(...sectionDocx(section, normalizedData, template, answerMap))
   }
   children.push(...signoffDocx(normalizedData))
-  return packDocx(children)
+  return packDocx(children, footerTitle(template))
 }
 
-// A4 page, margins and footer shared by the form and narrative (narrativedocx.js) Word files
-export function packDocx(children) {
+// A4 page, margins, numbering and footer shared by the form and narrative (narrativedocx.js)
+export function packDocx(children, title) {
   const doc = new Document({
     styles: { default: { document: { run: { font: FONT, size: BODY_SIZE } } } },
+    numbering: NUMBERING,
     sections: [{
-      properties: {
-        page: {
-          size: { orientation: PageOrientation.PORTRAIT, width: PAGE_WIDTH_TWIPS, height: PAGE_HEIGHT_TWIPS },
-          margin: { top: MARGIN_TOP_TWIPS, right: MARGIN_RIGHT_TWIPS, bottom: MARGIN_BOTTOM_TWIPS, left: MARGIN_LEFT_TWIPS },
-        },
-      },
-      footers: { default: pageFooter() },
+      properties: { page: A4_PAGE },
+      footers: { default: pageFooter(title, { font: FONT, size: FOOTER_SIZE, color: NOTE_COLOR }) },
       children,
     }],
   })

@@ -133,12 +133,12 @@ describe('qa-v2 print', async () => {
 
   it('prints the v2 tables and no Annex-3', () => {
     expect(html).not.toContain('Annex-3')
-    expect(html).toContain('<td>BTEB</td><td>Yes</td><td>B-77</td><td>3</td><td>No</td>')
+    expect(html).toContain('<td class="ctr">BTEB</td><td class="ctr">Yes</td><td class="ctr">B-77</td><td class="ctr">3</td><td class="ctr">No</td>')
     expect(html).toContain('<td>Local chamber</td>')
-    expect(html).toContain('<td>ILO</td><td>Welding</td><td>Yes</td><td>Same as SICIP</td>')
-    expect(html).toContain('<td>GIZ</td><td></td>')
+    expect(html).toContain('<td class="ctr">ILO</td><td>Welding</td><td class="ctr">Yes</td><td>Same as SICIP</td>')
+    expect(html).toContain('<td class="ctr">GIZ</td><td></td>')
     expect(html).toContain('Classroom - 300 sft and workshop/lab - 800 sft')
-    expect(html).toContain('<td>Grinder</td><td>2</td>')
+    expect(html).toContain('<td>Grinder</td><td class="ctr">2</td>')
     expect(html).toContain('R. M. Shourov, Program Officer (QA)')
     expect(html).toContain('Available CBLM and lesson plan indicate they cover every unit of competency.')
     expect(html).toContain('Competency standards / course outlines are available and used for EIM and PPF courses.')

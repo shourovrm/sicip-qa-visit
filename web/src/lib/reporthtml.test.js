@@ -193,12 +193,14 @@ it('choice/select fields render every option inline with a tick box, matching do
   expect(kSection).toContain('choice-opt checked" style="color:#b3261e">☒ Not complied')
 })
 
-it('header carries template title/program and officer meta', () => {
+it('header carries template title/program, no officer/status line; footer title without SICIP', () => {
   const html = reportHtml(template, EMPTY_DATA, { officerName: 'Rakib Hasan', status: 'submitted', submittedAt: '2026-09-24T10:00:00Z' })
   expect(html).toContain(template.title)
   expect(html).toContain(template.program)
-  expect(html).toContain('Rakib Hasan')
-  expect(html).toContain('Submitted')
+  expect(html).not.toContain('Rakib Hasan')
+  expect(html).not.toContain(template.subtitle)
+  expect(html).toContain('margin: 25.4mm 19.05mm')
+  expect(html).toContain('content: "Surprise Visit Report"')
 })
 
 describe('fixture parity smoke test', () => {

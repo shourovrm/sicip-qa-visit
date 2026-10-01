@@ -1,7 +1,7 @@
 // filled QA visit report (the paper form's exact layout + a 4th Remarks column) as printable
 // HTML -- spec docs/superpowers/plans/2026-09-25-qa-report.md section 7. A separate layout from
 // the surprise report's reporthtml.js: the form's own heading-by-heading, table-by-table shape,
-// Times New Roman, program + title centred ("Annex-3" top right on v1 only). qa-v2 adds tables
+// Arial at the surprise report sizes (layout v3), program + title centred ("Annex-3" top right on v1 only). qa-v2 adds tables
 // from qatables.js (registration, MoU, contracts, sample check, rooms, damaged equipment, the
 // evidence list) and numbered evidence in the EVIDENCE column. Caller opens the html in a new
 // window + window.print(), same pattern as reporthtml.js/billhtml.js.
@@ -9,6 +9,7 @@ import { buildRemarks, printedRemarks } from './remarks.js'
 import * as reportTemplateModule from './reporttemplate.js'
 import { feedbackGrid } from './feedbackgrid.js'
 import { SIGNOFF_CSS, signoffHtml } from './signoff.js'
+import { CELL_PADDING_CSS, PAGE_MARGIN_CSS, footerTitle, isShortValue } from './reportlayout.js'
 import {
   contractsTable, criteriaCardsTable, evidenceIndexTable, evidenceLines, mouTable, officersLine, registrationTable,
 } from './qatables.js'
@@ -75,10 +76,15 @@ function headerKvHtml(data) {
   </div>`
 }
 
+// one table cell: counts, percentages and short answers centred, text left
+function cellHtml(value) {
+  return `<td${isShortValue(value) ? ' class="ctr"' : ''}>${escMultiline(value)}</td>`
+}
+
 function cardsTableHtml(fields, entries, minRows) {
   const rows = entries.length >= minRows ? entries : entries.concat(Array.from({ length: minRows - entries.length }, () => ({})))
   const header = `<tr>${fields.map((f) => `<th>${esc(f.label)}</th>`).join('')}</tr>`
-  const body = rows.map((entry) => `<tr>${fields.map((f) => `<td>${escMultiline(entry[f.key])}</td>`).join('')}</tr>`).join('')
+  const body = rows.map((entry) => `<tr>${fields.map((f) => cellHtml(entry[f.key])).join('')}</tr>`).join('')
   return `<table class="grid">${header}${body}</table>`
 }
 
@@ -129,11 +135,8 @@ function cumulativeHtml(block, data) {
       const placedF = blank(c.placed_f) ? '' : `${c.placed_f}${pct(c.placed_f, c.certified_f)}`
       const dropoutT = blank(c.dropout_t) ? '' : `${c.dropout_t}${pct(c.dropout_t, c.enrolled_t)}`
       const dropoutF = blank(c.dropout_f) ? '' : `${c.dropout_f}${pct(c.dropout_f, c.enrolled_f)}`
-      return `<tr><td>${i + 1}.</td><td>${esc(c.course)}</td><td>${esc(c.target)}</td>` +
-        `<td>${esc(c.enrolled_t)}</td><td>${esc(c.enrolled_f)}</td>` +
-        `<td>${esc(c.certified_t)}</td><td>${esc(c.certified_f)}</td>` +
-        `<td>${esc(placedT)}</td><td>${esc(placedF)}</td>` +
-        `<td>${esc(dropoutT)}</td><td>${esc(dropoutF)}</td></tr>`
+      const cells = [`${i + 1}.`, c.course, c.target, c.enrolled_t, c.enrolled_f, c.certified_t, c.certified_f, placedT, placedF, dropoutT, dropoutF]
+      return `<tr>${cells.map(cellHtml).join('')}</tr>`
     })
     .join('')
   return `<div class="sub-h">${esc(block.heading)}</div>
@@ -158,7 +161,7 @@ function tableHtml(table, headingOverride) {
   if (!table) return ''
   const heading = headingOverride ?? table.heading
   const head = `<tr>${table.headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>`
-  const body = table.rows.map((row) => `<tr>${row.map((cell) => `<td>${escMultiline(cell)}</td>`).join('')}</tr>`).join('')
+  const body = table.rows.map((row) => `<tr>${row.map(cellHtml).join('')}</tr>`).join('')
   return `${heading ? `<div class="sub-h">${esc(heading)}</div>` : ''}<table class="grid">${head}${body}</table>`
 }
 
@@ -281,11 +284,11 @@ function planTableHtml(block, data) {
   return `<table class="grid"><tr><th style="width:5%">S.N.</th>${block.fields.map((field) => `<th>${esc(field.label)}</th>`).join('')}</tr>${body}</table>`
 }
 
-// ---- sections 14/15: bullet lists from lines ----
-function bulletListHtml(text) {
+// ---- sections 14/15: numbered lists from lines ----
+function numberedListHtml(text) {
   const lines = String(text ?? '').split('\n').map((l) => l.trim()).filter(Boolean)
-  if (lines.length === 0) return '<ul><li class="empty-li"></li></ul>'
-  return `<ul>${lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>`
+  if (lines.length === 0) return '<ol><li class="empty-li"></li></ol>'
+  return `<ol>${lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>`
 }
 
 // section.title is stored verbatim from Annex-3 (spec section 2) -- some are fully upper-case
@@ -306,9 +309,9 @@ function sectionHtml(section, data, template) {
   } else if (section.key === 's13') {
     body = strengthsWeaknessesHtml(section.blocks[0], data)
   } else if (section.key === 's14') {
-    body = bulletListHtml(fieldsMap(data).findings)
+    body = numberedListHtml(fieldsMap(data).findings)
   } else if (section.key === 's15') {
-    body = bulletListHtml(fieldsMap(data).recommendations)
+    body = numberedListHtml(fieldsMap(data).recommendations)
   } else if (section.key === 's16') {
     body = planTableHtml(section.blocks[0], data)
   }
@@ -316,27 +319,35 @@ function sectionHtml(section, data, template) {
 }
 
 
-const CSS = `
+function pageCss(template) {
+  return `
   @page {
     size: A4 portrait;
-    margin: 12mm 14mm 14mm;
-    @bottom-left { content: "SICIP Quality Assurance Visit Report"; font: 8pt "Times New Roman", Times, serif; color: #333; }
-    @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 8pt "Times New Roman", Times, serif; color: #333; }
-  }
+    margin: ${PAGE_MARGIN_CSS};
+    @bottom-left { content: "${footerTitle(template).replace(/"/g, '')}"; font: 8pt Arial, sans-serif; color: #333; }
+    @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 8pt Arial, sans-serif; color: #333; }
+  }`
+}
+
+// layout v3: Arial, body 10 pt, tables 9 pt, section heading 11 pt, sub-heading 10 pt,
+// title 15 pt over a rule, program line 9 pt
+const CSS = `
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: "Times New Roman", Times, serif; font-size: 11pt; line-height: 1.3; color: #000; background: #fff; }
+  body { margin: 0; font-family: Arial, "Noto Sans", sans-serif; font-size: 10pt; line-height: 1.3; color: #000; background: #fff; }
   .annex { text-align: right; font-weight: 700; }
   .t1, .t2 { text-align: center; font-weight: 700; }
-  .t2 { margin-bottom: 8pt; }
+  .t1 { font-size: 9pt; }
+  .t2 { font-size: 15pt; border-bottom: 1.5pt solid #111; padding-bottom: 4pt; margin-bottom: 8pt; }
   .kv { margin: 6pt 0 10pt; }
   .kv-line { margin: 2pt 0; }
-  .sh { font-weight: 700; text-transform: uppercase; margin: 12pt 0 2pt; }
-  .sub-h { font-weight: 700; margin: 8pt 0 2pt; }
+  .sh { font-weight: 700; font-size: 11pt; text-transform: uppercase; margin: 12pt 0 3pt; }
+  .sub-h { font-weight: 700; font-size: 10pt; margin: 8pt 0 3pt; }
   .intro { font-style: italic; margin: 0 0 4pt; }
   .roman-line { margin: 1pt 0 1pt 12pt; }
   .roman { display: inline-block; min-width: 22pt; }
   table.grid { width: 100%; border-collapse: collapse; margin: 4pt 0 8pt; }
-  table.grid th, table.grid td { border: 0.75pt solid #000; padding: 2pt 4pt; vertical-align: top; font-size: 10pt; }
+  table.grid th, table.grid td { border: 0.75pt solid #000; padding: ${CELL_PADDING_CSS}; vertical-align: top; font-size: 9pt; }
+  table.grid td.ctr { text-align: center; }
   table.grid th { font-weight: 700; text-align: center; background: #eee; }
   table.grid td.c { text-align: center; width: 13%; }
   table.criteria th { text-align: left; }
@@ -347,7 +358,7 @@ const CSS = `
   .field-box { margin: 4pt 0; }
   .fb-label { font-weight: 700; }
   .fb-body { border: 0.75pt solid #666; min-height: 14pt; padding: 2pt 4pt; }
-  ul { margin: 2pt 0; padding-left: 16pt; }
+  ul, ol { margin: 2pt 0; padding-left: 16pt; }
   .empty-li { list-style: none; }
 `
 
@@ -355,7 +366,7 @@ const CSS = `
 export function qaReportHtml(template, data, meta) {
   const normalizedData = withNormalizedData(template, data)
   const sections = (template.sections || []).map((s) => sectionHtml(s, normalizedData, template)).join('')
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(template.title)}</title><style>${CSS}\n${SIGNOFF_CSS}</style></head><body>` +
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(template.title)}</title><style>${pageCss(template)}\n${CSS}\n${SIGNOFF_CSS}</style></head><body>` +
     (template.annex ? `<div class="annex">${esc(template.annex)}</div>` : '') +
     `<div class="t1">${esc(template.program)}</div>` +
     `<div class="t2">${esc(template.title)}</div>` +
