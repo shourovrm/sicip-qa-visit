@@ -8,6 +8,7 @@
   import { CATEGORY_LABELS } from '../lib/scoring.js'
   import { officers, officerName } from '../lib/officers.js'
   import Dropdown from './Dropdown.svelte'
+  import InstituteInput from './InstituteInput.svelte'
 
   export let editing
   export let visits = [] // for institute/ref-no autosuggest -- pass the reactive array directly
@@ -20,7 +21,7 @@
   $: viewName = officerName(editing.officer_id, $officers)
   $: title = readonly ? (viewName === '—' ? 'Visit' : `Visit · ${viewName}`) : `${editing.id ? 'Edit' : 'Schedule'} visit`
 
-  $: instituteOptions = [...new Set(visits.map((v) => v.institute))].filter(Boolean).sort()
+  $: pastInstituteNames = visits.map((v) => v.institute).filter(Boolean)
   $: refOptions = [...new Set(visits.map((v) => v.ref_no))].filter(Boolean).sort()
 
   // typing/picking a ref no that matches an existing visit pulls in its ref_date (exact match
@@ -60,9 +61,7 @@
       </div>
     {/if}
     <div class="field">
-      <label for="inst">Institute</label>
-      <input id="inst" type="text" list="visit-institute-list" bind:value={editing.institute} required />
-      <datalist id="visit-institute-list">{#each instituteOptions as i}<option value={i} />{/each}</datalist>
+      <InstituteInput bind:value={editing.institute} association={editing.association} purpose={editing.purpose} pastNames={pastInstituteNames} {readonly} />
     </div>
     <div class="field">
       <label for="ref">Ref no</label>
