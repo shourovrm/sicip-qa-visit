@@ -97,13 +97,19 @@ private fun batchCard(batch: TmsRunningBatch) = WantedCard(
     mapOf(
         "course" to batch.course,
         "batch" to batch.batchNumber,
-        "start_end" to "${batch.startDate} – ${batch.endDate}",
+        "start_end" to "${ddmmyyyy(batch.startDate)} – ${ddmmyyyy(batch.endDate)}",
         "enrolled" to batch.enrolled.toString(),
         "female" to batch.female.toString(),
         "attendance_today" to (batch.attendanceToday?.toString() ?: ""),
         "attendance_7day" to (batch.attendance7day?.let(::formatMean) ?: ""),
     ),
 )
+
+// "2026-04-12" -> "12/04/2026" (web tmsprefill.js start_end format); anything else as is
+private fun ddmmyyyy(iso: String): String {
+    val parts = iso.split("-")
+    return if (parts.size == 3) "${parts[2]}/${parts[1]}/${parts[0]}" else iso
+}
 
 // "18" for a whole number, else one decimal "18.4" (same as web tmsprefill.js)
 internal fun formatMean(mean: Double): String =

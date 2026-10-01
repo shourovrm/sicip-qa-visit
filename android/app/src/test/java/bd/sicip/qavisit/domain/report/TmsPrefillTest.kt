@@ -36,7 +36,7 @@ class TmsPrefillTest {
         assertEquals("", data.cardField("cumulative", 1, "dropout_t")) // no qualifying batch
         assertEquals(1, data.cards("batches").size)
         assertEquals("2", data.cardField("batches", 0, "batch"))
-        assertEquals("2026-04-12 – 2026-07-09", data.cardField("batches", 0, "start_end"))
+        assertEquals("12/04/2026 – 09/07/2026", data.cardField("batches", 0, "start_end"))
         assertEquals("4", data.cardField("batches", 0, "attendance_today"))
         assertEquals("4.1", data.cardField("batches", 0, "attendance_7day"))
         assertTrue(result.suggestions.isEmpty())
