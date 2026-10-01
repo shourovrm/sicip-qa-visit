@@ -45,7 +45,18 @@ class QaCourseTablesTest {
         assertTrue(html.contains("<tr><th>T</th><th>F</th><th>T</th><th>F</th><th>T</th><th>F</th><th>T</th><th>F</th></tr></thead>"))
         assertTrue(html.contains("T= Total and F = Female"))
         assertTrue(html.contains("<td>Plumbing and Pipe Fitting</td><td class=\"c\">-</td><td class=\"c\">75</td>"))
+        // placed % of certified (30/50, 4/7), no dropouts typed -> "-"
+        assertTrue(html.contains("<td class=\"c\">30 (60%)</td><td class=\"c\">4 (57%)</td><td class=\"c\">-</td><td class=\"c\">-</td>"))
         assertTrue(html.contains("overflow-wrap: anywhere"))
+    }
+
+    @Test
+    fun `percentage is a whole percent of a usable base, else the count alone`() {
+        assertEquals("12 (48%)", withPercentage("12", "25"))
+        assertEquals("1 (13%)", withPercentage("1", "8")) // 12.5 rounds up
+        assertEquals("12", withPercentage("12", "0"))
+        assertEquals("12", withPercentage("12", ""))
+        assertEquals("", withPercentage("", "25"))
     }
 
     @Test

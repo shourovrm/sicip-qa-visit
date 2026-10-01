@@ -73,11 +73,28 @@ fun mouCoursesTable(data: ReportData): PrintTable? {
     )
 }
 
-// 1.50: compact two-level header like the paper template, T/F pairs under each count
+// "12 (48%)": percentage rounded to a whole number (half up, like web Math.round); just the
+// count when the base is blank, not a number or 0; "" when the count is blank
+fun withPercentage(count: String, base: String): String {
+    val countText = count.trim()
+    if (countText.isEmpty()) return ""
+    val numerator = countText.toDoubleOrNull()
+    val denominator = base.trim().toDoubleOrNull()
+    if (numerator == null || denominator == null || denominator <= 0) return countText
+    return "$countText (${Math.round(numerator / denominator * 100)}%)"
+}
+
+// 1.50: compact two-level header like the paper template, T/F pairs under each count.
+// placed % is of certified, dropout % of enrolled (web qatables.js cumulativeTable)
 fun cumulativeTable(data: ReportData): PrintTable? {
-    val pairKeys = listOf("enrolled", "certified", "placed", "dropout")
     val rows = data.cards("cumulative").filter(::filled).map { card ->
-        listOf(card.text("course"), card.text("target")) + pairKeys.flatMap { listOf(card.text("${it}_t"), card.text("${it}_f")) }
+        listOf(
+            card.text("course"), card.text("target"),
+            card.text("enrolled_t"), card.text("enrolled_f"),
+            card.text("certified_t"), card.text("certified_f"),
+            withPercentage(card.text("placed_t"), card.text("certified_t")), withPercentage(card.text("placed_f"), card.text("certified_f")),
+            withPercentage(card.text("dropout_t"), card.text("enrolled_t")), withPercentage(card.text("dropout_f"), card.text("enrolled_f")),
+        )
     }
     if (rows.isEmpty()) return null
     val pairLabels = listOf("Enrolled", "Certified", "Job Placed with Percentage", "No. of dropouts with Percentage")
@@ -86,7 +103,8 @@ fun cumulativeTable(data: ReportData): PrintTable? {
         rows = numbered(rows),
         centred = setOf(0) + (2..10),
         groups = listOf(HeaderGroup("S.N."), HeaderGroup("Course Name"), HeaderGroup("Target")) + pairLabels.map { HeaderGroup(it, 2) },
-        widths = listOf(5, 24, 7) + List(8) { 8 },
+        // the "n (p%)" columns are wider, as on the web print
+        widths = listOf(5, 24, 8, 6, 6, 6, 6, 10, 10, 10, 9),
         note = "T= Total and F = Female",
     )
 }
