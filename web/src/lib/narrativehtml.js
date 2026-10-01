@@ -3,11 +3,12 @@
 // (cards blocks). Checklists print nothing themselves -- their answers are the bullets.
 // Port target: android pdf/NarrativeHtml.kt; keep the two in lockstep.
 import {
-  cardsColgroupHtml, esc, fieldCellHtml, fieldValueHtml, headerHtml, numberedListHtml, openPrintWindow, pageCss,
+  cardsColgroupHtml, esc, fieldCellContentHtml, fieldCellHtml, fieldValueHtml, headerHtml, numberedListHtml, openPrintWindow, pageCss,
   remarkBulletsHtml, withNormalizedData,
 } from './reporthtml.js'
 import { answeredQuestionFields, narrativeColumns } from './reportlayout.js'
 import { answeredCards, sectionHasContent } from './reporttemplate.js'
+import { findingLines } from './findingsbox.js'
 import { SIGNOFF_CSS, signoffHtml } from './signoff.js'
 import { courseBatchLabel, printedRemarkLines } from './sectionremarks.js'
 
@@ -71,7 +72,11 @@ function interviewTableHtml(block, data) {
     const note = block.fields.find((n) => n.noteFor === f.key)
     const cells = cards.map((c) => {
       const noteText = note ? value(c, note.key) : ''
-      return `<td class="c">${fieldValueHtml(f, value(c, f.key))}${noteText ? `<span class="note">${esc(noteText)}</span>` : ''}</td>`
+      const answer = value(c, f.key)
+      // an unanswered question whose remarks are written shows just the remarks
+      const answerHtml = answer || !noteText ? fieldCellContentHtml(f, answer) : ''
+      const noteHtml = noteText ? `<span class="note">${esc(noteText)}</span>` : ''
+      return `<td class="c">${answerHtml}${noteHtml}</td>`
     }).join('')
     return `<tr><td class="l">${esc(f.label)}</td>${cells}</tr>`
   }).join('')
@@ -87,7 +92,7 @@ function blockHtml(block, section, data, template) {
     const lines = printedRemarkLines(template, section, block, data)
     return lines.length ? remarkBulletsHtml(lines) : ''
   }
-  if (block.type === 'findings') return numberedListHtml(block.heading ?? 'Major findings', (data.findings ?? []).map((f) => f.text))
+  if (block.type === 'findings') return numberedListHtml(block.heading ?? 'Major findings', findingLines(block, data))
   return '' // checklist answers print as the remarks bullets
 }
 

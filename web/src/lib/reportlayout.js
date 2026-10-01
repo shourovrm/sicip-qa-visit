@@ -115,6 +115,14 @@ export function isCentredField(field) {
   return CENTRED_KINDS.has(field.kind) || field.key === 'batch'
 }
 
+// item 14: a blank table cell prints "-" in every output (tick-box cells keep their glyphs and
+// never pass through here, nor do header and heading rows)
+export const BLANK_CELL_TEXT = '-'
+export function cellOrDash(value) {
+  const text = String(value ?? '').trim()
+  return text === '' ? BLANK_CELL_TEXT : String(value)
+}
+
 // for tables built from plain strings (QA): a number, "8 (40%)", "Yes" -- not a name or sentence
 export function isShortValue(value) {
   const text = String(value ?? '').trim()

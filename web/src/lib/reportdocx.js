@@ -20,13 +20,14 @@ import {
 import {
   CELL_MARGINS_TWIPS, CHECKLIST_COLUMNS, CONTENT_WIDTH_TWIPS, FLAGS_COLUMNS, INTERVIEW_NOTE_COLUMNS, INTERVIEW_TICK_COLUMNS,
   TICK_CHECKED, TICK_UNCHECKED, TONE_COLOR, answeredQuestionFields, columnWeight, footerTitle, isCentredField,
-  isStandardAnswerChoice, weightedWidths,
+  cellOrDash, isStandardAnswerChoice, weightedWidths,
   displayTime,
 } from './reportlayout.js'
 import { A4_PAGE, NUMBERING, numberedParagraphs, pageFooter } from './docxparts.js'
 import * as reportTemplateModule from './reporttemplate.js'
 import { compareMismatch, sectionHasContent } from './reporttemplate.js'
 import { printedRemarkLines } from './sectionremarks.js'
+import { findingLines } from './findingsbox.js'
 import { signoffDocx } from './signoffdocx.js'
 
 // -- fonts/colours/sizes, read from the reference docx (sizes are half-points, i.e. the same
@@ -105,6 +106,16 @@ export function fixedTable(widths, rows) {
   })
 }
 
+// header rows repeat on every page the table crosses (item 13); body rows never split. Two-level
+// headers must pass BOTH rows through headerTableRow.
+export function headerTableRow(cells) {
+  return new TableRow({ tableHeader: true, cantSplit: true, children: cells })
+}
+
+export function bodyTableRow(cells) {
+  return new TableRow({ cantSplit: true, children: cells })
+}
+
 export function run(text, opts = {}) {
   return new TextRun({ text, font: FONT, size: BODY_SIZE, ...opts })
 }
@@ -130,11 +141,17 @@ function multilineParagraph(value, opts = {}, paraOpts = {}) {
   return new Paragraph({ ...paraOpts, children })
 }
 
+// a table cell's (possibly multi-line) text; blank prints "-" (item 14)
+export function cellMultiline(value, opts = {}, paraOpts = {}) {
+  return multilineParagraph(cellOrDash(value), opts, paraOpts)
+}
+
 // choice fields -> bold text in the option's tone colour (blank -> empty paragraph, never "Not
 // answered"); every other kind -> plain (possibly multi-line) text. Used inside card table
 // cells, where a tick-box row per option (see inlineChoiceParagraph) wouldn't fit.
 export function fieldValueParagraph(field, rawValue) {
   const alignment = isCentredField(field) ? AlignmentType.CENTER : AlignmentType.LEFT
+  if (blank(rawValue)) return new Paragraph({ alignment, children: [run(cellOrDash(rawValue), { size: TABLE_SIZE })] })
   if (field.kind === 'choice' || field.kind === 'time') return new Paragraph({ alignment, children: fieldValueRuns(field, rawValue, TABLE_SIZE) })
   return multilineParagraph(rawValue, { size: TABLE_SIZE }, { alignment })
 }
@@ -295,7 +312,7 @@ function checklistBlockDocx(block, data, template, answerMap) {
   const out = []
   if (block.heading) out.push(subheadParagraph(block.heading))
   const answerIds = template.answers.map((a) => a.id)
-  const headerRow = new TableRow({ children: CHECKLIST_COLUMNS.map((c, i) => headerCellDxa(c.label, widths[i])) })
+  const headerRow = headerTableRow(CHECKLIST_COLUMNS.map((c, i) => headerCellDxa(c.label, widths[i])))
   const rows = block.items.map((item, i) => {
     const entry = checks[item.id] || {}
     const tickCells = answerIds.map((id, ci) => bodyCellDxa(widths[2 + ci], [tickParagraph(entry.answer === id, answerMap[id]?.tone)]))
@@ -303,15 +320,12 @@ function checklistBlockDocx(block, data, template, answerMap) {
     const itemParas = [new Paragraph({ children: itemChildren })]
     const perCourseText = perCourseLineText(item, entry, courses, answerMap)
     if (perCourseText) itemParas.push(new Paragraph({ children: [run(perCourseText, { size: SMALL_SIZE, color: NOTE_COLOR })] }))
-    return new TableRow({
-      cantSplit: true,
-      children: [
-        bodyCellDxa(widths[0], [cellParagraph([cellRun(String(i + 1))], true)]),
-        bodyCellDxa(widths[1], itemParas),
-        ...tickCells,
-        bodyCellDxa(widths[6], [multilineParagraph(entry.remarks, { size: TABLE_SIZE })]),
-      ],
-    })
+    return bodyTableRow([
+      bodyCellDxa(widths[0], [cellParagraph([cellRun(String(i + 1))], true)]),
+      bodyCellDxa(widths[1], itemParas),
+      ...tickCells,
+      bodyCellDxa(widths[6], [cellMultiline(entry.remarks, { size: TABLE_SIZE })]),
+    ])
   })
   out.push(fixedTable(widths, [headerRow, ...rows]))
   return out
@@ -338,11 +352,11 @@ function cardsBlockDocx(block, data) {
     return out
   }
   const widths = weightedWidths(CONTENT_WIDTH_TWIPS, block.fields.map(columnWeight))
-  const headerRow = new TableRow({ children: block.fields.map((f, i) => headerCellDxa(f.label, widths[i])) })
+  const headerRow = headerTableRow(block.fields.map((f, i) => headerCellDxa(f.label, widths[i])))
   const mismatchedRows = []
   const rows = entries.map((entry, i) => {
     if (cardMismatch(block.compare, entry)) mismatchedRows.push(i + 1)
-    return new TableRow({ children: block.fields.map((f, i2) => bodyCellDxa(widths[i2], [fieldValueParagraph(f, entry[f.key])])) })
+    return bodyTableRow(block.fields.map((f, i2) => bodyCellDxa(widths[i2], [fieldValueParagraph(f, entry[f.key])])))
   })
   out.push(fixedTable(widths, [headerRow, ...rows]))
   if (mismatchedRows.length > 0 && block.compare) {
@@ -380,17 +394,15 @@ function tabsCardsBlockDocx(block, data, template, answerMap) {
     const caption = `${entry[block.titleField] || ''}${extra ? ` · Batch ${extra}` : ''}`
     out.push(subheadParagraph(caption))
     if (tickFields.length > 0) {
-      const headerRow = new TableRow({ children: columns.map((c, i) => headerCellDxa(c.label, widths[i])) })
+      const headerRow = headerTableRow(columns.map((c, i) => headerCellDxa(c.label, widths[i])))
       const rows = tickFields.map((f) => {
         const note = noteFields.find((n) => n.noteFor === f.key)
-        const noteCell = noteFields.length ? [bodyCellDxa(widths[1 + answerIds.length], [multilineParagraph(note ? entry[note.key] : '', { size: TABLE_SIZE })])] : []
-        return new TableRow({
-          children: [
-            bodyCellDxa(widths[0], [cellParagraph([cellRun(f.label)])]),
-            ...answerIds.map((id, ci) => bodyCellDxa(widths[1 + ci], [tickParagraph(entry[f.key] === id, answerMap[id]?.tone)])),
-            ...noteCell,
-          ],
-        })
+        const noteCell = noteFields.length ? [bodyCellDxa(widths[1 + answerIds.length], [cellMultiline(note ? entry[note.key] : '', { size: TABLE_SIZE })])] : []
+        return bodyTableRow([
+          bodyCellDxa(widths[0], [cellParagraph([cellRun(f.label)])]),
+          ...answerIds.map((id, ci) => bodyCellDxa(widths[1 + ci], [tickParagraph(entry[f.key] === id, answerMap[id]?.tone)])),
+          ...noteCell,
+        ])
       })
       out.push(fixedTable(widths, [headerRow, ...rows]))
     }
@@ -410,12 +422,10 @@ function flagsColumnWidths() {
 
 function flagRow(checked, text, widths) {
   const color = checked ? TONE_COLOR.no : undefined
-  return new TableRow({
-    children: [
-      bodyCellDxa(widths[0], [tickParagraph(checked, 'no')]),
-      bodyCellDxa(widths[1], [cellParagraph([cellRun(text, { bold: checked, color })])]),
-    ],
-  })
+  return bodyTableRow([
+    bodyCellDxa(widths[0], [tickParagraph(checked, 'no')]),
+    bodyCellDxa(widths[1], [cellParagraph([cellRun(text, { bold: checked, color })])]),
+  ])
 }
 
 function combinedFlagsDocx(section, data) {
@@ -441,7 +451,7 @@ function blockDocx(block, section, data, template, answerMap) {
   if (block.type === 'checklist') return checklistBlockDocx(block, data, template, answerMap)
   if (block.type === 'cards') return block.display === 'tabs' ? tabsCardsBlockDocx(block, data, template, answerMap) : cardsBlockDocx(block, data)
   if (block.type === 'remarks') return bulletParagraphs(printedRemarkLines(template, section, block, data))
-  if (block.type === 'findings') return numberedListParagraphs(block.heading ?? 'Major findings', (data.findings ?? []).map((f) => f.text))
+  if (block.type === 'findings') return numberedListParagraphs(block.heading ?? 'Major findings', findingLines(block, data))
   return [] // unknown block type (flags/countsAsFlags cards handled in sectionDocx) -- ignore
 }
 

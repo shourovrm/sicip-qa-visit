@@ -1,16 +1,17 @@
 // surprise v2 "narrative" Word file: the Word twin of narrativehtml.js -- each section prints as
 // its remark sentences (bullets, issues marked) with tables only for cards blocks. Page, header
 // and footer come from reportdocx.js (packDocx/headerParagraphs) so both Word files match.
-import { Paragraph, TableRow } from 'docx'
+import { Paragraph } from 'docx'
 import {
   CONTENT_WIDTH_TWIPS, answeredQuestionFields, columnWeight, footerTitle, narrativeColumns, weightedWidths,
 } from './reportlayout.js'
 import {
-  bodyCellDxa, bulletParagraphs, cellParagraph, cellRun, fieldValueParagraph, fieldValueRuns, fixedTable, headerCellDxa,
-  headerParagraphs, numberedListParagraphs, packDocx, reportFilename, run, saveDocx, sectionHeadingParagraph,
+  bodyCellDxa, bodyTableRow, bulletParagraphs, cellParagraph, cellRun, fieldValueParagraph, fieldValueRuns, fixedTable, headerCellDxa,
+  headerParagraphs, headerTableRow, numberedListParagraphs, packDocx, reportFilename, run, saveDocx, sectionHeadingParagraph,
   subheadParagraph, withNormalizedData,
 } from './reportdocx.js'
 import { answeredCards, sectionHasContent } from './reporttemplate.js'
+import { findingLines } from './findingsbox.js'
 import { signoffDocx } from './signoffdocx.js'
 import { courseBatchLabel, printedRemarkLines } from './sectionremarks.js'
 
@@ -44,8 +45,8 @@ function fieldsDocx(block, data) {
 
 function table(headers, rows, weights) {
   const widths = weightedWidths(CONTENT_WIDTH_TWIPS, weights)
-  const head = new TableRow({ children: headers.map((h, i) => headerCellDxa(h, widths[i])) })
-  const body = rows.map((cells) => new TableRow({ children: cells.map((p, i) => bodyCellDxa(widths[i], Array.isArray(p) ? p : [p])) }))
+  const head = headerTableRow(headers.map((h, i) => headerCellDxa(h, widths[i])))
+  const body = rows.map((cells) => bodyTableRow(cells.map((p, i) => bodyCellDxa(widths[i], Array.isArray(p) ? p : [p]))))
   return fixedTable(widths, [head, ...body])
 }
 
@@ -73,7 +74,10 @@ function interviewDocx(block, data) {
       ...cards.map((c) => {
         const noteText = note ? value(c, note.key) : ''
         const answer = fieldValueParagraph(f, value(c, f.key))
-        return noteText ? [answer, cellParagraph([cellRun(noteText, { size: 16 })])] : [answer]
+        if (!noteText) return [answer]
+        const noteParagraph = cellParagraph([cellRun(noteText, { size: 16 })])
+        // an unanswered question whose remarks are written shows just the remarks
+        return value(c, f.key) ? [answer, noteParagraph] : [noteParagraph]
       }),
     ]
   })
@@ -87,7 +91,7 @@ function blockDocx(block, section, data, template) {
   if (block.type === 'fields') return fieldsDocx(block, data)
   if (block.type === 'cards') return block.display === 'tabs' ? interviewDocx(block, data) : cardsDocx(block, data)
   if (block.type === 'remarks') return bulletParagraphs(printedRemarkLines(template, section, block, data))
-  if (block.type === 'findings') return numberedListParagraphs(block.heading ?? 'Major findings', (data.findings ?? []).map((f) => f.text))
+  if (block.type === 'findings') return numberedListParagraphs(block.heading ?? 'Major findings', findingLines(block, data))
   return [] // checklist answers print as the remarks bullets
 }
 

@@ -54,12 +54,12 @@ it('checklist table uses the shared column widths (Item wide, ticks narrow)', ()
   expect(itemCol.weight).toBeGreaterThan(tickCol.weight * 5)
 })
 
-it('an unanswered checklist item has four unticked boxes and an empty remarks cell', () => {
+it('an unanswered checklist item has four unticked boxes and a dash in the remarks cell', () => {
   const html = reportHtml(template, EMPTY_DATA, meta)
   const row = html.slice(html.indexOf('Centre open and training'), html.indexOf('</tr>', html.indexOf('Centre open and training')))
   expect((row.match(/☐/g) || []).length).toBe(4) // four empty ticks
   expect(row).not.toContain('☒') // none checked
-  expect(row).toContain('<td class="remarks"></td>') // truly empty, not "Not answered"
+  expect(row).toContain('<td class="remarks">-</td>') // dash, not "Not answered"
 })
 
 it('a "yes" answer ticks the Yes column in its tone colour and leaves the rest unticked', () => {

@@ -13,11 +13,12 @@
 import {
   CELL_PADDING_CSS, CHECKLIST_COLUMNS, FLAGS_COLUMNS, INTERVIEW_NOTE_COLUMNS, INTERVIEW_TICK_COLUMNS, PAGE_MARGIN_CSS,
   TICK_CHECKED, TICK_UNCHECKED, TONE_COLOR, answeredQuestionFields, columnWeight, footerTitle, isCentredField,
-  isStandardAnswerChoice, displayTime,
+  cellOrDash, isStandardAnswerChoice, displayTime,
 } from './reportlayout.js'
 import * as reportTemplateModule from './reporttemplate.js'
 import { compareMismatch, sectionHasContent } from './reporttemplate.js'
 import { printedRemarkLines } from './sectionremarks.js'
+import { findingLines } from './findingsbox.js'
 import { SIGNOFF_CSS, signoffHtml } from './signoff.js'
 
 export function esc(s) {
@@ -130,8 +131,12 @@ function remarksHtml(block, section, data, template) {
 }
 
 // a table cell for one field value, centred for counts / batch no. / short answers
+export function fieldCellContentHtml(field, rawValue) {
+  return blank(rawValue) ? esc(cellOrDash(rawValue)) : fieldValueHtml(field, rawValue)
+}
+
 export function fieldCellHtml(field, rawValue) {
-  return `<td${isCentredField(field) ? ' class="c"' : ''}>${fieldValueHtml(field, rawValue)}</td>`
+  return `<td${isCentredField(field) ? ' class="c"' : ''}>${fieldCellContentHtml(field, rawValue)}</td>`
 }
 
 export function cardsColgroupHtml(fields) {
@@ -194,7 +199,7 @@ function checklistBlockHtml(block, data, template, answerMap) {
       const tickCells = answerIds.map((id) => tickCellHtml(entry.answer === id, answerMap[id]?.tone)).join('')
       // no "Per course" badge on paper: the course line under the item already says it
       const itemHtml = `${esc(item.text)}${perCourseLineHtml(item, entry, courses, answerMap)}`
-      const remarksHtml = blank(entry.remarks) ? '' : escMultiline(entry.remarks)
+      const remarksHtml = escMultiline(cellOrDash(entry.remarks))
       return `<tr><td class="num">${i + 1}</td><td class="question">${itemHtml}</td>${tickCells}<td class="remarks">${remarksHtml}</td></tr>`
     })
     .join('')
@@ -251,7 +256,7 @@ function tabsCardsBlockHtml(block, data, template, answerMap) {
       const tickRows = tickFields
         .map((f) => {
           const note = noteFields.find((n) => n.noteFor === f.key)
-          const noteCell = noteFields.length ? `<td>${escMultiline(note ? entry[note.key] ?? '' : '')}</td>` : ''
+          const noteCell = noteFields.length ? `<td>${escMultiline(cellOrDash(note ? entry[note.key] : ''))}</td>` : ''
           return `<tr><td class="question">${esc(f.label)}</td>${answerIds.map((id) => tickCellHtml(entry[f.key] === id, answerMap[id]?.tone)).join('')}${noteCell}</tr>`
         })
         .join('')
@@ -296,7 +301,7 @@ function blockHtml(block, section, data, template, answerMap) {
   if (block.type === 'checklist') return checklistBlockHtml(block, data, template, answerMap)
   if (block.type === 'cards') return block.display === 'tabs' ? tabsCardsBlockHtml(block, data, template, answerMap) : cardsBlockHtml(block, data)
   if (block.type === 'remarks') return remarksHtml(block, section, data, template)
-  if (block.type === 'findings') return numberedListHtml(block.heading ?? 'Major findings', (data.findings ?? []).map((f) => f.text))
+  if (block.type === 'findings') return numberedListHtml(block.heading ?? 'Major findings', findingLines(block, data))
   return '' // unknown block type (flags/countsAsFlags cards handled in sectionHtml) -- ignore
 }
 
@@ -369,7 +374,8 @@ export const CSS = `
   table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0 0 4pt; }
   th, td { border: 0.6pt solid #666; padding: ${CELL_PADDING_CSS}; vertical-align: middle; font-size: 9pt; }
   th { background: #e6e6e6; font-weight: 700; text-align: center; line-height: 1.2; }
-  tr { break-inside: avoid; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; page-break-inside: avoid; }
   td.num, th.num, td.c { text-align: center; }
 
   .checklist td.num { color: #333; text-align: center; }
