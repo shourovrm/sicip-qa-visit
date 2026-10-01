@@ -1,6 +1,7 @@
-// report hub: always-visible TMS link status for surprise reports. existing reports (made before the
+// report hub: always-visible TMS link status (surprise + QA). existing reports (made before the
 // link step, or on another phone) can be linked here; linking or refreshing reloads the suggestion
-// lists. section A courses are filled only while empty, so typed courses are never overwritten.
+// lists and fills from TMS (surprise C attendance, QA 1.40-1.60). section A courses are filled only
+// while empty, so typed courses are never overwritten.
 package bd.sicip.qavisit.ui.reports
 
 import androidx.compose.foundation.layout.Arrangement
@@ -32,7 +33,7 @@ import bd.sicip.qavisit.domain.report.runningBatches
 import bd.sicip.qavisit.domain.report.tmsLink
 import bd.sicip.qavisit.domain.report.visitDate
 import bd.sicip.qavisit.domain.report.withRunningCoursesIfEmpty
-import bd.sicip.qavisit.domain.report.withTmsLink
+import bd.sicip.qavisit.domain.report.hasSuggestFields
 import bd.sicip.qavisit.ui.common.LocalOpenTmsSettings
 import kotlinx.coroutines.launch
 
@@ -47,18 +48,29 @@ fun rememberTmsSignedIn(): Boolean {
 fun TmsStatusRow(editor: ReportEditor, template: ReportTemplate) {
     val signedIn = rememberTmsSignedIn()
     val openProfile = LocalOpenTmsSettings.current
+    val services = TmsServices.get(LocalContext.current)
     val scope = rememberCoroutineScope()
     var pickerOpen by remember { mutableStateOf(false) }
     val link = editor.data.tmsLink()
     val suggestions = editor.suggestions
+    val fill = editor.tmsFill
+    val isQa = template.id == "qa"
 
-    fun reloadSuggestions(forLink: TmsLink) {
+    // refresh = the officer asked for fresh TMS data: TMS numbers may overwrite earlier ones
+    fun reloadTmsData(forLink: TmsLink, refresh: Boolean) {
         scope.launch {
-            suggestions.forgetTmsData()
-            suggestions.load(forLink)
-            val catalog = suggestions.sources.catalog ?: return@launch
-            val running = runningBatches(catalog, template.visitDate(editor.data))
-            if (running.isNotEmpty()) editor.editNow(withRunningCoursesIfEmpty(editor.data, running))
+            if (template.hasSuggestFields()) {
+                suggestions.forgetTmsData()
+                suggestions.load(forLink)
+                val catalog = suggestions.sources.catalog
+                if (catalog != null && !isQa) {
+                    val running = runningBatches(catalog, template.visitDate(editor.data))
+                    if (running.isNotEmpty()) editor.editNow(withRunningCoursesIfEmpty(editor.data, running))
+                }
+            }
+            editor.launchForReport {
+                fillFromTms(editor, template, services, origin = "hub", prefill = tmsPrefillFor(template, refresh))
+            }
         }
     }
 
@@ -68,12 +80,15 @@ fun TmsStatusRow(editor: ReportEditor, template: ReportTemplate) {
                 if (link != null) "Linked to ${link.name.ifBlank { "TMS institute" }}" else "Not linked to TMS",
                 style = MaterialTheme.typography.titleSmall,
             )
+            val failure = fill.failure?.takeIf { fill.origin == "hub" }
             val detail = when {
                 suggestions.loading -> "Loading TMS courses and batches..."
-                link != null && signedIn && suggestions.loadFailed -> "Could not load TMS data. Tap Refresh to try again."
-                link != null && signedIn -> "Course, batch and trainee suggestions come from TMS."
-                link != null -> "Sign in to TMS in Profile to get suggestions."
-                signedIn -> "Link the institute to get course, batch and trainee suggestions."
+                fill.busy -> "Loading TMS enrolment and attendance..."
+                link != null && signedIn && (suggestions.loadFailed || failure != null) -> "Could not load TMS data. Tap Refresh to try again."
+                link != null && signedIn && isQa -> "Course tables 1.40 to 1.60 fill from TMS. Refresh to update them."
+                link != null && signedIn -> "Course, batch, trainee and attendance data come from TMS."
+                link != null -> "Sign in to TMS in Profile to get TMS data."
+                signedIn -> "Link the institute to fill and suggest data from TMS."
                 else -> "Sign in to TMS in Profile, then link the institute."
             }
             Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -83,7 +98,7 @@ fun TmsStatusRow(editor: ReportEditor, template: ReportTemplate) {
                     if (signedIn && link == null) TextButton(onClick = { pickerOpen = true }) { Text("Link institute") }
                     if (signedIn && link != null) {
                         TextButton(onClick = { pickerOpen = true }) { Text("Change") }
-                        TextButton(onClick = { reloadSuggestions(link) }, enabled = !suggestions.loading) { Text("Refresh") }
+                        TextButton(onClick = { reloadTmsData(link, refresh = true) }, enabled = !suggestions.loading && !fill.busy) { Text("Refresh") }
                     }
                 }
             }
@@ -96,8 +111,8 @@ fun TmsStatusRow(editor: ReportEditor, template: ReportTemplate) {
             instituteText = template.prefilledValue(editor.data, "institute"),
             onPick = { picked ->
                 pickerOpen = false
-                editor.editNow(editor.data.withTmsLink(picked))
-                reloadSuggestions(picked)
+                editor.linkTms(picked)
+                reloadTmsData(picked, refresh = false)
             },
             onDismiss = { pickerOpen = false },
         )

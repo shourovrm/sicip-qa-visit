@@ -91,6 +91,12 @@ class ReportEditor(
         }
     }
 
+    // work that must outlive the screen that started it (a TMS fill while the officer moves on
+    // to a section); main thread, like a composable's own scope
+    fun launchForReport(block: suspend () -> Unit) {
+        scope.launch(Dispatchers.Main) { block() }
+    }
+
     // discrete edit: a checklist tap, a choice field, adding/removing a card row, ticking a
     // flag. each of these is a single, already-final decision -- no reason to wait.
     fun editNow(newData: ReportData) = commit(newData, debounceMs = 0L)

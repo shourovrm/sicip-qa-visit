@@ -28,6 +28,7 @@ fun ReportData.tmsLink(): TmsLink? {
         instituteId = instituteId,
         instituteNo = tms.text("institute_no"),
         name = tms.text("name"),
+        address = tms.text("address"),
     )
 }
 
@@ -46,6 +47,8 @@ fun ReportData.withTmsLink(link: TmsLink): ReportData {
         put("institute_id", JsonPrimitive(link.instituteId))
         put("institute_no", JsonPrimitive(link.instituteNo))
         put("name", JsonPrimitive(link.name))
+        // a relink without an address must not keep the previous institute's
+        if (link.address.isNotBlank()) put("address", JsonPrimitive(link.address)) else if (!sameInstitute) remove("address")
         if (!sameInstitute) {
             put("fetched_at", JsonNull)
             remove("snapshot")

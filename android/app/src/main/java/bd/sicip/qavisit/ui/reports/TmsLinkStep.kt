@@ -31,7 +31,6 @@ import bd.sicip.qavisit.domain.report.runningBatches
 import bd.sicip.qavisit.domain.report.tmsLink
 import bd.sicip.qavisit.domain.report.visitDate
 import bd.sicip.qavisit.domain.report.withRunningCourses
-import bd.sicip.qavisit.domain.report.withTmsLink
 import kotlinx.coroutines.launch
 
 // reports this app run just created and not yet offered the link step (memory only: a report
@@ -53,7 +52,8 @@ private sealed interface StepState {
 
 @Composable
 fun SurpriseTmsLinkStep(editor: ReportEditor, template: ReportTemplate) {
-    val auth = TmsServices.get(LocalContext.current).auth
+    val services = TmsServices.get(LocalContext.current)
+    val auth = services.auth
     val authState by auth.state.collectAsState()
     val signedIn = authState.isSignedIn
     val offered = remember(editor.report.id) { NewReportLinkStep.take(editor.report.id) }
@@ -64,7 +64,7 @@ fun SurpriseTmsLinkStep(editor: ReportEditor, template: ReportTemplate) {
     if (!applies && state == StepState.Picking) return
 
     fun linkAndAddCourses(link: TmsLink) {
-        editor.editNow(editor.data.withTmsLink(link))
+        editor.linkTms(link)
         state = StepState.Loading
         scope.launch {
             editor.suggestions.load(link)
@@ -76,6 +76,8 @@ fun SurpriseTmsLinkStep(editor: ReportEditor, template: ReportTemplate) {
                 editor.editNow(withRunningCourses(editor.data, running))
                 if (running.isEmpty()) StepState.Message("Linked. TMS shows no batch running on the visit date.") else StepState.Done
             }
+            // C attendance (enrolment, TMS 7-day mean) in the background; the hub row shows progress
+            if (catalog != null) editor.launchForReport { fillFromTms(editor, template, services, origin = "hub") }
         }
     }
 

@@ -157,7 +157,7 @@ fun TmsInstitutePicker(
                     val institute = selected ?: return@TextButton
                     val partner = entity ?: return@TextButton
                     val tranche = trancheId ?: return@TextButton
-                    onPick(TmsLink(tranche, partner.id, institute.id, institute.instituteNo, institute.name))
+                    onPick(TmsLink(tranche, partner.id, institute.id, institute.instituteNo, institute.name, institute.address))
                 },
             ) { Text("Link") }
         },

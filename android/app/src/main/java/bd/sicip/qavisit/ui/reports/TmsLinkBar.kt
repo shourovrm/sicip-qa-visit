@@ -30,7 +30,6 @@ import bd.sicip.qavisit.domain.report.prefilledValue
 import bd.sicip.qavisit.domain.report.tmsFetchedAt
 import bd.sicip.qavisit.domain.report.tmsLink
 import bd.sicip.qavisit.domain.report.tmsTimeLabel
-import bd.sicip.qavisit.domain.report.withTmsLink
 import bd.sicip.qavisit.domain.report.withoutTmsLink
 import bd.sicip.qavisit.ui.common.LocalOpenTmsSettings
 import kotlinx.coroutines.launch
@@ -81,7 +80,7 @@ private fun TmsPickerGate(editor: ReportEditor, template: ReportTemplate) {
             association = template.prefilledValue(editor.data, "association"),
             instituteText = template.prefilledValue(editor.data, "institute"),
             onPick = { picked ->
-                editor.editNow(editor.data.withTmsLink(picked))
+                editor.linkTms(picked)
                 close()
             },
             onDismiss = close,

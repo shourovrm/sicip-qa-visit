@@ -55,6 +55,7 @@ data class TmsLink(
     val instituteId: Long,
     val instituteNo: String,
     val name: String,
+    val address: String = "", // "" on links saved before addresses were kept
 )
 
 // full-name master list; optional, so a failure just means short course names.

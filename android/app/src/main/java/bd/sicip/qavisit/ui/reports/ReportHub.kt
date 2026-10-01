@@ -203,7 +203,7 @@ fun ReportHub(
                     )
                 }
             }
-            if (template.hasSuggestFields()) {
+            if (template.hasSuggestFields() || template.id == "qa") {
                 item(key = "tms-status") { TmsStatusRow(editor, template) }
             }
             if (needsConversion(editor.report)) {
