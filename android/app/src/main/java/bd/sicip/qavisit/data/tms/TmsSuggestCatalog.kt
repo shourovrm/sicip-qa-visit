@@ -13,6 +13,8 @@ data class TmsBatchRef(
     val number: String,
     val start: LocalDate?,
     val end: LocalDate?,
+    // every spelling TMS uses for the course (full, short, alias); a report may use any of them
+    val names: List<String> = emptyList(),
 )
 
 data class TmsCourseCatalog(val courseNames: List<String>, val batches: List<TmsBatchRef>)
@@ -26,14 +28,21 @@ fun buildTmsCourseCatalog(targets: JsonArray, batches: JsonArray, aliases: JsonA
     val courseNameById = targets.map { it.objectOrEmpty() }.associate { row ->
         row["id"].lenientLong() to fullCourseName(row["course_name"].lenientText(), aliasNames[row["x_course_name_id"].lenientLong()])
     }
+    val spellingsById = targets.map { it.objectOrEmpty() }.associate { row ->
+        row["id"].lenientLong() to listOf(row["course_name"].lenientText(), aliasNames[row["x_course_name_id"].lenientLong()].orEmpty())
+    }
     val batchRefs = batches.map { it.objectOrEmpty() }.map { row ->
         val courseId = row["course_info_id"].lenientLong()
         val courseInfo = row["course_info"].objectOrEmpty()
         val fallbackName = fullCourseName(courseInfo["course_name"].lenientText(), aliasNames[courseInfo["x_course_name_id"].lenientLong()])
+        val courseName = courseNameById[courseId] ?: fallbackName
+        val spellings = listOf(courseName) + spellingsById[courseId].orEmpty() +
+            listOf(courseInfo["course_name"].lenientText(), aliasNames[courseInfo["x_course_name_id"].lenientLong()].orEmpty())
         TmsBatchRef(
             id = row["id"].lenientLong(),
             courseId = courseId,
-            courseName = courseNameById[courseId] ?: fallbackName,
+            courseName = courseName,
+            names = spellings.filter { it.isNotBlank() }.distinct(),
             number = row["batch_number"].lenientText(),
             start = parseDate(row["start_date"].lenientText()),
             end = parseDate(row["end_date"].lenientText()),

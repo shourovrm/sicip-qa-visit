@@ -118,6 +118,29 @@ class SuggestionsTest {
         assertEquals(2, withRunningCourses(typed, listOf(welding7, electrical3)).cards("courses").size)
     }
 
+    // the report may say "&" for "and", drop the "(EIM)" code, or use TMS's short name or the alias
+    @Test
+    fun `course typed with ampersand, no code or short name still finds its batches and trainees`() {
+        val targets = json("""[{"id":20,"course_name":"Plumbing and Pipe Fitting (PPF)","x_course_name_id":3}]""")
+        val aliases = json("""[{"id":3,"name":"PPF"}]""")
+        val batches = json("""[{"id":30,"course_info_id":20,"batch_number":4,"start_date":"2026-07-01","end_date":"2026-10-31"}]""")
+        val built = buildTmsCourseCatalog(targets, batches, aliases)
+        val hints = SuggestionSources(built, traineesByBatch = mapOf(30L to listOf(TmsTraineeHint("Mina Akter", "01700000002"))))
+        val traineeField = field("identity", "name")
+
+        assertEquals(listOf("4"), batchesOfCourse("Plumbing & Pipe Fitting", built).map { it.number })
+        assertEquals(listOf("4"), batchesOfCourse("PPF", built).map { it.number })
+        assertEquals(listOf("Mina Akter"), suggestionsFor(traineeField, card("batch" to "Plumbing & Pipe Fitting · 04"), hints))
+    }
+
+    @Test
+    fun `existing report courses are kept when linking, filled only when empty`() {
+        val typed = ReportData.EMPTY.withCardAdded("courses", card("_id" to "a", "course" to "Own course", "batch" to "1"))
+        assertEquals(listOf("Own course"), withRunningCoursesIfEmpty(typed, listOf(welding7)).cards("courses").map { it.text("course") })
+        val empty = ReportData.EMPTY.withCardAdded("courses")
+        assertEquals(listOf("Welding (SMAW)"), withRunningCoursesIfEmpty(empty, listOf(welding7)).cards("courses").map { it.text("course") })
+    }
+
     @Test
     fun `equipment names to share are the G names, first spelling per key`() {
         val data = ReportData.EMPTY

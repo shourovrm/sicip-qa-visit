@@ -35,6 +35,21 @@ private fun JsonObject.text(key: String): String = this[key]?.jsonPrimitive?.con
 
 private fun sameCourse(a: String, b: String): Boolean = a.trim().equals(b.trim(), ignoreCase = true)
 
+// a course typed in the report may be the full name, TMS's short name or the alias, with "and" for
+// "&" and without the "(EIM)" code: compare on a folded key (mirrors web lib/tmscatalog.js courseKey)
+fun courseKey(name: String): String =
+    name.trim().lowercase()
+        .replace(Regex("\\([^)]*\\)"), " ")
+        .replace("&", " and ")
+        .replace(Regex("[^a-z0-9]+"), " ")
+        .trim()
+
+private fun isCourse(batch: TmsBatchRef, course: String): Boolean {
+    val wanted = courseKey(course)
+    if (wanted.isEmpty()) return false
+    return (listOf(batch.courseName) + batch.names).any { courseKey(it) == wanted }
+}
+
 // "07" and "7" are the same batch
 private fun sameBatchNumber(a: String, b: String): Boolean {
     val left = a.trim()
@@ -46,7 +61,7 @@ private fun sameBatchNumber(a: String, b: String): Boolean {
 
 fun batchesOfCourse(course: String, catalog: TmsCourseCatalog): List<TmsBatchRef> =
     catalog.batches
-        .filter { course.isNotBlank() && sameCourse(it.courseName, course) }
+        .filter { isCourse(it, course) }
         .sortedWith(compareByDescending<TmsBatchRef> { it.start ?: LocalDate.MIN }.thenByDescending { it.number.toIntOrNull() ?: 0 })
 
 // batches running on the visit date (start <= date <= end), in the institute's course order
@@ -70,7 +85,7 @@ fun traineeBatchOf(card: JsonObject, catalog: TmsCourseCatalog): TmsBatchRef? {
         batchNumber = batchNumber.substring(split + COURSE_BATCH_SEPARATOR.length)
     }
     if (course.isBlank() || batchNumber.isBlank()) return null
-    return catalog.batches.firstOrNull { sameCourse(it.courseName, course) && sameBatchNumber(it.number, batchNumber) }
+    return catalog.batches.firstOrNull { isCourse(it, course) && sameBatchNumber(it.number, batchNumber) }
 }
 
 private fun traineesOf(card: JsonObject, sources: SuggestionSources): List<TmsTraineeHint> {
@@ -111,6 +126,13 @@ fun withRunningCourses(data: ReportData, running: List<TmsBatchRef>): ReportData
             )
         }
     return data.withCardsReplaced("courses", kept + added)
+}
+
+// linking an existing report: section A is only filled while no course card has a course typed,
+// so the officer's own courses are never touched (same rule as the web's refresh)
+fun withRunningCoursesIfEmpty(data: ReportData, running: List<TmsBatchRef>): ReportData {
+    val hasCourse = data.cards("courses").any { it.text("course").isNotEmpty() }
+    return if (hasCourse) data else withRunningCourses(data, running)
 }
 
 // same folding as the server's value_key: "Grinder " and "grinder" are one entry
