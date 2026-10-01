@@ -61,11 +61,13 @@
           <StrengthsPairs {block} {template} {data} {disabled} {onChange} />
         </div>
       {:else if block.type === 'fields'}
-        <div class="block">
+        <div class="block fields-grid">
           {#each block.fields.filter((f) => isShown(f, data.fields)) as field (field.key)}
-            {#if field.draftFrom}<FieldDraft {field} {template} {data} {disabled} {onChange} />{/if}
-            <FieldInput {field} value={data.fields[field.key] ?? ''} {disabled}
-              on:change={(e) => { data.fields[field.key] = e.detail; onChange() }} />
+            <div class:wide={field.kind === 'longtext' || field.kind === 'choice' || field.draftFrom}>
+              {#if field.draftFrom}<FieldDraft {field} {template} {data} {disabled} {onChange} />{/if}
+              <FieldInput {field} value={data.fields[field.key] ?? ''} {disabled}
+                on:change={(e) => { data.fields[field.key] = e.detail; onChange() }} />
+            </div>
           {/each}
         </div>
       {:else if block.type === 'checklist'}
@@ -134,6 +136,7 @@
   .letter { flex: none; width: 28px; height: 28px; border-radius: 8px; background: var(--primary-container); color: var(--on-primary-container); display: grid; place-items: center; font-size: 13px; font-weight: 700; }
   .letter.done { background: var(--tone-yes-bg); color: var(--tone-yes-fg); }
   .letter.flagged { background: var(--tone-no-bg); color: var(--tone-no-fg); }
+  .section .title { font-size: 18px; }
   .title { flex: 1; min-width: 0; font-weight: 700; }
   .optional-tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); background: var(--canvas); border: 1px solid var(--outline); border-radius: var(--radius-pill); padding: 2px 8px; }
   .count { font-size: 12px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -142,5 +145,8 @@
   .body { padding: 0 16px 16px; }
   .note { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
   .block + .block { margin-top: 8px; }
+  /* laptop: short fields two or three to a row, long text and answer buttons full width */
+  .fields-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0 16px; }
+  .fields-grid .wide { grid-column: 1 / -1; }
   .subheading { margin: 16px 0 4px; padding-top: 12px; border-top: 1px solid var(--outline); font-size: 13px; }
 </style>

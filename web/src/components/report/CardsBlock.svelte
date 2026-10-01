@@ -93,17 +93,14 @@
   }
 
   // find which section owns the linked block's source cards (e.g. "courses" lives in section A)
-  // so the empty-state link can open + scroll to it, same mechanism as SectionChips' chip jump.
+  // so the empty-state link can switch the editor to it, same event as SectionChips' chip jump.
   function jumpToSource() {
     if (!template || !block.linkFrom) return
     let targetKey = null
     for (const section of template.sections) {
       if (section.blocks.some((b) => b.type === 'cards' && b.key === block.linkFrom.cards)) targetKey = section.key
     }
-    const el = targetKey && document.getElementById(`section-${targetKey}`)
-    if (!el) return
-    el.open = true
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    if (targetKey) window.dispatchEvent(new CustomEvent('report-section', { detail: targetKey }))
   }
 </script>
 
@@ -142,11 +139,15 @@
             {#if !disabled}<button type="button" class="btn-link remove" on:click={() => removeCard(index)}>Remove</button>{/if}
           {/if}
         </div>
-        {#each editableFields.filter((f) => isShown(f, card)) as field (field.key)}
-          <FieldInput {field} value={card[field.key] ?? ''} {disabled} compact={Boolean(block.anonymous)}
-            courseOptions={field.kind === 'courseRef' ? optionsFor(field, card) : undefined}
-            on:change={(e) => setField(index, field.key, e.detail)} />
-        {/each}
+        <div class="entry-fields">
+          {#each editableFields.filter((f) => isShown(f, card)) as field (field.key)}
+            <div class:wide={field.kind === 'longtext'}>
+              <FieldInput {field} value={card[field.key] ?? ''} {disabled} compact={Boolean(block.anonymous)}
+                courseOptions={field.kind === 'courseRef' ? optionsFor(field, card) : undefined}
+                on:change={(e) => setField(index, field.key, e.detail)} />
+            </div>
+          {/each}
+        </div>
         {#if block.compare}
           {@const state = compareState(card)}
           <p class="compare" class:match={state === 'match'} class:mismatch={state === 'mismatch'}>
@@ -173,7 +174,10 @@
   .compare { margin: 4px 0 0; padding: 8px 10px; border-radius: 8px; font-size: 13px; background: var(--canvas); color: var(--muted); }
   .compare.match { background: var(--tone-yes-bg); color: var(--tone-yes-fg); font-weight: 700; }
   .compare.mismatch { background: var(--tone-no-bg); color: var(--tone-no-fg); font-weight: 700; }
-  .add-card { width: 100%; background: var(--primary-container); color: var(--on-primary-container); margin-top: 4px; }
+  .add-card { background: var(--surface); border: 1px solid var(--outline); border-radius: 8px; color: var(--ink); font-weight: 600; margin-top: 4px; }
+  /* laptop: a card's short fields sit side by side, long text takes the full row */
+  .entry-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0 14px; }
+  .entry-fields .wide { grid-column: 1 / -1; }
 
   .tab-strip { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 12px; padding-bottom: 2px; }
   .tab {

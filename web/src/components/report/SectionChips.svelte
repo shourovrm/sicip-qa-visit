@@ -6,11 +6,9 @@
   export let sections // template.sections
   export let progressSections // progress.sections: {[key]: {answered,total,done,flagged}}
 
+  // the editor shows one section at a time: ask it to switch (ReportEditor listens)
   function jump(key) {
-    const el = document.getElementById(`section-${key}`)
-    if (!el) return
-    el.open = true
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    window.dispatchEvent(new CustomEvent('report-section', { detail: key }))
   }
 </script>
 

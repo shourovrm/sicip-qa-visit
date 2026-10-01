@@ -6,7 +6,7 @@
   import { listReports, listReportsByVisit, listVisits, createReport } from '../lib/db.js'
   import { officer, isAdmin } from '../lib/auth.js'
   import { officers } from '../lib/officers.js'
-  import { templateFor, dbTypeFor, newReportData, computeProgress } from '../lib/reporttemplate.js'
+  import { templateFor, dbTypeFor, newReportData, computeProgress, percentDone } from '../lib/reporttemplate.js'
   import Dropdown from '../components/Dropdown.svelte'
   import ReportEditor from '../components/report/ReportEditor.svelte'
   import { openReportPrint } from '../lib/reporthtml.js'
@@ -56,7 +56,11 @@
     load()
   }
 
-  $: filtered = reports.filter((r) => r.status === tab)
+  let search = ''
+  $: needle = search.trim().toLowerCase()
+  $: filtered = reports
+    .filter((r) => r.status === tab)
+    .filter((r) => !needle || [instituteFor(r), partnerFor(r), officerNameFor(r), typeLabel(r.type)].join(' ').toLowerCase().includes(needle))
   // only Monitoring Visit visits get a report (spec section 1); which template(s) apply comes
   // from the visit's own visit_type, not a type picked here.
   $: myVisits = visits
@@ -66,8 +70,29 @@
   function instituteFor(r) {
     return visits.find((v) => v.id === r.visit_id)?.institute ?? r.data?.fields?.ti_name ?? '—'
   }
-  function progressFor(r) {
-    return computeProgress(templateFor(r.type, r.template_version), r.data)
+  function percentFor(r) {
+    const template = templateFor(r.type, r.template_version)
+    return percentDone(template, computeProgress(template, r.data ?? {}))
+  }
+  function visitOf(r) {
+    return visits.find((v) => v.id === r.visit_id) ?? null
+  }
+  function partnerFor(r) {
+    return r.data?.fields?.provider || visitOf(r)?.association || '—'
+  }
+  function visitDateFor(r) {
+    return r.data?.fields?.visit_date || r.data?.fields?.date_from || visitOf(r)?.start_date || ''
+  }
+  function officerNameFor(r) {
+    return $officers.find((o) => o.id === r.officer_id)?.name ?? ($officer?.id === r.officer_id ? $officer.name : '')
+  }
+  const dateFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  const savedFormat = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  function formatDate(value) {
+    return value ? dateFormat.format(new Date(`${String(value).slice(0, 10)}T00:00`)) : '—'
+  }
+  function formatSaved(value) {
+    return value ? savedFormat.format(new Date(value)) : '—'
   }
 
   // visit_type 'surprise'/'qa' -> that one template only; null (old rows created before the
@@ -138,42 +163,47 @@
       on:close={closeEditor} on:save={onSave} on:submit={onSave} on:reopened={onConverted} on:delete={onDelete} on:converted={onConverted} />
   {/key}
 {:else}
-  <h1>Reports</h1>
-
-  {#if $isAdmin}
-    <div class="field" style="width:260px">
-      <label for="officer-filter">Officer</label>
-      <Dropdown id="officer-filter" value={officerFilter} options={[['', 'My reports'], ...$officers.map((o) => [o.id, o.name])]} on:change={onOfficerFilterChange} />
+  <div class="list-head">
+    <div>
+      <h1>Reports</h1>
+      <p class="muted sub">Surprise and QA visit reports</p>
     </div>
-  {/if}
-
-  <div class="row-wrap tabs">
-    <div class="seg">
-      <button class:active={tab === 'draft'} on:click={() => (tab = 'draft')}>In progress ({reports.filter((r) => r.status === 'draft').length})</button>
-      <button class:active={tab === 'submitted'} on:click={() => (tab = 'submitted')}>Submitted ({reports.filter((r) => r.status === 'submitted').length})</button>
+    <div class="list-tools">
+      <div class="seg">
+        <button class:active={tab === 'draft'} on:click={() => (tab = 'draft')}>Drafts ({reports.filter((r) => r.status === 'draft').length})</button>
+        <button class:active={tab === 'submitted'} on:click={() => (tab = 'submitted')}>Submitted ({reports.filter((r) => r.status === 'submitted').length})</button>
+      </div>
+      <input type="text" class="search" placeholder="Search institute, partner, officer…" bind:value={search} aria-label="Search reports" />
+      {#if $isAdmin}
+        <div class="officer-filter">
+          <Dropdown id="officer-filter" value={officerFilter} options={[['', 'My reports'], ...$officers.map((o) => [o.id, o.name])]} on:change={onOfficerFilterChange} />
+        </div>
+      {/if}
+      {#if !officerFilter}<button class="btn btn-primary" on:click={openNew}>＋ New report</button>{/if}
     </div>
-    {#if !officerFilter}<button class="btn btn-primary" on:click={openNew}>＋ New report</button>{/if}
   </div>
 
   {#if loading}
     <p class="muted">Loading…</p>
   {:else}
-    <table class="card">
+    <table class="card list">
       <thead>
-        <tr><th>Type</th><th>Institute</th><th>Progress</th><th>Flags</th><th>{tab === 'draft' ? 'Created' : 'Submitted'}</th><th></th></tr>
+        <tr><th>Institute</th><th>Partner</th><th>Type</th><th>Visit date</th><th>Officer</th><th>Progress</th><th>TMS</th><th>Last saved</th><th></th></tr>
       </thead>
       <tbody>
-        {#if filtered.length === 0}<tr><td colspan="6" class="muted">No reports.</td></tr>{/if}
+        {#if filtered.length === 0}<tr><td colspan="9" class="muted">No reports.</td></tr>{/if}
         {#each filtered as r (r.id)}
-          {@const p = progressFor(r)}
-          {@const flagTotal = p.flagsTicked.length + p.customFlags.length}
-          <tr>
+          {@const percent = percentFor(r)}
+          <tr class="clickable" on:click={() => open(r)}>
+            <td><b>{instituteFor(r)}</b>{#if visitOf(r)?.district}<div class="muted small">{visitOf(r).district}</div>{/if}</td>
+            <td>{partnerFor(r)}</td>
             <td>{typeLabel(r.type)}</td>
-            <td>{instituteFor(r)}</td>
-            <td>{p.sectionsDone}/{p.sectionsCounted} sections</td>
-            <td>{#if flagTotal}<span class="flag-count">{flagTotal}</span>{:else}—{/if}</td>
-            <td>{new Date(tab === 'draft' ? r.created_at : r.submitted_at).toLocaleDateString()}</td>
-            <td><button class="btn-link" on:click={() => open(r)}>Open</button></td>
+            <td>{formatDate(visitDateFor(r))}</td>
+            <td>{officerNameFor(r) || '—'}</td>
+            <td><span class="bar"><span style="width:{percent}%"></span></span> {percent}%</td>
+            <td>{#if r.data?.tms}<span class="linked">Linked</span>{:else}—{/if}</td>
+            <td>{formatSaved(r.updated_at)}</td>
+            <td><button class="btn open" on:click|stopPropagation={() => open(r)}>Open</button></td>
           </tr>
         {/each}
       </tbody>
@@ -222,12 +252,26 @@
 <style>
   .hint { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
   h1 { color: var(--primary); }
-  .tabs { justify-content: space-between; margin: 12px 0; }
+  .list-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin: 4px 0 16px; }
+  .list-head h1 { margin: 0; }
+  .sub { margin: 2px 0 0; }
+  .list-tools { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .search { width: 300px; }
+  .officer-filter { width: 220px; }
+  .list { padding: 0; }
+  .list td { vertical-align: middle; padding: 12px 14px; }
+  .list th { padding: 12px 14px; }
+  .clickable { cursor: pointer; }
+  .clickable:hover { background: var(--canvas); }
+  .small { font-size: 13px; }
+  .bar { display: inline-block; width: 110px; height: 6px; border-radius: 3px; background: var(--outline); overflow: hidden; vertical-align: middle; margin-right: 6px; }
+  .bar span { display: block; height: 100%; background: var(--tone-yes-fg); }
+  .linked { display: inline-block; padding: 2px 10px; border-radius: var(--radius-pill); background: var(--primary-container); color: var(--on-primary-container); font-weight: 700; font-size: 13px; }
+  .open { padding: 4px 12px; border-radius: 8px; background: var(--surface); border-color: var(--outline); font-weight: 600; }
   .seg { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-pill); padding: 3px; }
   .seg button { border: none; background: none; padding: 6px 14px; border-radius: var(--radius-pill); cursor: pointer; font-weight: 700; color: var(--muted); }
   .seg button.active { background: var(--primary); color: var(--on-primary); }
   .seg button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .flag-count { display: inline-block; min-width: 20px; padding: 1px 7px; border-radius: var(--radius-pill); background: var(--tone-no-bg); color: var(--tone-no-fg); font-weight: 700; font-size: 12px; }
   .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 10; }
   .modal { width: 380px; }
   h2 { font-size: 15px; margin: 0 0 12px; }

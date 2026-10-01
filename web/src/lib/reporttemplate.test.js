@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { templateFor, dbTypeFor, computeProgress, normalize, newReportData } from './reporttemplate.js'
+import { templateFor, dbTypeFor, computeProgress, normalize, newReportData, percentDone } from './reporttemplate.js'
 import fixture from '../../../shared/report-templates/fixtures/progress-1.json'
 import qaProgressFixture from '../../../shared/report-templates/fixtures/progress-qa-1.json'
 
@@ -141,5 +141,14 @@ describe('qa template', () => {
     const template = templateFor('qa', 1)
     const s8 = template.sections.find((s) => s.key === 's8')
     expect(s8.blocks.filter((b) => b.type === 'criteria')).toHaveLength(2)
+  })
+})
+
+describe('percentDone', () => {
+  it('is answered over total across counted (non-optional) sections', () => {
+    const template = { sections: [{ key: 'a' }, { key: 'b' }, { key: 'k', optional: true }, { key: 'z' }] }
+    const progress = { sections: { a: { answered: 3, total: 4 }, b: { answered: 0, total: 4 }, k: { answered: 2, total: 2 }, z: { answered: 0, total: 0 } } }
+    expect(percentDone(template, progress)).toBe(38)
+    expect(percentDone({ sections: [] }, { sections: {} })).toBe(0)
   })
 })

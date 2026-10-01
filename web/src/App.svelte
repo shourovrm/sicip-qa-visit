@@ -42,5 +42,5 @@
 
 <style>
   .loading { padding: 40px; text-align: center; color: var(--muted); }
-  main { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  main { padding: 20px 28px; }
 </style>

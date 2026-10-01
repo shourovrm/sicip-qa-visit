@@ -345,6 +345,15 @@ export function computeProgress(template, data) {
   }
 }
 
+// whole-report progress as a rounded percentage: answered items over all items of the sections
+// that count (optional sections and sections with nothing to answer are left out)
+export function percentDone(template, progress) {
+  const counted = template.sections.filter((s) => !s.optional && progress.sections[s.key]?.total > 0)
+  const answered = counted.reduce((sum, s) => sum + progress.sections[s.key].answered, 0)
+  const total = counted.reduce((sum, s) => sum + progress.sections[s.key].total, 0)
+  return total ? Math.round((100 * answered) / total) : 0
+}
+
 // optional sections print only when the officer filled something in them
 export function sectionHasContent(section, data) {
   const checks = data.checks ?? {}

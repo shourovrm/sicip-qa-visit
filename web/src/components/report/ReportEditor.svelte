@@ -10,7 +10,7 @@
      so this component still renders standalone (e.g. in a test) without those wired up. -->
 <script>
   import { createEventDispatcher } from 'svelte'
-  import { computeProgress, normalize, needsConversion, templateFor, TEMPLATES } from '../../lib/reporttemplate.js'
+  import { computeProgress, percentDone, normalize, needsConversion, templateFor, TEMPLATES } from '../../lib/reporttemplate.js'
   import { getReport, updateReport, updateReportIfUnchanged, submitReport, retractReport, canRetract, RETRACT_DAYS, softDeleteReport } from '../../lib/db.js'
   import { isAdmin } from '../../lib/auth.js'
   import { mergeReportData } from '../../lib/reportmerge.js'
@@ -19,6 +19,7 @@
   import ReportSection from './ReportSection.svelte'
   import SectionChips from './SectionChips.svelte'
   import SectionIndex from './SectionIndex.svelte'
+  import SectionRail from './SectionRail.svelte'
 
   export let report // reports row (id, type, template_version, data, status, visit_id, ...)
   export let template // template JSON for report.type
@@ -225,28 +226,44 @@
   // surprise v2 has remarks blocks -> it also prints as a narrative report
   $: canRevert = !disabled && report.type === 'surprise' && Number(report.template_version) === TEMPLATES.surprise.version
   $: hasNarrative = template.sections.some((s) => s.blocks.some((b) => b.type === 'remarks'))
+
+  // laptop layout: one section at a time in the middle column, picked from the left rail
+  let currentKey = template.sections[0]?.key
+  $: currentIndex = Math.max(0, template.sections.findIndex((s) => s.key === currentKey))
+  $: previousSection = template.sections[currentIndex - 1] ?? null
+  $: nextSection = template.sections[currentIndex + 1] ?? null
+  function selectSection(key) {
+    currentKey = key
+    window.scrollTo({ top: 0 })
+  }
+  // CardsBlock's "Add courses in section A" link asks for a section by key
+  function onSectionRequest(e) {
+    if (template.sections.some((s) => s.key === e.detail)) selectSection(e.detail)
+  }
+
+  // overall progress = answered items over all counted items; open = sections not done yet
+  $: countedSections = template.sections.filter((s) => !s.optional && progress.sections[s.key]?.total > 0)
+  $: percent = percentDone(template, progress)
+  $: openLetters = countedSections.filter((s) => !progress.sections[s.key].done).map((s) => s.letter ?? s.number)
+  $: partner = data.fields?.provider || visit?.association || ''
 </script>
 
-<svelte:window on:beforeunload={beforeUnload} />
+<svelte:window on:beforeunload={beforeUnload} on:report-section={onSectionRequest} />
 
 <div class="editor">
-  <header class="head">
-    <div class="head-row">
-      <div class="head-title">
-        <h1>{template.title}</h1>
-        <p class="subtitle">{meta.institute || template.subtitle || template.short}</p>
-      </div>
-      <div class="head-actions">
-        {#if canRevert}<button type="button" class="btn" on:click={revert} title="Switch this report back to the old questions">Old format</button>{/if}
-        <button type="button" class="btn" on:click={close}>Close</button>
-      </div>
-    </div>
-    <div class="progress-row">
-      <div class="progress-track"><div class="progress-fill" style="width:{progress.sectionsCounted ? (100 * progress.sectionsDone) / progress.sectionsCounted : 0}%"></div></div>
-      <span class="progress-count">{progress.sectionsDone}/{progress.sectionsCounted} sections done</span>
-      {#if flagTotal > 0}<span class="flag-pill">{flagTotal} flag{flagTotal === 1 ? '' : 's'}</span>{/if}
-      {#if report.status === 'submitted'}<span class="submitted-pill">Submitted {new Date(report.submitted_at).toLocaleString()}</span>{/if}
-    </div>
+  <aside class="rail-col">
+    <SectionRail title={template.short ? `${template.short} report` : template.title} sections={template.sections}
+      progressSections={progress.sections} {currentKey} on:select={(e) => selectSection(e.detail)} />
+  </aside>
+  <div class="chips-narrow">
+    {#if useSectionIndex}
+      <SectionIndex sections={template.sections} progressSections={progress.sections} />
+    {:else}
+      <SectionChips sections={template.sections} progressSections={progress.sections} />
+    {/if}
+  </div>
+
+  <main class="middle">
     {#if needsConversion(report) && !disabled}
       <div class="convert">
         {#if isSurprise}
@@ -260,70 +277,108 @@
     {#if progress.customFlags.length > 0}
       <ul class="custom-flags">{#each progress.customFlags as text}<li>{text}</li>{/each}</ul>
     {/if}
-    {#if useSectionIndex}
-      <SectionIndex sections={template.sections} progressSections={progress.sections} />
-    {:else}
-      <SectionChips sections={template.sections} progressSections={progress.sections} />
-    {/if}
-  </header>
-
-
-  <main class="sections">
-    {#each template.sections as section, index (section.key)}
-      <ReportSection {section} {template} {data} answers={template.answers} progress={progress.sections[section.key]}
-        {disabled} defaultOpen={index === 0} {onChange} />
+    {#each template.sections as section (section.key)}
+      {#if section.key === currentKey}
+        <ReportSection {section} {template} {data} answers={template.answers} progress={progress.sections[section.key]}
+          {disabled} defaultOpen={true} {onChange} />
+      {/if}
     {/each}
+    <div class="pager">
+      {#if previousSection}
+        <button type="button" class="btn" on:click={() => selectSection(previousSection.key)}>← {previousSection.letter ?? previousSection.number} {previousSection.title}</button>
+      {:else}<span></span>{/if}
+      {#if nextSection}
+        <button type="button" class="btn btn-next" on:click={() => selectSection(nextSection.key)}>Next: {nextSection.letter ?? nextSection.number} {nextSection.title} →</button>
+      {/if}
+    </div>
   </main>
 
-  <div class="action-bar">
-    <div class="save-state">
-      {#if disabled}Read-only
-      {:else if saveState === 'saving'}Saving…
-      {:else if saveState === 'offline'}Offline — not saved
-      {:else}Saved{/if}
-    </div>
-    {#if !disabled && report.status === 'draft'}
-      <button type="button" class="btn-link danger" on:click={del}>Delete</button>
-      <button type="button" class="btn btn-primary" on:click={submit}>Submit</button>
-    {/if}
-    {#if canReopen}
-      <button type="button" class="btn" on:click={reopen}>Back to draft</button>
-    {/if}
-    <button type="button" class="btn" on:click={() => onPrint?.(template, data, meta)}>{hasNarrative ? 'Form PDF' : 'Print / PDF'}</button>
-    {#if hasNarrative}<button type="button" class="btn" on:click={() => onNarrative?.(template, data, meta)}>Narrative PDF</button>{/if}
-    <button type="button" class="btn" on:click={() => onDocx?.(template, data, meta)}>{hasNarrative ? 'Form Word' : 'Word'}</button>
-    {#if hasNarrative}<button type="button" class="btn" on:click={() => onNarrativeDocx?.(template, data, meta)}>Narrative Word</button>{/if}
-  </div>
+  <aside class="side">
+    <section class="panel">
+      <h3>Report</h3>
+      <dl>
+        <dt>Institute</dt><dd>{meta.institute || '—'}</dd>
+        <dt>Partner</dt><dd>{partner || '—'}</dd>
+        <dt>Visit date</dt><dd>{meta.visitDate || '—'}</dd>
+        <dt>Status</dt>
+        <dd>
+          <span class="status" class:submitted={report.status === 'submitted'}>{report.status === 'submitted' ? 'Submitted' : 'Draft'}</span>
+          <span class="save-state">
+            {#if disabled}read-only
+            {:else if saveState === 'saving'}saving…
+            {:else if saveState === 'offline'}offline, not saved
+            {:else}saved{/if}
+          </span>
+        </dd>
+      </dl>
+      {#if report.status === 'submitted'}<p class="small">Submitted {new Date(report.submitted_at).toLocaleString()}</p>{/if}
+    </section>
+
+    <section class="panel">
+      <h3>Progress</h3>
+      <div class="percent">{percent}%</div>
+      <div class="progress-track"><div class="progress-fill" style="width:{percent}%"></div></div>
+      <p class="small">
+        {progress.sectionsDone}/{progress.sectionsCounted} sections done{#if openLetters.length}; open: {openLetters.join(', ')}{/if}
+      </p>
+      {#if flagTotal > 0}<span class="flag-pill">{flagTotal} flag{flagTotal === 1 ? '' : 's'}</span>{/if}
+    </section>
+
+    <slot name="tms" />
+
+    <section class="panel actions">
+      <h3>Export</h3>
+      <button type="button" class="btn" on:click={() => onPrint?.(template, data, meta)}>{hasNarrative ? 'Print / PDF — Form' : 'Print / PDF'}</button>
+      {#if hasNarrative}<button type="button" class="btn" on:click={() => onNarrative?.(template, data, meta)}>Print / PDF — Narrative</button>{/if}
+      <button type="button" class="btn" on:click={() => onDocx?.(template, data, meta)}>{hasNarrative ? 'Word — Form' : 'Word'}</button>
+      {#if hasNarrative}<button type="button" class="btn" on:click={() => onNarrativeDocx?.(template, data, meta)}>Word — Narrative</button>{/if}
+      {#if !disabled && report.status === 'draft'}
+        <button type="button" class="btn btn-primary" on:click={submit}>Review & submit</button>
+      {/if}
+      {#if canReopen}<button type="button" class="btn" on:click={reopen}>Back to draft</button>{/if}
+      <div class="minor">
+        <button type="button" class="btn-link" on:click={close}>Close</button>
+        {#if canRevert}<button type="button" class="btn-link" on:click={revert} title="Switch this report back to the old questions">Old format</button>{/if}
+        {#if !disabled && report.status === 'draft'}<button type="button" class="btn-link danger" on:click={del}>Delete</button>{/if}
+      </div>
+    </section>
+  </aside>
 </div>
 
 <style>
-  .editor { padding-bottom: 72px; } /* clears the fixed action bar */
-  .head { position: sticky; top: 0; z-index: 5; background: var(--canvas); padding: 8px 0; margin: -8px 0 12px; }
-  .head-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-  .head-actions { display: flex; gap: 8px; flex: none; }
-  .head-title h1 { margin: 0; font-size: 18px; color: var(--primary); }
-  .subtitle { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
-  .progress-row { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; flex-wrap: wrap; }
-  .progress-track { flex: 1; min-width: 120px; height: 6px; border-radius: 3px; background: var(--outline); overflow: hidden; }
-  .progress-fill { height: 100%; background: var(--accent); transition: width 200ms; }
-  .progress-count { font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; }
-  .flag-pill, .submitted-pill { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: var(--radius-pill); white-space: nowrap; }
-  .flag-pill { background: var(--tone-no-bg); color: var(--tone-no-fg); }
-  .submitted-pill { background: var(--status-success-bg); color: var(--status-success-fg); }
-  .custom-flags { margin: 0 0 8px; padding-left: 18px; font-size: 13px; color: var(--tone-no-fg); }
-
-  .action-bar {
-    position: fixed;
-    left: 0; right: 0; bottom: 0;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 16px;
-    background: var(--surface);
-    border-top: 1px solid var(--outline);
-    z-index: 10;
-  }
-  .save-state { flex: 1; font-size: 12px; color: var(--muted); }
+  .editor { display: grid; grid-template-columns: 270px minmax(0, 1fr) 290px; gap: 28px; align-items: start; }
+  .rail-col { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+  .chips-narrow { display: none; }
+  .side { position: sticky; top: 12px; display: flex; flex-direction: column; gap: 14px; max-height: calc(100vh - 24px); overflow-y: auto; }
+  .middle { min-width: 0; }
+  .panel { background: var(--surface); border: 1px solid var(--outline); border-radius: var(--radius-card); padding: 14px 16px; }
+  .panel h3 { margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  dl { display: grid; grid-template-columns: 82px 1fr; gap: 6px 10px; margin: 0; font-size: 14px; }
+  dt { color: var(--muted); }
+  dd { margin: 0; }
+  .status { display: inline-block; padding: 1px 10px; border-radius: var(--radius-pill); background: var(--tone-partial-bg); color: var(--tone-partial-fg); font-weight: 700; font-size: 13px; }
+  .status.submitted { background: var(--status-success-bg); color: var(--status-success-fg); }
+  .save-state { font-size: 13px; color: var(--muted); }
+  .small { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+  .percent { font-size: 30px; font-weight: 800; margin-bottom: 6px; }
+  .progress-track { height: 6px; border-radius: 3px; background: var(--outline); overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--tone-yes-fg); transition: width 200ms; }
+  .flag-pill { display: inline-block; margin-top: 8px; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: var(--radius-pill); background: var(--tone-no-bg); color: var(--tone-no-fg); }
+  .actions { display: flex; flex-direction: column; gap: 8px; }
+  .actions .btn { width: 100%; border-radius: 8px; border-color: var(--outline); background: var(--surface); font-weight: 600; }
+  .actions .btn-primary { background: var(--accent); color: var(--on-accent); border-color: transparent; font-weight: 700; }
+  .minor { display: flex; gap: 16px; justify-content: center; margin-top: 4px; font-size: 14px; }
   .danger { color: var(--danger); }
-  .convert { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: 13px; background: var(--surface); border: 1px solid var(--outline); border-radius: 8px; padding: 10px 12px; margin: 0 0 8px; }
+  .custom-flags { margin: 0 0 8px; padding-left: 18px; font-size: 13px; color: var(--tone-no-fg); }
+  .convert { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: 14px; background: var(--surface); border: 1px solid var(--outline); border-radius: 8px; padding: 10px 12px; margin: 0 0 12px; }
+  .pager { display: flex; justify-content: space-between; gap: 12px; margin: 20px 0 40px; padding-top: 16px; border-top: 1px solid var(--outline); }
+  .btn-next { background: var(--primary); color: var(--on-primary); }
+
+  /* narrow screens: rail -> chip strip on top, side panel under the section */
+  @media (max-width: 1100px) {
+    .editor { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .rail-col { display: none; }
+    .chips-narrow { display: block; }
+    .side { position: static; max-height: none; }
+  }
 </style>
