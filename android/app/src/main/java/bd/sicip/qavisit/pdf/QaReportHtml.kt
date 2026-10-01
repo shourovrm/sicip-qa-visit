@@ -62,7 +62,8 @@ private val BODY_CSS = """
   h3 { font-weight: 700; font-size: 10pt; margin: 6pt 0 3pt; break-after: avoid; }
 
   table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 6pt; }
-  th, td { border: 0.6pt solid #000; padding: 4pt 6pt; vertical-align: top; font-size: 9pt; text-align: left; }
+  th, td { border: 0.6pt solid #000; padding: 4pt 6pt; vertical-align: top; font-size: 9pt; text-align: left; overflow-wrap: anywhere; }
+  p.table-note { font-size: 8pt; margin: -3pt 0 6pt; }
   th { font-weight: 700; text-align: center; background: #e6e6e6; }
   thead { display: table-header-group; }
   tr { break-inside: avoid; }
@@ -116,9 +117,23 @@ private fun headerHtml(template: ReportTemplate, data: ReportData): String {
 // real item's REMARKS cell is domain/report/Remarks.kt's printedRemarks as a bulleted list, blank
 // when there's nothing to print (never a placeholder).
 // PrintTable (QaTables.kt) -> heading + grid table; null -> nothing
+// two-level header: a span-1 group is its column's own header, two rows tall
+private fun headRowsHtml(table: PrintTable): String {
+    if (table.groups.isEmpty()) return "<tr>${table.headers.joinToString("") { "<th>${esc(it)}</th>" }}</tr>"
+    val top = table.groups.joinToString("") { group ->
+        if (group.span == 1) "<th rowspan=\"2\">${esc(group.label)}</th>" else "<th colspan=\"${group.span}\">${esc(group.label)}</th>"
+    }
+    var column = 0
+    val leaves = mutableListOf<String>()
+    for (group in table.groups) {
+        if (group.span > 1) leaves += table.headers.subList(column, column + group.span)
+        column += group.span
+    }
+    return "<tr>$top</tr><tr>${leaves.joinToString("") { "<th>${esc(it)}</th>" }}</tr>"
+}
+
 private fun tableHtml(table: PrintTable?, heading: String? = table?.heading): String {
     if (table == null) return ""
-    val head = table.headers.joinToString("") { "<th>${esc(it)}</th>" }
     val body = table.rows.joinToString("") { row ->
         val cells = row.mapIndexed { index, cell ->
             val cellClass = if (index in table.centred) " class=\"c\"" else ""
@@ -126,8 +141,14 @@ private fun tableHtml(table: PrintTable?, heading: String? = table?.heading): St
         }
         "<tr>${cells.joinToString("")}</tr>"
     }
-    return (heading?.let { "<h3>${esc(it)}</h3>" } ?: "") + "<table><thead><tr>$head</tr></thead><tbody>$body</tbody></table>"
+    val colgroup = if (table.widths.isEmpty()) "" else "<colgroup>${table.widths.joinToString("") { "<col style=\"width:$it%\">" }}</colgroup>"
+    val note = table.note?.let { "<p class=\"table-note\">${esc(it)}</p>" } ?: ""
+    return (heading?.let { "<h3>${esc(it)}</h3>" } ?: "") +
+        "<table>$colgroup<thead>${headRowsHtml(table)}</thead><tbody>$body</tbody></table>$note"
 }
+
+private fun headedTableHtml(table: PrintTable?, heading: String?): String =
+    tableHtml(table, heading).ifEmpty { heading?.let { "<h3>${esc(it)}</h3>" } ?: "" }
 
 private fun criteriaBlockHtml(block: ReportBlock.Criteria, data: ReportData, template: ReportTemplate): String {
     val rows = block.items.joinToString("") { item ->
@@ -210,6 +231,10 @@ private fun cardsBlockHtml(block: ReportBlock.Cards, data: ReportData, template:
         "contracts" -> return "" // printed with the course rows below
         "contract_courses" -> return tableHtml(contractsTable(template, data), null)
         "selection", "rooms", "damaged" -> return tableHtml(cardsTable(block, data))
+        // 1.40-1.60: own heading + paper-form columns; heading kept when empty so numbering stays
+        "mou_courses" -> return headedTableHtml(mouCoursesTable(data), block.heading)
+        "cumulative" -> return headedTableHtml(cumulativeTable(data), block.heading)
+        "batches" -> return headedTableHtml(currentBatchesTable(data), block.heading)
     }
     val cards = data.cards(block.key)
     if (cards.isEmpty()) return ""
