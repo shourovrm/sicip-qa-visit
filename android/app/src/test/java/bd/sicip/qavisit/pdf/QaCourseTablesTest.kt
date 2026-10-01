@@ -52,11 +52,11 @@ class QaCourseTablesTest {
 
     @Test
     fun `percentage is a whole percent of a usable base, else the count alone`() {
-        assertEquals("12 (48%)", withPercentage("12", "25"))
-        assertEquals("1 (13%)", withPercentage("1", "8")) // 12.5 rounds up
-        assertEquals("12", withPercentage("12", "0"))
-        assertEquals("12", withPercentage("12", ""))
-        assertEquals("", withPercentage("", "25"))
+        assertEquals("12 (48%)", countWithPercent("12", "25"))
+        assertEquals("1 (13%)", countWithPercent("1", "8")) // 12.5 rounds up
+        assertEquals("12", countWithPercent("12", "0"))
+        assertEquals("12", countWithPercent("12", ""))
+        assertEquals("", countWithPercent("", "25"))
     }
 
     @Test

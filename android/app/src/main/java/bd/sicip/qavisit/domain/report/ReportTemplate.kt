@@ -170,6 +170,8 @@ data class Field(
     val component: String? = null,
     // "weaknesses" (s14 findings) | "plan" (s15 recommendations): which draft button it gets
     val draftFrom: String? = null,
+    // QA 1.50: key of the base this count prints a percentage of ("placed_t" -> "certified_t")
+    val percentOf: String? = null,
     // surprise v2: choice option id -> fixed remark sentence (SectionRemarks.kt)
     val says: Map<String, String> = emptyMap(),
     // surprise v2 interviews: this longtext is the remarks box of choice field `noteFor`

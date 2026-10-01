@@ -73,28 +73,36 @@ fun mouCoursesTable(data: ReportData): PrintTable? {
     )
 }
 
-// "12 (48%)": percentage rounded to a whole number (half up, like web Math.round); just the
-// count when the base is blank, not a number or 0; "" when the count is blank
-fun withPercentage(count: String, base: String): String {
-    val countText = count.trim()
-    if (countText.isEmpty()) return ""
-    val numerator = countText.toDoubleOrNull()
-    val denominator = base.trim().toDoubleOrNull()
+// "12 (48%)": whole percent, half up; count only when the base is blank, 0, negative or not a
+// number; "" for a blank count. shared rule: fixtures/qa-percent-1.json (web lib/percent.js)
+fun countWithPercent(count: String?, base: String?): String {
+    val countText = count?.trim().orEmpty()
+    val numerator = countText.toDoubleOrNull()?.takeIf { it.isFinite() }
+    val denominator = base?.trim()?.toDoubleOrNull()?.takeIf { it.isFinite() }
     if (numerator == null || denominator == null || denominator <= 0) return countText
-    return "$countText (${Math.round(numerator / denominator * 100)}%)"
+    return "$countText (${Math.round(numerator * 100 / denominator)}%)"
+}
+
+// qa-v1 has no percentOf in its template: the same pairs as qa-v2
+private val PERCENT_BASES = mapOf(
+    "placed_t" to "certified_t",
+    "placed_f" to "certified_f",
+    "dropout_t" to "enrolled_t",
+    "dropout_f" to "enrolled_f",
+)
+
+// one 1.50 cell as printed: a count with its percentage when the field has a base
+fun printedCount(block: ReportBlock.Cards?, key: String, card: JsonObject): String {
+    val baseKey = block?.fields?.find { it.key == key }?.percentOf ?: PERCENT_BASES[key]
+    return if (baseKey == null) card.text(key) else countWithPercent(card.text(key), card.text(baseKey))
 }
 
 // 1.50: compact two-level header like the paper template, T/F pairs under each count.
-// placed % is of certified, dropout % of enrolled (web qatables.js cumulativeTable)
-fun cumulativeTable(data: ReportData): PrintTable? {
+// placed % of certified, dropout % of enrolled: from the fields' percentOf (web qatables.js)
+fun cumulativeTable(block: ReportBlock.Cards?, data: ReportData): PrintTable? {
+    val countKeys = listOf("enrolled_t", "enrolled_f", "certified_t", "certified_f", "placed_t", "placed_f", "dropout_t", "dropout_f")
     val rows = data.cards("cumulative").filter(::filled).map { card ->
-        listOf(
-            card.text("course"), card.text("target"),
-            card.text("enrolled_t"), card.text("enrolled_f"),
-            card.text("certified_t"), card.text("certified_f"),
-            withPercentage(card.text("placed_t"), card.text("certified_t")), withPercentage(card.text("placed_f"), card.text("certified_f")),
-            withPercentage(card.text("dropout_t"), card.text("enrolled_t")), withPercentage(card.text("dropout_f"), card.text("enrolled_f")),
-        )
+        listOf(card.text("course"), card.text("target")) + countKeys.map { printedCount(block, it, card) }
     }
     if (rows.isEmpty()) return null
     val pairLabels = listOf("Enrolled", "Certified", "Job Placed with Percentage", "No. of dropouts with Percentage")

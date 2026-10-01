@@ -233,7 +233,7 @@ private fun cardsBlockHtml(block: ReportBlock.Cards, data: ReportData, template:
         "selection", "rooms", "damaged" -> return tableHtml(cardsTable(block, data))
         // 1.40-1.60: own heading + paper-form columns; heading kept when empty so numbering stays
         "mou_courses" -> return headedTableHtml(mouCoursesTable(data), block.heading)
-        "cumulative" -> return headedTableHtml(cumulativeTable(data), block.heading)
+        "cumulative" -> return headedTableHtml(cumulativeTable(block, data), block.heading)
         "batches" -> return headedTableHtml(currentBatchesTable(data), block.heading)
     }
     val cards = data.cards(block.key)
