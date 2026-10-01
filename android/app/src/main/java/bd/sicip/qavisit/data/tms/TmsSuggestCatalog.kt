@@ -22,8 +22,20 @@ data class TmsCourseCatalog(val courseNames: List<String>, val batches: List<Tms
 
 data class TmsTraineeHint(val name: String, val mobile: String)
 
-// an institute trainer: name, TMS designation ("" when TMS has none), courses mapped to them
-data class TmsTrainerHint(val name: String, val designation: String, val courseIds: Set<Long>)
+// an institute trainer: name, TMS designation ("" when TMS has none), courses mapped to them and
+// the batches they are master / associate trainer of
+data class TmsTrainerHint(
+    val name: String,
+    val designation: String,
+    val courseIds: Set<Long>,
+    val masterBatchIds: Set<Long> = emptySet(),
+    val associateBatchIds: Set<Long> = emptySet(),
+)
+
+private fun batchIdsOf(element: kotlinx.serialization.json.JsonElement?): Set<Long> {
+    val rows = element as? JsonArray ?: return emptySet()
+    return rows.map { it.objectOrEmpty()["batch_info_id"].lenientLong() }.filter { it != 0L }.toSet()
+}
 
 // course names = institute targets (longer of course_name and its alias); a batch whose course
 // is not a target still gets its own course_info name.
@@ -63,7 +75,7 @@ fun traineeHintsOf(rows: JsonArray): List<TmsTraineeHint> = rows.mapNotNull { ro
     if (name.isEmpty()) null else TmsTraineeHint(name, trainee["mobile"].lenientText())
 }
 
-// entity/trainer/list rows -> name + designation + mapped course ids; every other trainer field
+// entity/trainer/list rows -> name + designation + course ids + batch roles; every other trainer field
 // (phone, NID, addresses, certificates) is dropped here.
 fun trainerHintsOf(rows: JsonArray): List<TmsTrainerHint> = rows.mapNotNull { row ->
     val trainer = row.objectOrEmpty()
@@ -72,7 +84,13 @@ fun trainerHintsOf(rows: JsonArray): List<TmsTrainerHint> = rows.mapNotNull { ro
     if (name.isEmpty()) return@mapNotNull null
     val mappings = trainer["map_entity_institute_course_trainer"] as? JsonArray ?: JsonArray(emptyList())
     val courseIds = mappings.map { it.objectOrEmpty()["course_info_id"].lenientLong() }.filter { it != 0L }.toSet()
-    TmsTrainerHint(name, employee["designation"].lenientText().trim(), courseIds)
+    TmsTrainerHint(
+        name,
+        employee["designation"].lenientText().trim(),
+        courseIds,
+        masterBatchIds = batchIdsOf(trainer["batch_info_details_master_trainer"]),
+        associateBatchIds = batchIdsOf(trainer["batch_info_details_associate_trainer"]),
+    )
 }
 
 // the linked institute's active trainers (TMS SPA "trainer list" page uses the same call)

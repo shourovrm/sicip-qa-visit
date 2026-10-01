@@ -30,33 +30,39 @@ class TrainerSuggestionsTest {
         ),
     )
     private val trainers = listOf(
-        TmsTrainerHint("Abul Kashem", "", setOf(11L)),
+        TmsTrainerHint("Abul Kashem", "", setOf(11L), masterBatchIds = setOf(3L)),
         TmsTrainerHint("Bina Akter", "Senior Instructor", setOf(10L)),
-        TmsTrainerHint("Chandan Roy", "Instructor", setOf(10L, 11L)),
+        TmsTrainerHint("Chandan Roy", "", setOf(10L), associateBatchIds = setOf(7L)),
+        TmsTrainerHint("Dipa Rani", "", setOf(10L), masterBatchIds = setOf(7L)),
     )
     private val sources = SuggestionSources(catalog = catalog, trainers = trainers)
 
     @Test
-    fun `trainer list keeps name, designation and mapped course ids only`() {
+    fun `trainer list keeps name, designation, course ids and batch roles only`() {
         val rows = Json.parseToJsonElement(
             """[{"id":1,"employee_info":{"name":"Abul Kashem","designation":null,"mobile":"01700000000","nid":"123"},
-                 "map_entity_institute_course_trainer":[{"course_info_id":11,"mapping_type":"2"},{"course_info_id":null,"mapping_type":"1"}]},
+                 "map_entity_institute_course_trainer":[{"course_info_id":11,"mapping_type":"2"},{"course_info_id":null,"mapping_type":"1"}],
+                 "batch_info_details_master_trainer":[{"batch_info_id":3,"master_trainer_id":1}],
+                 "batch_info_details_associate_trainer":[{"batch_info_id":9,"associate_trainer_id":1}]},
                 {"id":2,"employee_info":{"name":" ","designation":"x"}}]""",
         ).jsonArray
-        assertEquals(listOf(TmsTrainerHint("Abul Kashem", "", setOf(11L))), trainerHintsOf(rows))
+        assertEquals(listOf(TmsTrainerHint("Abul Kashem", "", setOf(11L), setOf(3L), setOf(9L))), trainerHintsOf(rows))
     }
 
     @Test
-    fun `the card's course trainers come first, then the rest of the institute`() {
+    fun `batch master first, then its associates, its course, then the rest`() {
         val welding = card("batch" to "Welding (SMAW) · 7")
-        assertEquals(listOf("Bina Akter", "Chandan Roy", "Abul Kashem"), suggestionsFor(nameField, welding, sources))
-        assertEquals(listOf("Abul Kashem", "Bina Akter", "Chandan Roy"), suggestionsFor(nameField, card("batch" to ""), sources))
+        assertEquals(listOf("Dipa Rani", "Chandan Roy", "Bina Akter", "Abul Kashem"), suggestionsFor(nameField, welding, sources))
+        assertEquals(listOf("Abul Kashem", "Bina Akter", "Chandan Roy", "Dipa Rani"), suggestionsFor(nameField, card("batch" to ""), sources))
     }
 
     @Test
-    fun `picking a trainer fills an empty designation when TMS has one`() {
-        assertEquals("Senior Instructor", trainerDesignationFor(block, card("name" to ""), "Bina Akter", sources))
-        assertNull(trainerDesignationFor(block, card("designation" to "Lead"), "Bina Akter", sources))
-        assertNull(trainerDesignationFor(block, card(), "Abul Kashem", sources)) // TMS has none
+    fun `designation is TMS's own, else the role in the card's batch, only into an empty field`() {
+        val welding = card("batch" to "Welding (SMAW) · 7")
+        assertEquals("Senior Instructor", trainerDesignationFor(block, welding, "Bina Akter", sources))
+        assertEquals("Master Trainer", trainerDesignationFor(block, welding, "Dipa Rani", sources))
+        assertEquals("Associate Trainer", trainerDesignationFor(block, welding, "Chandan Roy", sources))
+        assertNull(trainerDesignationFor(block, welding, "Abul Kashem", sources)) // master of another batch
+        assertNull(trainerDesignationFor(block, card("batch" to "Welding (SMAW) · 7", "designation" to "Lead"), "Dipa Rani", sources))
     }
 }

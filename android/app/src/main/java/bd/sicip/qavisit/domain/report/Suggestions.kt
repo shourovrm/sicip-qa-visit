@@ -98,11 +98,29 @@ private fun traineesOf(card: JsonObject, sources: SuggestionSources): List<TmsTr
     return sources.traineesByBatch[batch.id].orEmpty()
 }
 
-// trainers mapped to the card's course (courseRef "Course · N" in `batch`) first, then the rest
+// the card's batch (courseRef "Course · N" in `batch`) master first, then its associates, then the
+// course's trainers, then the rest (same ranking as web tmstrainers.js)
+private fun trainerRank(trainer: TmsTrainerHint, batch: TmsBatchRef?): Int = when {
+    batch == null -> 3
+    batch.id in trainer.masterBatchIds -> 0
+    batch.id in trainer.associateBatchIds -> 1
+    batch.courseId in trainer.courseIds -> 2
+    else -> 3
+}
+
+private fun cardBatch(card: JsonObject, sources: SuggestionSources): TmsBatchRef? = sources.catalog?.let { traineeBatchOf(card, it) }
+
 private fun trainersFor(card: JsonObject, sources: SuggestionSources): List<TmsTrainerHint> {
-    val courseId = sources.catalog?.let { traineeBatchOf(card, it) }?.courseId
-    val (ofCourse, others) = sources.trainers.partition { courseId != null && courseId in it.courseIds }
-    return ofCourse + others
+    val batch = cardBatch(card, sources)
+    return sources.trainers.sortedBy { trainerRank(it, batch) } // stable: TMS order within a rank
+}
+
+// TMS has no designation for most trainers; their role in the card's batch is the next best
+private fun designationOf(trainer: TmsTrainerHint, batch: TmsBatchRef?): String = when {
+    trainer.designation.isNotEmpty() -> trainer.designation
+    batch != null && batch.id in trainer.masterBatchIds -> "Master Trainer"
+    batch != null && batch.id in trainer.associateBatchIds -> "Associate Trainer"
+    else -> ""
 }
 
 fun suggestionsFor(field: Field, card: JsonObject, sources: SuggestionSources): List<String> = when (field.suggest) {
@@ -114,12 +132,12 @@ fun suggestionsFor(field: Field, card: JsonObject, sources: SuggestionSources): 
     else -> emptyList()
 }
 
-// after a trainer is picked: the TMS designation for the card's empty designation field, else null
+// after a trainer is picked: TMS designation (else batch role) for the card's empty designation field
 fun trainerDesignationFor(block: ReportBlock.Cards, card: JsonObject, pickedName: String, sources: SuggestionSources): String? {
     val designationField = block.fields.firstOrNull { it.key == "designation" } ?: return null
     if (card.text(designationField.key).isNotEmpty()) return null
     val trainer = sources.trainers.firstOrNull { it.name == pickedName } ?: return null
-    return trainer.designation.ifEmpty { null }
+    return designationOf(trainer, cardBatch(card, sources)).ifEmpty { null }
 }
 
 // after a trainee is picked: the mobile to put in the card's empty phone field, else null
