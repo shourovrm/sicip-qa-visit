@@ -54,7 +54,8 @@ private fun cardsTableHtml(block: ReportBlock.Cards, data: ReportData): String {
         "<tr>${columns.joinToString("") { f -> "<td${cellClassAttr(f)}>${dashIfBlank(reportFieldValueHtml(f, card.value(f.key)))}</td>" }}</tr>"
     }
     val heading = block.heading?.let { "<h3>${reportEsc(it)}</h3>" } ?: ""
-    return "$heading<table class=\"cards-table\"><thead><tr>$head</tr></thead><tbody>$rows</tbody></table>"
+    val layout = cardsColumnLayout(columns) { f -> cards.map { printedCellText(f, it.value(f.key)) } }
+    return "$heading${tableOpenHtml("cards-table", layout)}<thead><tr>$head</tr></thead><tbody>$rows</tbody></table>"
 }
 
 // interviews: questions down, courses across; a question's remarks sit under its answer

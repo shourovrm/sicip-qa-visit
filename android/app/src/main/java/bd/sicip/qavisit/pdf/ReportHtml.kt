@@ -139,6 +139,13 @@ private fun inlineChoiceHtml(field: Field, rawValue: String?): String {
     return "<div class=\"line choice-line\"><span class=\"${labelClass(field.label)}\">${esc(field.label)}</span><span class=\"choices\">$parts</span></div>"
 }
 
+// a cell's printed words (choice -> its label), for column widths
+internal fun printedCellText(field: Field, rawValue: String?): String {
+    if (rawValue == null) return ""
+    if (field.kind == "choice") return field.choiceOptions().find { it.id == rawValue }?.label ?: rawValue
+    return rawValue
+}
+
 private fun fieldValueHtml(field: Field, rawValue: String?): String {
     if (field.kind == "choice") {
         if (blank(rawValue)) return ""
@@ -276,7 +283,8 @@ private fun cardsBlockHtml(block: ReportBlock.Cards, data: ReportData): String {
         val which = if (mismatchedRows.size == entries.size) "" else " (row${if (mismatchedRows.size > 1) "s" else ""} ${mismatchedRows.joinToString(", ")})"
         warning = "<p class=\"mismatch-msg\">${esc(block.compare.message)}$which</p>"
     }
-    return "$heading$note<table class=\"cards-table\"><thead><tr>$headerRow</tr></thead><tbody>$rows</tbody></table>$warning"
+    val layout = cardsColumnLayout(block.fields) { f -> entries.map { printedCellText(f, it.stringOrNull(f.key)) } }
+    return "$heading$note${tableOpenHtml("cards-table", layout)}<thead><tr>$headerRow</tr></thead><tbody>$rows</tbody></table>$warning"
 }
 
 // interview rows (non-linked, non-note fields) that at least one course card answered; a
@@ -444,6 +452,8 @@ private val BODY_CSS = """
   table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0 0 4pt; }
   th, td { border: 0.6pt solid #666; padding: 4pt 6pt; vertical-align: middle; font-size: 9pt; text-align: left; }
   th { background: #e6e6e6; font-weight: 700; text-align: center; line-height: 1.15; }
+  td { overflow-wrap: break-word; }
+  th { overflow-wrap: normal; word-break: normal; hyphens: none; }
   td.c, td.num, td.tick-cell { text-align: center; }
   thead { display: table-header-group; }
   tr { break-inside: avoid; }
@@ -469,7 +479,7 @@ private val BODY_CSS = """
   ul.bul li.neg::marker { color: #b3261e; }
 """.trimIndent()
 
-private fun css(template: ReportTemplate): String = pageCss(footerTitle(template), REPORT_FONT) + "\n" + BODY_CSS
+private fun css(template: ReportTemplate): String = pageCss(footerTitle(template), REPORT_FONT) + "\n" + BODY_CSS + "\n" + DENSE_TABLE_CSS
 
 // shared with NarrativeHtml.kt: same page, header and helpers, different body
 internal fun reportCss(template: ReportTemplate): String = css(template)

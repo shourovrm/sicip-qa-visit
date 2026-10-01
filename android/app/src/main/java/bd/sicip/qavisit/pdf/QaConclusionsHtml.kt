@@ -45,8 +45,11 @@ fun feedbackTablesHtml(block: ReportBlock.Cards, data: ReportData): String {
             val cells = group.joinToString("") { i -> "<td class=\"c\">${escCell(answerLabel(field, cards.getOrNull(i).value(field.key)))}</td>" }
             "<tr><td>${escCell(field.label)}</td>$cells</tr>"
         }
-        // fixed layout: question column wide, respondents share the rest
-        "<table><colgroup><col style=\"width:40%\"></colgroup><thead>$header</thead><tbody>$rows</tbody></table>"
+        // question column wide, respondents share the rest; no header word breaks (web feedback grid)
+        val headers = listOf("Question") + group.map { names[it] }
+        val bodyRows = rowFields.map { field -> listOf(field.label) + group.map { i -> answerLabel(field, cards.getOrNull(i).value(field.key)) } }
+        val layout = tableColumnLayout(headers, bodyRows, listOf(61.0) + group.map { 13.0 })
+        "${tableOpenHtml("grid", layout)}<thead>$header</thead><tbody>$rows</tbody></table>"
     }
 
     val comments = cards.flatMapIndexed { i, card ->
@@ -65,7 +68,9 @@ fun strengthsWeaknessesHtml(block: ReportBlock.Fields, data: ReportData): String
         "<tr><td class=\"sl\">${i + 1}.</td><td>${escCell(pair.component)}</td>" +
             "<td>${escCell(data.field(pair.strength))}</td><td>${escCell(data.field(pair.weakness))}</td></tr>"
     }.joinToString("")
-    return "<table><colgroup><col style=\"width:7%\"><col style=\"width:23%\"><col style=\"width:35%\"><col style=\"width:35%\"></colgroup>" +
+    val bodyRows = block.pairs.mapIndexed { i, pair -> listOf("${i + 1}.", pair.component, data.field(pair.strength), data.field(pair.weakness)) }
+    val layout = tableColumnLayout(listOf("S.N.", "Component", "Strengths", "Weakness"), bodyRows, listOf(6.0, 24.0, 35.0, 35.0))
+    return tableOpenHtml("grid", layout) +
         "<thead><tr><th>S.N.</th><th>Component</th><th>Strengths</th><th>Weakness</th></tr></thead><tbody>$rows</tbody></table>"
 }
 

@@ -47,7 +47,8 @@ class QaCourseTablesTest {
         assertTrue(html.contains("<td>Plumbing and Pipe Fitting</td><td class=\"c\">-</td><td class=\"c\">75</td>"))
         // placed % of certified (30/50, 4/7), no dropouts typed -> "-"
         assertTrue(html.contains("<td class=\"c\">30 (60%)</td><td class=\"c\">4 (57%)</td><td class=\"c\">-</td><td class=\"c\">-</td>"))
-        assertTrue(html.contains("overflow-wrap: anywhere"))
+        assertTrue(html.contains("td { overflow-wrap: break-word; }"))
+        assertTrue(html.contains("<table class=\"grid dense\"><colgroup><col style=\"width:5.00%\">"))
     }
 
     @Test

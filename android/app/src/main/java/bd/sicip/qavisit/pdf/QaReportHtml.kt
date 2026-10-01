@@ -62,7 +62,9 @@ private val BODY_CSS = """
   h3 { font-weight: 700; font-size: 10pt; margin: 6pt 0 3pt; break-after: avoid; }
 
   table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 6pt; }
-  th, td { border: 0.6pt solid #000; padding: 4pt 6pt; vertical-align: top; font-size: 9pt; text-align: left; overflow-wrap: anywhere; }
+  th, td { border: 0.6pt solid #000; padding: 4pt 6pt; vertical-align: top; font-size: 9pt; text-align: left; }
+  td { overflow-wrap: break-word; }
+  th { overflow-wrap: normal; word-break: normal; hyphens: none; }
   p.table-note { font-size: 8pt; margin: -3pt 0 6pt; }
   th { font-weight: 700; text-align: center; background: #e6e6e6; }
   thead { display: table-header-group; }
@@ -84,7 +86,7 @@ private val BODY_CSS = """
   ol.points li { margin: 0 0 2pt; }
 """.trimIndent()
 
-private fun css(template: ReportTemplate): String = pageCss(footerTitle(template), REPORT_FONT) + "\n" + BODY_CSS
+private fun css(template: ReportTemplate): String = pageCss(footerTitle(template), REPORT_FONT) + "\n" + BODY_CSS + "\n" + DENSE_TABLE_CSS
 
 // header block: top-right "Annex-3", centred bold program line, centred bold title, then the
 // fixed key/value lines exactly as Annex-3 prints them (spec §7).
@@ -117,6 +119,18 @@ private fun headerHtml(template: ReportTemplate, data: ReportData): String {
 // real item's REMARKS cell is domain/report/Remarks.kt's printedRemarks as a bulleted list, blank
 // when there's nothing to print (never a placeholder).
 // PrintTable (QaTables.kt) -> heading + grid table; null -> nothing
+private fun defaultWeight(header: String): Double = if (header == "S.N." || header == "No.") 7.0 else 20.0
+
+// widths that never break a header word (web qatables.js fittedTable); a two-level header keeps
+// its hand-set widths
+private fun fittedTableOpen(table: PrintTable): String {
+    if (table.groups.isNotEmpty()) {
+        return tableOpenHtml("grid", ColumnLayout(table.widths.map { it.toDouble() }, dense = true))
+    }
+    val weights = if (table.widths.isNotEmpty()) table.widths.map { it.toDouble() } else table.headers.map(::defaultWeight)
+    return tableOpenHtml("grid", tableColumnLayout(table.headers, table.rows, weights))
+}
+
 // two-level header: a span-1 group is its column's own header, two rows tall
 private fun headRowsHtml(table: PrintTable): String {
     if (table.groups.isEmpty()) return "<tr>${table.headers.joinToString("") { "<th>${esc(it)}</th>" }}</tr>"
@@ -141,10 +155,9 @@ private fun tableHtml(table: PrintTable?, heading: String? = table?.heading): St
         }
         "<tr>${cells.joinToString("")}</tr>"
     }
-    val colgroup = if (table.widths.isEmpty()) "" else "<colgroup>${table.widths.joinToString("") { "<col style=\"width:$it%\">" }}</colgroup>"
     val note = table.note?.let { "<p class=\"table-note\">${esc(it)}</p>" } ?: ""
     return (heading?.let { "<h3>${esc(it)}</h3>" } ?: "") +
-        "<table>$colgroup<thead>${headRowsHtml(table)}</thead><tbody>$body</tbody></table>$note"
+        "${fittedTableOpen(table)}<thead>${headRowsHtml(table)}</thead><tbody>$body</tbody></table>$note"
 }
 
 private fun headedTableHtml(table: PrintTable?, heading: String?): String =
