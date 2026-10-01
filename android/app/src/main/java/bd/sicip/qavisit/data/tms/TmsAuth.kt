@@ -4,11 +4,13 @@
 //   resending the known-bad password until the officer logs in again; offline -> no state change.
 package bd.sicip.qavisit.data.tms
 
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -60,7 +62,9 @@ class TmsAuth(
     suspend fun login(username: String, password: String): TmsLoginResult = lock.withLock {
         try {
             attemptLogin(TmsCredentials(username, password))
-            vault.save(TmsCredentials(username, password))
+            // the card swaps the login form out when state turns LoggedIn, which cancels the form's
+            // scope; without NonCancellable the vault write was cancelled and nothing was stored
+            withContext(NonCancellable) { vault.save(TmsCredentials(username, password)) }
             credentialsRejected = false
             TmsLoginResult.Success
         } catch (e: TmsException) {
