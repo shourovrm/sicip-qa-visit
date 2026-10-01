@@ -23,9 +23,12 @@
   import TmsPanel from './TmsPanel.svelte'
   import TmsLinkBar from './TmsLinkBar.svelte'
   import { tmsSession } from '../../lib/tmsstore.js'
-  import { isLinked, loadCourseCatalog, loadTraineeHints } from '../../lib/tmsreport.js'
+  import { instituteAddress, isLinked, loadCourseCatalog, loadTmsSnapshot, loadTraineeHints, loadTrainerHints } from '../../lib/tmsreport.js'
   import { runningCourseCards } from '../../lib/tmscatalog.js'
   import { phoneFill, suggestionsFor, traineeBatchOf, traineeKey } from '../../lib/suggest.js'
+  import { designationFill } from '../../lib/tmstrainers.js'
+  import { applyTmsPrefill, usesTmsFill, useTmsValue } from '../../lib/tmsprefill.js'
+  import { openFindingsBox } from '../../lib/findingsbox.js'
   import { addSharedSuggestions, listSharedSuggestions } from '../../lib/db.js'
 
   export let report // reports row (id, type, template_version, data, status, visit_id, ...)
@@ -63,6 +66,10 @@
   // DB, may have stale linked cards or per-course answers; normalize is idempotent so this is
   // cheap either way.
   let data = normalize(template, ensureShape(report.data))
+  // reports from before the Major findings box: their picked list becomes the box text
+  // (data.findings itself is kept); saved with the next edit
+  const findingsBlock = template.sections.flatMap((s) => s.blocks).find((b) => b.type === 'findings')
+  const findingsMoved = findingsBlock ? openFindingsBox(findingsBlock, data) : false
   // the server copy this editor last saw -- merge base, so a save never overwrites what the
   // phone (or another tab) wrote meanwhile (2026-09-30 lost-edits incident)
   let base = structuredClone(report.data ?? {})
@@ -220,7 +227,7 @@
   $: meta = {
     type: report.type,
     institute: data.fields?.ti_name || visit?.institute || '',
-    visitDate: data.fields?.visit_date || visit?.start_date || '',
+    visitDate: data.fields?.visit_date || data.fields?.date_from || visit?.start_date || '',
     officerName,
     status: report.status,
     submittedAt: report.submitted_at,
@@ -240,18 +247,24 @@
   // the value the officer picks ----
   let catalog = null // lib/tmscatalog.js course catalog of the linked institute
   let trainees = new Map() // "courseId:batchId" -> [{name, mobile}]
+  let trainers = [] // lib/tmstrainers.js hints of the linked institute
+  let tmsFill = null // {filled, differences} of the last TMS prefill (lib/tmsprefill.js)
   let sharedLists = {} // list name -> values, e.g. {equipment: [...]}
   let tmsLoading = false
   let tmsError = ''
   const traineeLoads = new Set()
 
+  $: usesTrainers = template.sections.some((s) => s.blocks.some((b) => (b.fields ?? []).some((f) => f.suggest === 'tmsTrainer')))
+
   async function loadTms() {
     catalog = null
+    trainers = []
     tmsError = ''
     if (!$tmsSession || !isLinked(data.tms)) return
     tmsLoading = true
     try {
       catalog = await loadCourseCatalog(data.tms)
+      if (usesTrainers) loadTrainerHints(data.tms).then((hints) => { trainers = hints }).catch(() => {})
     } catch (e) {
       tmsError = e.message
     } finally {
@@ -259,19 +272,45 @@
     }
   }
 
+  // TMS figures into EMPTY fields (A/1 address, C attendance cards, QA 1.40/1.50/1.60); filled
+  // fields that differ are listed in the TMS panel with "Use"
+  let fillLoading = false
+  async function prefillFromTms() {
+    if (disabled || !$tmsSession || !isLinked(data.tms) || !usesTmsFill(template)) return
+    fillLoading = true
+    try {
+      const [snapshot, address] = await Promise.all([loadTmsSnapshot(data.tms, meta.visitDate), instituteAddress(data.tms)])
+      const addressFound = Boolean(address) && !data.tms.address
+      if (addressFound) data.tms = { ...data.tms, address }
+      tmsFill = applyTmsPrefill(template, data, { snapshot, institute: { address } })
+      if (tmsFill.filled > 0 || addressFound) onChange()
+    } catch (e) {
+      tmsError = e.message
+    } finally {
+      fillLoading = false
+    }
+  }
+  function useTms(e) {
+    for (const difference of e.detail) useTmsValue(data, difference)
+    const used = new Set(e.detail)
+    tmsFill = { ...tmsFill, differences: tmsFill.differences.filter((d) => !used.has(d)) }
+    onChange()
+  }
+
   // template lists named "shared:<list>" by a field's suggest
   $: sharedListNames = [...new Set(template.sections.flatMap((s) => s.blocks).flatMap((b) => b.fields ?? [])
     .map((f) => f.suggest).filter((k) => k?.startsWith('shared:')).map((k) => k.slice(7)))]
 
   onMount(() => {
-    loadTms()
+    if (findingsMoved && !disabled) onChange()
+    loadTms().then(prefillFromTms)
     for (const list of sharedListNames) {
       listSharedSuggestions(list).then((values) => { sharedLists = { ...sharedLists, [list]: values } }).catch(() => {})
     }
   })
   // sign in / out elsewhere (Profile, a 401) -> fetch again or drop the lists
   let seenSignedIn = Boolean($tmsSession)
-  $: if (Boolean($tmsSession) !== seenSignedIn) { seenSignedIn = Boolean($tmsSession); loadTms() }
+  $: if (Boolean($tmsSession) !== seenSignedIn) { seenSignedIn = Boolean($tmsSession); loadTms().then(prefillFromTms) }
 
   function requestTrainees(batch) {
     const key = traineeKey(batch)
@@ -285,23 +324,26 @@
 
   $: suggest = (field, card) => {
     if (field.suggest === 'tmsTrainee' && catalog) requestTrainees(traineeBatchOf(card, catalog))
-    return suggestionsFor(field, card, { catalog, trainees, equipment: sharedLists.equipment ?? [] })
+    return suggestionsFor(field, card, { catalog, trainees, trainers, equipment: sharedLists.equipment ?? [] })
   }
   $: fill = (fields, card, key, value) => {
-    const hints = catalog ? trainees.get(traineeKey(traineeBatchOf(card, catalog))) : null
-    const phone = phoneFill(fields, card, key, value, hints)
-    return phone ? { phone } : null
+    const batch = catalog ? traineeBatchOf(card, catalog) : null
+    const phone = phoneFill(fields, card, key, value, batch ? trainees.get(traineeKey(batch)) : null)
+    if (phone) return { phone }
+    const designation = designationFill(fields, card, key, value, trainers, batch)
+    return designation ? { designation } : null
   }
 
   function linkTms(e) {
     data.tms = { ...(data.tms ?? {}), ...e.detail }
     onChange()
     trainees = new Map()
-    loadTms().then(fillCoursesIfEmpty)
+    tmsFill = null
+    loadTms().then(fillCoursesIfEmpty).then(prefillFromTms)
   }
   function refreshTms() {
     trainees = new Map()
-    loadTms().then(fillCoursesIfEmpty)
+    loadTms().then(fillCoursesIfEmpty).then(prefillFromTms)
   }
   // section A still empty -> the batches running on the visit date become its course cards
   function fillCoursesIfEmpty() {
@@ -438,7 +480,8 @@
     </section>
 
     <TmsPanel signedIn={Boolean($tmsSession)} tms={data.tms} {catalog} visitDate={meta.visitDate} association={partner}
-      instituteText={meta.institute} loading={tmsLoading} error={tmsError} {disabled} on:link={linkTms} on:refresh={refreshTms} />
+      instituteText={meta.institute} loading={tmsLoading || fillLoading} error={tmsError} {disabled} fill={tmsFill}
+      on:link={linkTms} on:refresh={refreshTms} on:use={useTms} />
 
     <section class="panel actions">
       <h3>Export</h3>

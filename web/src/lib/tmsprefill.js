@@ -119,7 +119,7 @@ function fillCards(block, data, tmsData, newId, differences) {
     if (index < 0) continue
     const card = { ...cards[index] }
     for (const field of block.fields.filter((f) => f.tmsFill)) {
-      const where = { blockKey: block.key, cardId: card._id, label: field.label }
+      const where = { blockKey: block.key, cardId: card._id, label: field.label, context: [text(card.course), text(card.batch)].filter(Boolean).join(' · ') }
       filled += offer(card, field.key, row.values[field.tmsFill] ?? '', field.tmsFill, where, differences)
     }
     cards[index] = card
@@ -134,7 +134,7 @@ function fillFields(block, data, tmsData, differences) {
   let filled = 0
   data.fields = data.fields ?? {}
   for (const field of block.fields.filter((f) => FIELD_VALUES[f.tmsFill])) {
-    const where = { blockKey: null, cardId: null, label: field.label }
+    const where = { blockKey: null, cardId: null, label: field.label, context: '' }
     filled += offer(data.fields, field.key, FIELD_VALUES[field.tmsFill](tmsData), field.tmsFill, where, differences)
   }
   return filled
@@ -142,7 +142,7 @@ function fillFields(block, data, tmsData, differences) {
 
 // tmsData = {snapshot (tmssnapshot.js) | null, institute: TMS institute row | null}; mutates
 // data, returns {filled: how many empty fields got a value, differences: [{blockKey, cardId,
-// fieldKey, label, current, value}]}
+// fieldKey, label, context (the card's course · batch), current, value}]}
 export function applyTmsPrefill(template, data, tmsData, newId = () => crypto.randomUUID()) {
   const differences = []
   let filled = 0
