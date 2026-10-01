@@ -23,6 +23,9 @@
   export let disabled = false
   export let optionsFor = () => [] // (field, card) -> suggestions for a courseRef field
   export let template = null // only needed for a linked block's "jump to the source section" link
+  export let suggest = () => [] // (field, card) -> typing hints for a field with `suggest`
+  export let seed = () => ({}) // starting values of a new card (newFrom)
+  export let fill = () => null // (fields, card, key, value) -> extra values to set, e.g. a picked trainee's phone
 
   const dispatch = createEventDispatcher()
 
@@ -41,13 +44,13 @@
   }
 
   function addCard() {
-    emit([...cards, { _id: crypto.randomUUID() }])
+    emit([...cards, { _id: crypto.randomUUID(), ...seed() }])
   }
   function removeCard(index) {
     emit(cards.filter((_, i) => i !== index))
   }
   function setField(index, key, value) {
-    emit(cards.map((c, i) => (i === index ? { ...c, [key]: value } : c)))
+    emit(cards.map((c, i) => (i === index ? { ...c, [key]: value, ...(fill(block.fields, c, key, value) ?? {}) } : c)))
   }
 
   function cardTitle(card, index) {
@@ -124,6 +127,7 @@
         {#each editableFields.filter((f) => isShown(f, card)) as field (field.key)}
           <FieldInput {field} value={card[field.key] ?? ''} {disabled} compact={Boolean(block.anonymous)}
             courseOptions={field.kind === 'courseRef' ? optionsFor(field, card) : undefined}
+            suggestions={field.suggest ? suggest(field, card) : []}
             on:change={(e) => setField(activeTab, field.key, e.detail)} />
         {/each}
       </div>
@@ -141,9 +145,10 @@
         </div>
         <div class="entry-fields">
           {#each editableFields.filter((f) => isShown(f, card)) as field (field.key)}
-            <div class:wide={field.kind === 'longtext'}>
+            <div class:wide={field.kind === 'longtext' || field.kind === 'choice'}>
               <FieldInput {field} value={card[field.key] ?? ''} {disabled} compact={Boolean(block.anonymous)}
                 courseOptions={field.kind === 'courseRef' ? optionsFor(field, card) : undefined}
+            suggestions={field.suggest ? suggest(field, card) : []}
                 on:change={(e) => setField(index, field.key, e.detail)} />
             </div>
           {/each}

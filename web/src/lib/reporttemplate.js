@@ -345,6 +345,15 @@ export function computeProgress(template, data) {
   }
 }
 
+// starting values for a newly added card: a newFrom:"firstCourse" block (L graduates) starts on
+// the first section-A course and batch, still editable
+export function newCardSeed(block, data) {
+  if (block.newFrom !== 'firstCourse') return {}
+  const first = data.cards?.courses?.[0]
+  if (!first || isBlank(first.course)) return {}
+  return { course: String(first.course).trim(), batch: String(first.batch ?? '').trim() }
+}
+
 // whole-report progress as a rounded percentage: answered items over all items of the sections
 // that count (optional sections and sections with nothing to answer are left out)
 export function percentDone(template, progress) {

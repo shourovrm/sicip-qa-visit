@@ -9,6 +9,11 @@
   import { templateFor, dbTypeFor, newReportData, computeProgress, percentDone } from '../lib/reporttemplate.js'
   import Dropdown from '../components/Dropdown.svelte'
   import ReportEditor from '../components/report/ReportEditor.svelte'
+  import TmsLinkPicker from '../components/report/TmsLinkPicker.svelte'
+  import { tmsSession } from '../lib/tmsstore.js'
+  import { loadCourseCatalog } from '../lib/tmsreport.js'
+  import { runningCourseCards } from '../lib/tmscatalog.js'
+  import { normalize } from '../lib/reporttemplate.js'
   import { openReportPrint } from '../lib/reporthtml.js'
   import { openNarrativePrint } from '../lib/narrativehtml.js'
   import { openQaReportPrint } from '../lib/qareporthtml.js'
@@ -107,10 +112,15 @@
   let showNew = false
   let newType = ''
   let newVisitId = ''
+  let newLink = null // data.tms picked in the TMS step, null = skipped / not signed in
+  let skipTms = false
+  let starting = false
 
   function openNew() {
     newType = ''
     newVisitId = ''
+    newLink = null
+    skipTms = false
     showNew = true
   }
 
@@ -133,7 +143,9 @@
     }
     const tmpl = templateFor(newType)
     const visit = visits.find((v) => v.id === newVisitId)
-    const data = newReportData(tmpl, visit, $officer?.name ?? '')
+    starting = true
+    const data = await withTmsStart(tmpl, newReportData(tmpl, visit, $officer?.name ?? ''), visit)
+    starting = false
     const row = await createReport({
       officer_id: $officer.id, visit_id: newVisitId, type: dbType,
       template_version: tmpl.version, data, status: 'draft',
@@ -141,6 +153,21 @@
     reports = [row, ...reports]
     showNew = false
     current = row
+  }
+
+  // linked at creation: store the link; a surprise report also starts section A with the batches
+  // running on the visit date. Any TMS failure just means a report without the prefill.
+  async function withTmsStart(tmpl, data, visit) {
+    if (!newLink || skipTms) return data
+    const linked = { ...data, tms: newLink }
+    if (tmpl.id !== 'surprise') return linked
+    try {
+      const cards = runningCourseCards(await loadCourseCatalog(newLink), visit?.start_date)
+      if (cards.length) linked.cards = { ...linked.cards, courses: cards }
+    } catch (e) {
+      // keep the blank course card
+    }
+    return normalize(tmpl, linked)
   }
 
   // ---- editor open/close + list sync ----
@@ -240,8 +267,24 @@
             {/if}
           </div>
         {/if}
+        {#if newVisit && newType}
+          <div class="field">
+            <label for="tms-partner">TMS institute</label>
+            {#if !$tmsSession}
+              <p class="hint">Signed out of TMS: the report starts without TMS data. Sign in on Profile to link it.</p>
+            {:else if skipTms}
+              <p class="hint">Not linked. <button type="button" class="btn-link" on:click={() => (skipTms = false)}>Link to TMS</button></p>
+            {:else}
+              {#key newVisitId}
+                <TmsLinkPicker association={newVisit.association ?? ''} instituteText={newVisit.institute ?? ''} on:pick={(e) => (newLink = e.detail)} />
+              {/key}
+              <p class="hint">{newType === 'surprise' ? 'Courses running on the visit date fill section A.' : 'Links the report for TMS figures.'}
+                <button type="button" class="btn-link" on:click={() => (skipTms = true)}>Skip</button></p>
+            {/if}
+          </div>
+        {/if}
         <div class="row">
-          <button type="submit" class="btn btn-primary" disabled={!newVisitId || !newType}>Start</button>
+          <button type="submit" class="btn btn-primary" disabled={!newVisitId || !newType || starting}>{starting ? 'Starting…' : 'Start'}</button>
           <button type="button" class="btn" on:click={() => (showNew = false)}>Cancel</button>
         </div>
       </form>
@@ -273,7 +316,7 @@
   .seg button.active { background: var(--primary); color: var(--on-primary); }
   .seg button:disabled { opacity: 0.5; cursor: not-allowed; }
   .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 10; }
-  .modal { width: 380px; }
+  .modal { width: 560px; max-width: calc(100vw - 32px); }
   h2 { font-size: 15px; margin: 0 0 12px; }
   .opt { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 12px; margin-bottom: 6px; border: 1px solid var(--outline); border-radius: var(--radius-card); background: var(--surface); cursor: default; font: inherit; }
   button.opt { cursor: pointer; }

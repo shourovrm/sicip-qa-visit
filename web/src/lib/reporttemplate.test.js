@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { templateFor, dbTypeFor, computeProgress, normalize, newReportData, percentDone } from './reporttemplate.js'
+import { templateFor, dbTypeFor, computeProgress, normalize, newReportData, percentDone, newCardSeed } from './reporttemplate.js'
 import fixture from '../../../shared/report-templates/fixtures/progress-1.json'
 import qaProgressFixture from '../../../shared/report-templates/fixtures/progress-qa-1.json'
 
@@ -150,5 +150,14 @@ describe('percentDone', () => {
     const progress = { sections: { a: { answered: 3, total: 4 }, b: { answered: 0, total: 4 }, k: { answered: 2, total: 2 }, z: { answered: 0, total: 0 } } }
     expect(percentDone(template, progress)).toBe(38)
     expect(percentDone({ sections: [] }, { sections: {} })).toBe(0)
+  })
+})
+
+describe('newCardSeed', () => {
+  it('copies course + batch of the first A course for a newFrom:"firstCourse" block', () => {
+    const data = { cards: { courses: [{ _id: 'c1', course: 'Plumbing and Pipe Fitting', batch: '4' }, { _id: 'c2', course: 'EIM', batch: '3' }] } }
+    expect(newCardSeed({ newFrom: 'firstCourse' }, data)).toEqual({ course: 'Plumbing and Pipe Fitting', batch: '4' })
+    expect(newCardSeed({}, data)).toEqual({})
+    expect(newCardSeed({ newFrom: 'firstCourse' }, { cards: {} })).toEqual({})
   })
 })

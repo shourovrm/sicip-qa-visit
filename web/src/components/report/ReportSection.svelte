@@ -16,7 +16,7 @@
   import PlanDraft from './PlanDraft.svelte'
   import SectionRemarks from './SectionRemarks.svelte'
   import MajorFindings from './MajorFindings.svelte'
-  import { isBlank, isShown, refOptions } from '../../lib/reporttemplate.js'
+  import { isBlank, isShown, newCardSeed, refOptions } from '../../lib/reporttemplate.js'
 
   export let section // template section
   export let template // full template -- CardsBlock needs it to jump to a linked block's source
@@ -26,6 +26,8 @@
   export let disabled = false
   export let defaultOpen = false
   export let onChange = () => {}
+  export let suggest = () => [] // (field, card) -> typing hints (ReportEditor owns the TMS/shared lists)
+  export let fill = () => null // (fields, card, key, value) -> extra card values
 
   // end-of-section review: every criterion's remarks, each with Edit
   $: criteriaItems = section.blocks.filter((b) => b.type === 'criteria').flatMap((b) => b.items).filter((i) => !i.heading)
@@ -84,7 +86,7 @@
           {#if block.note}<p class="note">{block.note}</p>{/if}
           {#if block.draftFrom}<PlanDraft {block} {template} {data} {disabled} {onChange} />{/if}
           <CardsBlock {block} {template} cards={data.cards[block.key] ?? []} {disabled}
-            {optionsFor}
+            {optionsFor} {suggest} {fill} seed={() => newCardSeed(block, data)}
             on:change={(e) => { data.cards[block.key] = e.detail; onChange() }} />
         </div>
       {:else if block.type === 'flags'}

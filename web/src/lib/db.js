@@ -197,3 +197,16 @@ export async function setAppMeta(key, value) {
   const { error } = await supabase.from('app_meta').update({ value }).eq('key', key)
   if (error) throw error
 }
+
+// ---- shared suggestion lists (migration 014; only 'equipment' today) ----
+export async function listSharedSuggestions(list) {
+  const { data, error } = await supabase.from('shared_suggestions').select('value').eq('list', list).order('uses', { ascending: false }).limit(1000)
+  if (error) throw error
+  return data.map((row) => row.value)
+}
+
+// server keeps the latest spelling and counts uses; blanks are skipped server-side too
+export async function addSharedSuggestions(list, values) {
+  const { error } = await supabase.rpc('add_suggestions', { p_list: list, p_values: values })
+  if (error) throw error
+}

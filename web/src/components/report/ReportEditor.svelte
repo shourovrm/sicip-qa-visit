@@ -9,7 +9,7 @@
      props, which Reports.svelte wires to openReportPrint/downloadReportDocx -- no-op if unset,
      so this component still renders standalone (e.g. in a test) without those wired up. -->
 <script>
-  import { createEventDispatcher } from 'svelte'
+  import { createEventDispatcher, onMount } from 'svelte'
   import { computeProgress, percentDone, normalize, needsConversion, templateFor, TEMPLATES } from '../../lib/reporttemplate.js'
   import { getReport, updateReport, updateReportIfUnchanged, submitReport, retractReport, canRetract, RETRACT_DAYS, softDeleteReport } from '../../lib/db.js'
   import { isAdmin } from '../../lib/auth.js'
@@ -20,6 +20,12 @@
   import SectionChips from './SectionChips.svelte'
   import SectionIndex from './SectionIndex.svelte'
   import SectionRail from './SectionRail.svelte'
+  import TmsPanel from './TmsPanel.svelte'
+  import { tmsSession } from '../../lib/tmsstore.js'
+  import { isLinked, loadCourseCatalog, loadTraineeHints } from '../../lib/tmsreport.js'
+  import { runningCourseCards } from '../../lib/tmscatalog.js'
+  import { phoneFill, suggestionsFor, traineeBatchOf, traineeKey } from '../../lib/suggest.js'
+  import { addSharedSuggestions, listSharedSuggestions } from '../../lib/db.js'
 
   export let report // reports row (id, type, template_version, data, status, visit_id, ...)
   export let template // template JSON for report.type
@@ -94,6 +100,7 @@
         // a newer edit may have arrived while this request was in flight
         if (!unsaved) saveState = 'saved'
         dispatch('save', report)
+        shareNewSuggestions(sent)
       } catch (e) {
         unsaved = true // keep it pending so the next flush retries
         saveState = 'offline'
@@ -227,6 +234,105 @@
   $: canRevert = !disabled && report.type === 'surprise' && Number(report.template_version) === TEMPLATES.surprise.version
   $: hasNarrative = template.sections.some((s) => s.blocks.some((b) => b.type === 'remarks'))
 
+  // ---- suggestions (template field `suggest`): TMS lists + the shared equipment list, fetched
+  // when the editor opens and kept in memory only; nothing here is saved to the report except
+  // the value the officer picks ----
+  let catalog = null // lib/tmscatalog.js course catalog of the linked institute
+  let trainees = new Map() // "courseId:batchId" -> [{name, mobile}]
+  let sharedLists = {} // list name -> values, e.g. {equipment: [...]}
+  let tmsLoading = false
+  let tmsError = ''
+  const traineeLoads = new Set()
+
+  async function loadTms() {
+    catalog = null
+    tmsError = ''
+    if (!$tmsSession || !isLinked(data.tms)) return
+    tmsLoading = true
+    try {
+      catalog = await loadCourseCatalog(data.tms)
+    } catch (e) {
+      tmsError = e.message
+    } finally {
+      tmsLoading = false
+    }
+  }
+
+  // template lists named "shared:<list>" by a field's suggest
+  $: sharedListNames = [...new Set(template.sections.flatMap((s) => s.blocks).flatMap((b) => b.fields ?? [])
+    .map((f) => f.suggest).filter((k) => k?.startsWith('shared:')).map((k) => k.slice(7)))]
+
+  onMount(() => {
+    loadTms()
+    for (const list of sharedListNames) {
+      listSharedSuggestions(list).then((values) => { sharedLists = { ...sharedLists, [list]: values } }).catch(() => {})
+    }
+  })
+  // sign in / out elsewhere (Profile, a 401) -> fetch again or drop the lists
+  let seenSignedIn = Boolean($tmsSession)
+  $: if (Boolean($tmsSession) !== seenSignedIn) { seenSignedIn = Boolean($tmsSession); loadTms() }
+
+  function requestTrainees(batch) {
+    const key = traineeKey(batch)
+    if (!batch || trainees.has(key) || traineeLoads.has(key)) return
+    traineeLoads.add(key)
+    loadTraineeHints(data.tms, batch)
+      .then((hints) => { trainees = new Map(trainees).set(key, hints) })
+      .catch(() => {})
+      .finally(() => traineeLoads.delete(key))
+  }
+
+  $: suggest = (field, card) => {
+    if (field.suggest === 'tmsTrainee' && catalog) requestTrainees(traineeBatchOf(card, catalog))
+    return suggestionsFor(field, card, { catalog, trainees, equipment: sharedLists.equipment ?? [] })
+  }
+  $: fill = (fields, card, key, value) => {
+    const hints = catalog ? trainees.get(traineeKey(traineeBatchOf(card, catalog))) : null
+    const phone = phoneFill(fields, card, key, value, hints)
+    return phone ? { phone } : null
+  }
+
+  function linkTms(e) {
+    data.tms = { ...(data.tms ?? {}), ...e.detail }
+    onChange()
+    trainees = new Map()
+    loadTms().then(fillCoursesIfEmpty)
+  }
+  function refreshTms() {
+    trainees = new Map()
+    loadTms().then(fillCoursesIfEmpty)
+  }
+  // section A still empty -> the batches running on the visit date become its course cards
+  function fillCoursesIfEmpty() {
+    if (!catalog || disabled) return
+    if ((data.cards?.courses ?? []).some((c) => String(c.course ?? '').trim())) return
+    const cards = runningCourseCards(catalog, data.fields?.visit_date || visit?.start_date)
+    if (!cards.length || !template.sections.some((s) => s.blocks.some((b) => b.key === 'courses'))) return
+    data.cards.courses = cards
+    onChange()
+  }
+
+  // after a save: offer this report's new shared-list values (equipment names) to everyone.
+  // fire-and-forget; each value is sent once per editor session
+  const sharedSent = new Set()
+  function sharedValues(source) {
+    const values = []
+    for (const block of template.sections.flatMap((s) => s.blocks)) {
+      if (block.type !== 'cards') continue
+      for (const field of block.fields.filter((f) => f.suggest === 'shared:equipment')) {
+        for (const card of source.cards?.[block.key] ?? []) values.push(String(card[field.key] ?? '').trim())
+      }
+    }
+    return values.filter(Boolean)
+  }
+  sharedValues(data).forEach((v) => sharedSent.add(v.toLowerCase()))
+  function shareNewSuggestions(source) {
+    const fresh = sharedValues(source).filter((v) => !sharedSent.has(v.toLowerCase()))
+    if (!fresh.length) return
+    fresh.forEach((v) => sharedSent.add(v.toLowerCase()))
+    addSharedSuggestions('equipment', fresh).catch(() => {})
+  }
+
   // laptop layout: one section at a time in the middle column, picked from the left rail
   let currentKey = template.sections[0]?.key
   $: currentIndex = Math.max(0, template.sections.findIndex((s) => s.key === currentKey))
@@ -280,7 +386,7 @@
     {#each template.sections as section (section.key)}
       {#if section.key === currentKey}
         <ReportSection {section} {template} {data} answers={template.answers} progress={progress.sections[section.key]}
-          {disabled} defaultOpen={true} {onChange} />
+          {disabled} defaultOpen={true} {onChange} {suggest} {fill} />
       {/if}
     {/each}
     <div class="pager">
@@ -324,7 +430,8 @@
       {#if flagTotal > 0}<span class="flag-pill">{flagTotal} flag{flagTotal === 1 ? '' : 's'}</span>{/if}
     </section>
 
-    <slot name="tms" />
+    <TmsPanel signedIn={Boolean($tmsSession)} tms={data.tms} {catalog} visitDate={meta.visitDate} association={partner}
+      instituteText={meta.institute} loading={tmsLoading} error={tmsError} {disabled} on:link={linkTms} on:refresh={refreshTms} />
 
     <section class="panel actions">
       <h3>Export</h3>

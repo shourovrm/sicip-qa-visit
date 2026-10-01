@@ -95,7 +95,7 @@ a { color: var(--primary); }
 :root[data-theme='dark'] .btn-link { color: var(--on-primary-container); }
 
 input[type='text'], input[type='email'], input[type='password'], input[type='date'],
-input[type='time'], input[type='number'], select, textarea {
+input[type='time'], input[type='number'], input[type='tel'], select, textarea {
   border: 1px solid var(--outline);
   border-radius: 8px;
   padding: 7px 10px;
