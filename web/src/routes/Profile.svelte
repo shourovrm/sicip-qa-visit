@@ -1,4 +1,4 @@
-<!-- my stats, theme toggle, writing helper model, change password, logout, view-only sheet link -->
+<!-- my stats, theme toggle, writing helper model, TMS account, change password, logout, view-only sheet link -->
 <script>
   import { onMount } from 'svelte'
   import { officer, signOut, updatePassword } from '../lib/auth.js'
@@ -6,6 +6,7 @@
   import { getModel, setModel, loadModels } from '../lib/rewritemodel.js'
   import { listVisits } from '../lib/db.js'
   import { totalPoints, rank } from '../lib/scoring.js'
+  import TmsAccountCard from '../components/TmsAccountCard.svelte'
 
   const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1MIZ7tMjWHKnM-NuLcfimH__N9YNac-MIQKXe_oUTBuM'
   const REPO_URL = 'https://github.com/shourovrm/sicip-qa-visit'
@@ -115,6 +116,8 @@
   {/if}
   <p class="muted model-help">Used by Improve wording in reports. All options are free; they share one daily limit.</p>
 </div>
+
+<TmsAccountCard />
 
 <div class="card">
   <h2>Change password</h2>
