@@ -66,6 +66,8 @@ import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.TMS_BLOCK_KEYS
 import bd.sicip.qavisit.domain.report.ReportSection
 import bd.sicip.qavisit.domain.report.ReportTemplate
+import bd.sicip.qavisit.domain.report.findingLines
+import bd.sicip.qavisit.domain.report.findingsBlock
 import bd.sicip.qavisit.domain.report.cardCompareMismatch
 import bd.sicip.qavisit.domain.report.cardCountedProgress
 import bd.sicip.qavisit.domain.report.courseIds
@@ -277,7 +279,10 @@ fun FieldsBlockView(block: ReportBlock.Fields, data: ReportData, readOnly: Boole
             when (field.draftFrom) {
                 null -> Unit
                 "weaknesses" -> FindingsDraftButton(field, template, data, readOnly, editor)
-                "findings" -> RecommendationsDraftButton(field, data, readOnly, editor)
+                "findings" -> RecommendationsDraftButton(
+                    field, data, readOnly, editor,
+                    sourcesOf = { d -> template.findingsBlock()?.let { findingLines(it, d) }.orEmpty() },
+                )
                 // QA v2: one recommendation per s13 weakness
                 "weaknessRecommendations" -> RecommendationsDraftButton(
                     field, data, readOnly, editor,

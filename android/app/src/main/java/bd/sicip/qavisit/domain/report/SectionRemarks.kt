@@ -193,11 +193,15 @@ fun printedRemarkLines(template: ReportTemplate, section: ReportSection, remarks
 
 private fun textLines(value: String): List<String> = value.lines().map { it.trim() }.filter { it.isNotEmpty() }
 
-// every remarks line of the report, issues first (template order within each group), no repeats
-fun findingCandidates(template: ReportTemplate, data: ReportData): List<RemarkLine> {
-    val all = template.sections.flatMap { section ->
+// every remarks line of the report in report order, no repeats (the Major findings checklist)
+fun reportLines(template: ReportTemplate, data: ReportData): List<RemarkLine> =
+    template.sections.flatMap { section ->
         section.blocks.filterIsInstance<ReportBlock.Remarks>().flatMap { printedRemarkLines(template, section, it, data) }
     }.distinctBy { it.text }
+
+// the same lines, issues first (template order within each group)
+fun findingCandidates(template: ReportTemplate, data: ReportData): List<RemarkLine> {
+    val all = reportLines(template, data)
     return all.filter { it.neg } + all.filterNot { it.neg }
 }
 

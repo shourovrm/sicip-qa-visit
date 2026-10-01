@@ -28,6 +28,7 @@ import bd.sicip.qavisit.domain.report.ReportSection
 import bd.sicip.qavisit.domain.report.ReportTemplate
 import bd.sicip.qavisit.domain.report.cardCompareMismatch
 import bd.sicip.qavisit.domain.report.RemarkLine
+import bd.sicip.qavisit.domain.report.findingLines
 import bd.sicip.qavisit.domain.report.normalize
 import bd.sicip.qavisit.domain.report.printedRemarkLines
 import kotlinx.serialization.json.JsonObject
@@ -364,7 +365,7 @@ private fun blockHtml(block: ReportBlock, section: ReportSection, data: ReportDa
     // through the separate pdf/QaReportHtml.kt (spec §7), never this file.
     is ReportBlock.Criteria -> ""
     is ReportBlock.Remarks -> remarksBoxHtml(block, section, data, template)
-    is ReportBlock.Findings -> numberedListHtml(block.heading ?: "Major findings", data.findings().map { it.text })
+    is ReportBlock.Findings -> numberedListHtml(block.heading ?: "Major findings", findingLines(block, data))
 }
 
 private fun sectionHtml(section: ReportSection, data: ReportData, template: ReportTemplate, answerMap: Map<String, AnswerOption>): String {

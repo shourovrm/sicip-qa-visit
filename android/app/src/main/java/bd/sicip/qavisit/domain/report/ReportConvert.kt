@@ -123,7 +123,8 @@ fun revertSurpriseV2ToV1(v1: ReportTemplate, v2Data: ReportData): ReportData {
         JsonObject(merged)
     })
 
-    val findings = data.findings().map { it.text.trim() }.filter { it.isNotEmpty() }
+    // v2's Major findings box (default keys), else its older picked list
+    val findings = findingLines(ReportBlock.Findings(key = "findings"), data)
     if (findings.isNotEmpty()) data = data.withField("key_findings", findings.joinToString("\n"))
     if (data.field("recommendations").isNotBlank()) data = data.withField("instructions_given", data.field("recommendations"))
 

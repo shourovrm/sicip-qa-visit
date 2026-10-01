@@ -10,6 +10,7 @@ import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportSection
 import bd.sicip.qavisit.domain.report.ReportTemplate
 import bd.sicip.qavisit.domain.report.courseBatchLabel
+import bd.sicip.qavisit.domain.report.findingLines
 import bd.sicip.qavisit.domain.report.normalize
 import bd.sicip.qavisit.domain.report.printedRemarkLines
 import bd.sicip.qavisit.domain.report.sectionHasContent
@@ -84,7 +85,7 @@ private fun blockHtml(block: ReportBlock, section: ReportSection, data: ReportDa
     is ReportBlock.Fields -> fieldsHtml(block, data)
     is ReportBlock.Cards -> if (block.display == "tabs") interviewTableHtml(block, data) else cardsTableHtml(block, data)
     is ReportBlock.Remarks -> printedRemarkLines(template, section, block, data).let { if (it.isEmpty()) "" else remarkBulletsHtml(it) }
-    is ReportBlock.Findings -> numberedListHtml(block.heading ?: "Major findings", data.findings().map { it.text })
+    is ReportBlock.Findings -> numberedListHtml(block.heading ?: "Major findings", findingLines(block, data))
     // answers print as the remarks bullets; v2 has no flags or criteria
     is ReportBlock.Checklist, is ReportBlock.Flags, is ReportBlock.Criteria -> ""
 }

@@ -1,26 +1,19 @@
 // surprise v2 editors: a section's templated Remarks (built bullets + Edit), the Major findings
-// picker (every remarks line offered, AI pre-selects the major ones once) and the
-// Recommendations "Draft from major findings" button. Rules live in domain/report/SectionRemarks.kt.
+// picker (every written line ticked into one editable box) and the Recommendations "Draft from
+// major findings" button. Rules live in domain/report/SectionRemarks.kt.
 package bd.sicip.qavisit.ui.reports
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,14 +29,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.domain.report.Field
-import bd.sicip.qavisit.domain.report.Finding
 import bd.sicip.qavisit.domain.report.RemarkLine
 import bd.sicip.qavisit.domain.report.ReportBlock
 import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportSection
 import bd.sicip.qavisit.domain.report.ReportTemplate
 import bd.sicip.qavisit.domain.report.buildRemarkLines
-import bd.sicip.qavisit.domain.report.findingCandidates
+import bd.sicip.qavisit.domain.report.findingsBox
+import bd.sicip.qavisit.domain.report.reportLines
+import bd.sicip.qavisit.domain.report.selectedFindingsText
+import bd.sicip.qavisit.domain.report.tickedLines
+import bd.sicip.qavisit.domain.report.withFindingsBox
+import bd.sicip.qavisit.domain.report.withFindingsBoxOpened
+import bd.sicip.qavisit.domain.report.withTicked
 import bd.sicip.qavisit.domain.report.printedRemarkLines
 import kotlinx.coroutines.launch
 
@@ -141,106 +139,52 @@ fun RemarksBlockView(block: ReportBlock.Remarks, section: ReportSection, templat
     }
 }
 
-// one picked finding: tick to drop it, its own text box + Improve wording
-@Composable
-private fun PickedFindingCard(finding: Finding, index: Int, readOnly: Boolean, editor: ReportEditor) {
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(start = 4.dp, end = 12.dp, top = 6.dp, bottom = 6.dp)) {
-            Row(verticalAlignment = Alignment.Top) {
-                Checkbox(
-                    checked = true,
-                    enabled = !readOnly,
-                    onCheckedChange = { editor.editNow(editor.data.withFindings(editor.data.findings().filterIndexed { i, _ -> i != index })) },
-                )
-                OutlinedTextField(
-                    value = finding.text,
-                    onValueChange = { text -> editor.editDebounced(editor.data.withFindings(editor.data.findings().mapIndexed { i, f -> if (i == index) f.copy(text = text) else f })) },
-                    readOnly = readOnly,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            ImproveWordingButton(
-                text = finding.text,
-                label = "Major findings",
-                readOnly = readOnly,
-                onApply = { text -> editor.editNow(editor.data.withFindings(editor.data.findings().mapIndexed { i, f -> if (i == index) f.copy(text = text) else f })) },
-                modifier = Modifier.padding(start = 44.dp),
-            )
-        }
-    }
-}
-
+// N Major findings (spec 2026-10-02 item 6): every written line of the report as a checklist in
+// report order (unticking never moves or hides a line), "Add selected to Major findings" writes
+// the ticked lines into ONE editable box (one finding per line), which is what prints.
 @Composable
 fun FindingsBlockView(block: ReportBlock.Findings, template: ReportTemplate, data: ReportData, readOnly: Boolean, editor: ReportEditor) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val ai = remember { QaDraftAi(context) }
-    val candidates = findingCandidates(template, data)
-    val candidatesSource = candidates.joinToString("\n") { it.text }
-    val picks = data.findings()
-    var loading by remember { mutableStateOf(false) }
-    var fromMarks by remember { mutableStateOf(false) }
-    val undo = rememberDraftUndo<List<Finding>>()
+    val lines = reportLines(template, data)
+    val ticked = tickedLines(block, data, lines).toSet()
+    val box = data.findingsBox(block).orEmpty()
+    var confirmReplace by remember { mutableStateOf(false) }
 
-    // AI suggestions replace the picks that came from the list; typed findings stay
-    fun suggest() {
-        loading = true
-        scope.launch {
-            val result = ai.majorFindings(candidates)
-            val current = editor.data.findings()
-            val kept = result.value.map { suggested -> current.find { it.src == suggested.src } ?: suggested }
-            val typed = current.filter { it.src.isEmpty() }
-            // the automatic first pre-select replaces nothing, so only a re-suggest is undoable
-            if (current.isNotEmpty()) undo.record(current, kept + typed)
-            editor.editNow(editor.data.withFindings(kept + typed).withFindingsAiSource(candidatesSource))
-            fromMarks = result.fromMarks
-            loading = false
+    // an old picked list becomes the box text once, the first time this report shows N
+    LaunchedEffect(Unit) {
+        if (!readOnly) {
+            val opened = withFindingsBoxOpened(block, editor.data)
+            if (opened != editor.data) editor.editNow(opened)
         }
     }
 
-    // pre-select once per candidate list, only while nothing is picked yet
-    LaunchedEffect(candidatesSource) {
-        if (!readOnly && picks.isEmpty() && candidates.isNotEmpty() && data.findingsAiSource() != candidatesSource) suggest()
+    fun addSelected() {
+        editor.editNow(editor.data.withFindingsBox(block, selectedFindingsText(block, editor.data, lines)))
     }
 
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(block.heading ?: "Major findings", style = MaterialTheme.typography.titleSmall)
         block.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        if (loading) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
-                Text("Choosing the major findings…", style = MaterialTheme.typography.labelMedium)
-            }
-        }
-        if (fromMarks) Text("AI unavailable — every issue was selected", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        if (picks.isEmpty() && !loading) {
-            Text("No finding selected yet.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        picks.forEachIndexed { index, finding -> PickedFindingCard(finding, index, readOnly, editor) }
-        if (!readOnly) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { editor.editNow(editor.data.withFindings(editor.data.findings() + Finding("", ""))) }, modifier = Modifier.height(48.dp)) {
-                    Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Add finding")
-                }
-                OutlinedButton(enabled = candidates.isNotEmpty() && !loading, onClick = { suggest() }, modifier = Modifier.height(48.dp)) {
-                    Text("Suggest again")
+        if (lines.isEmpty()) {
+            Text("Nothing written yet. Answer the sections above and their points appear here.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            Text("Points from this report", style = MaterialTheme.typography.labelLarge)
+            if (!readOnly) {
+                Row {
+                    TextButton(onClick = { editor.editNow(withTicked(block, editor.data, lines.map { it.text })) }) { Text("Select all") }
+                    TextButton(onClick = { editor.editNow(withTicked(block, editor.data, emptyList())) }) { Text("Deselect all") }
                 }
             }
-            UseMyWordsButton(undo, picks) { editor.editNow(editor.data.withFindings(it)) }
-        }
-
-        val pickedSources = picks.map { it.src }.toSet()
-        val others = candidates.filter { it.text !in pickedSources }
-        if (others.isNotEmpty()) {
-            Text("Other points from this report", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
-            others.forEach { line ->
+            lines.forEach { line ->
+                val checked = line.text in ticked
                 Row(verticalAlignment = Alignment.Top) {
                     Checkbox(
-                        checked = false,
+                        checked = checked,
                         enabled = !readOnly,
-                        onCheckedChange = { editor.editNow(editor.data.withFindings(editor.data.findings() + Finding(line.text, line.text))) },
+                        onCheckedChange = { tick ->
+                            val now = tickedLines(block, editor.data, lines)
+                            val next = if (tick) now + line.text else now - line.text
+                            editor.editNow(withTicked(block, editor.data, next))
+                        },
                     )
                     Column(Modifier.weight(1f).padding(top = 12.dp)) {
                         if (line.neg) Text("ISSUE", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
@@ -248,12 +192,44 @@ fun FindingsBlockView(block: ReportBlock.Findings, template: ReportTemplate, dat
                     }
                 }
             }
+            if (!readOnly) {
+                Button(
+                    enabled = ticked.isNotEmpty(),
+                    onClick = { if (box.isBlank()) addSelected() else confirmReplace = true },
+                    modifier = Modifier.height(48.dp),
+                ) { Text("Add selected to Major findings") }
+            }
         }
+        OutlinedTextField(
+            value = box,
+            onValueChange = { editor.editDebounced(editor.data.withFindingsBox(block, it)) },
+            readOnly = readOnly,
+            label = { Text(block.heading ?: "Major findings") },
+            placeholder = { Text("One finding per line") },
+            minLines = 4,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        ImproveWordingButton(
+            text = box,
+            label = block.heading ?: "Major findings",
+            readOnly = readOnly,
+            onApply = { editor.editNow(editor.data.withFindingsBox(block, it)) },
+        )
+    }
+
+    if (confirmReplace) {
+        AlertDialog(
+            onDismissRequest = { confirmReplace = false },
+            title = { Text("Replace Major findings?") },
+            text = { Text("The box already has text. Replace it with the selected points?") },
+            confirmButton = { TextButton(onClick = { addSelected(); confirmReplace = false }) { Text("Replace") } },
+            dismissButton = { TextButton(onClick = { confirmReplace = false }) { Text("Cancel") } },
+        )
     }
 }
 
 // Recommendations, one "The institute should ..." per source line: surprise v2 drafts from the
-// picked major findings, QA v2 from the s13 weaknesses. A filled box is only replaced after a
+// Major findings box lines, QA v2 from the s13 weaknesses. A filled box is only replaced after a
 // preview.
 @Composable
 fun RecommendationsDraftButton(
@@ -262,8 +238,8 @@ fun RecommendationsDraftButton(
     readOnly: Boolean,
     editor: ReportEditor,
     label: String = "Draft from major findings",
-    emptyHint: String = "Select major findings above first",
-    sourcesOf: (ReportData) -> List<String> = { d -> d.findings().map { it.text }.filter { it.isNotBlank() } },
+    emptyHint: String = "Add points to Major findings above first",
+    sourcesOf: (ReportData) -> List<String>,
 ) {
     if (readOnly) return
     val context = LocalContext.current

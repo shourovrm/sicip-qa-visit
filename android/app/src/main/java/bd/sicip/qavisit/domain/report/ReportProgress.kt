@@ -222,7 +222,7 @@ private fun sectionProgress(
             // one item: at least one major finding picked
             is ReportBlock.Findings -> {
                 total++
-                if (data.findings().any { it.text.isNotBlank() }) answered++
+                if (findingLines(block, data).isNotEmpty()) answered++
             }
         }
     }
@@ -273,7 +273,7 @@ fun sectionHasContent(section: ReportSection, data: ReportData): Boolean = secti
         }
         is ReportBlock.Flags -> block.items.any { it.id in data.flags() }
         is ReportBlock.Remarks -> data.remarksText(block.key).isNotBlank()
-        is ReportBlock.Findings -> data.findings().isNotEmpty()
+        is ReportBlock.Findings -> findingLines(block, data).isNotEmpty()
         is ReportBlock.Criteria -> block.items.any { item ->
             !item.heading && (
                 item.options.any { option -> !isBlank(data.criteriaOptValue(item.id, option.id)) } ||
