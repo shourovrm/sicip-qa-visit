@@ -9,9 +9,10 @@ import { buildRemarks, printedRemarks } from './remarks.js'
 import * as reportTemplateModule from './reporttemplate.js'
 import { feedbackGrid } from './feedbackgrid.js'
 import { SIGNOFF_CSS, signoffHtml } from './signoff.js'
-import { CELL_PADDING_CSS, PAGE_MARGIN_CSS, footerTitle, isShortValue } from './reportlayout.js'
+import { CELL_PADDING_CSS, PAGE_MARGIN_CSS, cellOrDash, footerTitle, isShortValue } from './reportlayout.js'
 import {
-  contractsTable, criteriaCardsTable, evidenceIndexTable, evidenceLines, mouTable, officersLine, registrationTable,
+  batchesTable, contractsTable, criteriaCardsTable, cumulativeTable, evidenceIndexTable, evidenceLines, headerRowsOf,
+  mouCoursesTable, mouTable, officersLine, personsTable, planTable, registrationTable, withoutLineHint,
 } from './qatables.js'
 
 function esc(s) {
@@ -76,22 +77,33 @@ function headerKvHtml(data) {
   </div>`
 }
 
-// one table cell: counts, percentages and short answers centred, text left
+// one body cell: counts, percentages and short answers centred, text left; blank prints "-"
 function cellHtml(value) {
-  return `<td${isShortValue(value) ? ' class="ctr"' : ''}>${escMultiline(value)}</td>`
+  const shown = cellOrDash(value)
+  return `<td${isShortValue(shown) ? ' class="ctr"' : ''}>${escMultiline(shown)}</td>`
 }
 
-function cardsTableHtml(fields, entries, minRows) {
-  const rows = entries.length >= minRows ? entries : entries.concat(Array.from({ length: minRows - entries.length }, () => ({})))
-  const header = `<tr>${fields.map((f) => `<th>${esc(f.label)}</th>`).join('')}</tr>`
-  const body = rows.map((entry) => `<tr>${fields.map((f) => cellHtml(entry[f.key])).join('')}</tr>`).join('')
-  return `<table class="grid">${header}${body}</table>`
+function headerCellHtml(cell) {
+  const span = `${cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : ''}${cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : ''}`
+  return `<th${span}>${esc(cell.text)}</th>`
 }
 
-// 1.10 persons met.
-function personsHtml(block, data) {
-  const entries = (data.cards && data.cards[block.key]) || []
-  return `<div class="sub-h">${esc(block.heading)}</div>${cardsTableHtml(block.fields, entries, block.start || 3)}`
+function colgroupHtml(weights) {
+  const total = weights.reduce((sum, weight) => sum + weight, 0)
+  return `<colgroup>${weights.map((weight) => `<col style="width:${((weight / total) * 100).toFixed(2)}%">`).join('')}</colgroup>`
+}
+
+// qatables.js {heading?, headers | headerRows, rows, weights?, note?, dense?} -> a grid table with
+// its header rows in <thead> (repeats on every page); null -> nothing
+function tableHtml(table, headingOverride) {
+  if (!table) return ''
+  const heading = headingOverride ?? table.heading
+  const head = headerRowsOf(table).map((cells) => `<tr>${cells.map(headerCellHtml).join('')}</tr>`).join('')
+  const body = table.rows.map((row) => `<tr>${row.map(cellHtml).join('')}</tr>`).join('')
+  const classes = `grid${table.dense ? ' dense' : ''}${table.weights ? ' fixed' : ''}`
+  const colgroup = table.weights ? colgroupHtml(table.weights) : ''
+  const note = table.note ? `<p class="note-line">${esc(table.note)}</p>` : ''
+  return `${heading ? `<div class="sub-h">${esc(heading)}</div>` : ''}<table class="${classes}">${colgroup}<thead>${head}</thead><tbody>${body}</tbody></table>${note}`
 }
 
 // 1.20-1.25 + 1.30-1.34 + comments -- plain label:value lines (short text/date/number fields).
@@ -112,59 +124,6 @@ function mouFieldsHtml(block, data) {
   return `${block.heading ? `<div class="sub-h">${esc(block.heading)}</div>` : ''}${lines}`
 }
 
-// 1.40 MoU courses.
-function mouCoursesHtml(block, data) {
-  const entries = (data.cards && data.cards[block.key]) || []
-  return `<div class="sub-h">${esc(block.heading)}</div>${cardsTableHtml(block.fields, entries, block.start || 4)}`
-}
-
-// 1.50 cumulative implementation -- T/F sub-header row, "Job Placed with Percentage" and
-// "No. of dropouts with Percentage" print "n (p%)" (placed% of certified, dropout% of enrolled).
-function pct(n, of) {
-  const num = Number(n)
-  const denom = Number(of)
-  if (!Number.isFinite(num) || !Number.isFinite(denom) || denom <= 0) return ''
-  return ` (${Math.round((num / denom) * 100)}%)`
-}
-function cumulativeHtml(block, data) {
-  const entries = (data.cards && data.cards[block.key]) || []
-  const rows = entries.length >= (block.start || 2) ? entries : entries.concat(Array.from({ length: (block.start || 2) - entries.length }, () => ({})))
-  const body = rows
-    .map((c, i) => {
-      const placedT = blank(c.placed_t) ? '' : `${c.placed_t}${pct(c.placed_t, c.certified_t)}`
-      const placedF = blank(c.placed_f) ? '' : `${c.placed_f}${pct(c.placed_f, c.certified_f)}`
-      const dropoutT = blank(c.dropout_t) ? '' : `${c.dropout_t}${pct(c.dropout_t, c.enrolled_t)}`
-      const dropoutF = blank(c.dropout_f) ? '' : `${c.dropout_f}${pct(c.dropout_f, c.enrolled_f)}`
-      const cells = [`${i + 1}.`, c.course, c.target, c.enrolled_t, c.enrolled_f, c.certified_t, c.certified_f, placedT, placedF, dropoutT, dropoutF]
-      return `<tr>${cells.map(cellHtml).join('')}</tr>`
-    })
-    .join('')
-  return `<div class="sub-h">${esc(block.heading)}</div>
-    <table class="grid cumulative">
-      <tr><th rowspan="2">S.N.</th><th rowspan="2">Course Name</th><th rowspan="2">Target</th>
-        <th colspan="2">Enrolled</th><th colspan="2">Certified</th>
-        <th colspan="2">Job Placed with Percentage</th><th colspan="2">No. of dropouts with Percentage</th></tr>
-      <tr><th>T</th><th>F</th><th>T</th><th>F</th><th>T</th><th>F</th><th>T</th><th>F</th></tr>
-      ${body}
-    </table>
-    <p class="note-line">${esc(block.note || 'T= Total and F = Female')}</p>`
-}
-
-// 1.60 current batches.
-function batchesHtml(block, data) {
-  const entries = (data.cards && data.cards[block.key]) || []
-  return `<div class="sub-h">${esc(block.heading)}</div>${cardsTableHtml(block.fields, entries, block.start || 2)}`
-}
-
-// qatables.js {heading?, headers, rows} -> a grid table; null -> nothing
-function tableHtml(table, headingOverride) {
-  if (!table) return ''
-  const heading = headingOverride ?? table.heading
-  const head = `<tr>${table.headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>`
-  const body = table.rows.map((row) => `<tr>${row.map(cellHtml).join('')}</tr>`).join('')
-  return `${heading ? `<div class="sub-h">${esc(heading)}</div>` : ''}<table class="grid">${head}${body}</table>`
-}
-
 function longtextBox(label, value) {
   return `<div class="field-box"><div class="fb-label">${esc(label)}</div><div class="fb-body">${escMultiline(value)}</div></div>`
 }
@@ -179,7 +138,7 @@ function sectionOneV2Html(section, template, data) {
   out.push(`<div class="kv-line"><b>ii) Purpose(s) of this Monitoring Visit :</b> ${escMultiline(f.purposes)}</div>`)
   out.push(`<div class="kv-line"><b>iii) Monitoring Team Members with Designations :</b> ${esc(officersLine(data))}</div>`)
   for (const block of section.blocks) {
-    if (block.key === 'persons') out.push(personsHtml(block, data))
+    if (block.key === 'persons') out.push(tableHtml(personsTable(block, data)))
     else if (block.key === 'mous') out.push(tableHtml(mouTable(template, data), block.heading) || `<div class="sub-h">${esc(block.heading)}</div>`)
     else if (block.fields?.some((field) => field.key === 'other_contract')) {
       const answer = block.fields[0].options.find((o) => o.id === f.other_contract)?.label ?? ''
@@ -189,13 +148,13 @@ function sectionOneV2Html(section, template, data) {
         if (!blank(f.comments)) out.push(longtextBox('Comments of the Visiting Officer', f.comments))
       }
     }
-    else if (block.key === 'mou_courses') out.push(mouCoursesHtml(block, data))
-    else if (block.key === 'cumulative') out.push(cumulativeHtml(block, data))
-    else if (block.key === 'batches') out.push(batchesHtml(block, data))
+    else if (block.key === 'mou_courses') out.push(tableHtml(mouCoursesTable(block, data)))
+    else if (block.key === 'cumulative') out.push(tableHtml(cumulativeTable(block, data)))
+    else if (block.key === 'batches') out.push(tableHtml(batchesTable(block, data)))
     else if (block.fields?.some((field) => field.key === 'dropout_reasons')) {
       for (const key of ['dropout_reasons', 'dropout_steps']) {
         const field = block.fields.find((fl) => fl.key === key)
-        out.push(`<div class="kv-line"><b>${esc(field.label)} :</b></div>${romanLines(f[key])}`)
+        out.push(`<div class="kv-line"><b>${esc(withoutLineHint(field.label))} :</b></div>${romanLines(f[key])}`)
       }
     }
   }
@@ -211,17 +170,17 @@ function sectionOneBodyHtml(section, data) {
   out.push(`<div class="kv-line"><b>ii) Purpose(s) of this Monitoring Visit :</b> ${esc(f.purposes)}</div>`)
   out.push(`<div class="kv-line"><b>iii) Monitoring Team Members with Designations :</b> ${esc(f.team)}</div>`)
   for (const block of section.blocks) {
-    if (block.type === 'cards' && block.key === 'persons') out.push(personsHtml(block, data))
+    if (block.type === 'cards' && block.key === 'persons') out.push(tableHtml(personsTable(block, data)))
     else if (block.type === 'fields' && block.heading === '1.20 Contract/MoU Information') out.push(mouFieldsHtml(block, data))
     else if (block.type === 'fields' && block.heading && block.heading.startsWith('1.30')) out.push(mouFieldsHtml(block, data))
-    else if (block.type === 'cards' && block.key === 'mou_courses') out.push(mouCoursesHtml(block, data))
-    else if (block.type === 'cards' && block.key === 'cumulative') out.push(cumulativeHtml(block, data))
-    else if (block.type === 'cards' && block.key === 'batches') out.push(batchesHtml(block, data))
+    else if (block.type === 'cards' && block.key === 'mou_courses') out.push(tableHtml(mouCoursesTable(block, data)))
+    else if (block.type === 'cards' && block.key === 'cumulative') out.push(tableHtml(cumulativeTable(block, data)))
+    else if (block.type === 'cards' && block.key === 'batches') out.push(tableHtml(batchesTable(block, data)))
     else if (block.type === 'fields' && block.fields.some((fl) => fl.key === 'dropout_reasons')) {
       const reasons = block.fields.find((fl) => fl.key === 'dropout_reasons')
       const steps = block.fields.find((fl) => fl.key === 'dropout_steps')
-      out.push(`<div class="kv-line"><b>${esc(reasons.label)} :</b></div>${romanLines(f.dropout_reasons)}`)
-      out.push(`<div class="kv-line"><b>${esc(steps.label)} :</b></div>${romanLines(f.dropout_steps)}`)
+      out.push(`<div class="kv-line"><b>${esc(withoutLineHint(reasons.label))} :</b></div>${romanLines(f.dropout_reasons)}`)
+      out.push(`<div class="kv-line"><b>${esc(withoutLineHint(steps.label))} :</b></div>${romanLines(f.dropout_steps)}`)
     }
   }
   return out.join('')
@@ -235,10 +194,10 @@ function criteriaRowHtml(item, data, template) {
   }
   const entry = (data.criteria && data.criteria[item.id]) || {}
   const bullets = printedRemarks(item, entry)
-  const remarksHtml = bullets.length ? `<ul>${bullets.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>` : ''
+  const remarksHtml = bullets.length ? `<ul>${bullets.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>` : esc(cellOrDash(''))
   // qa-v2: the numbered evidence the officer saw; v1: the form's own evidence text
   const evidence = template.evidenceRegister ? evidenceLines(data, item.id).join('\n') : item.evidence
-  return `<tr><td>${esc(item.no)}</td><td>${esc(item.text)}</td><td>${escMultiline(evidence)}</td><td class="rm">${remarksHtml}</td></tr>`
+  return `<tr><td>${esc(item.no)}</td><td>${esc(item.text)}</td><td>${escMultiline(cellOrDash(evidence))}</td><td class="rm">${remarksHtml}</td></tr>`
 }
 
 function criteriaBlockHtml(block, data, template) {
@@ -249,8 +208,8 @@ function criteriaBlockHtml(block, data, template) {
   const rows = block.items.map((item) => criteriaRowHtml(item, data, template)).join('')
   return `${heading}${intro}<table class="grid criteria">
     <colgroup><col style="width:7%"><col style="width:31%"><col style="width:31%"><col style="width:31%"></colgroup>
-    <tr><th>Sl.</th><th>QUALITY CRITERIA</th><th>EVIDENCE</th><th>REMARKS</th></tr>
-    ${rows}
+    <thead><tr><th>Sl.</th><th>QUALITY CRITERIA</th><th>EVIDENCE</th><th>REMARKS</th></tr></thead>
+    <tbody>${rows}</tbody>
   </table>`
 }
 
@@ -260,8 +219,8 @@ function feedbackTableHtml(block, data) {
   const { tables, comments } = feedbackGrid(block, entries)
   const tablesHtml = tables.map((table) => {
     const header = `<tr>${table.headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr>`
-    const body = table.rows.map((row) => `<tr><td>${esc(row[0])}</td>${row.slice(1).map((v) => `<td class="c">${esc(v)}</td>`).join('')}</tr>`).join('')
-    return `<table class="grid">${header}${body}</table>`
+    const body = table.rows.map((row) => `<tr><td>${esc(row[0])}</td>${row.slice(1).map((v) => `<td class="c">${esc(cellOrDash(v))}</td>`).join('')}</tr>`).join('')
+    return `<table class="grid"><thead>${header}</thead><tbody>${body}</tbody></table>`
   }).join('')
   const commentsHtml = comments.length ? `<div class="sub-h">Comments</div><ul>${comments.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : ''
   return `${tablesHtml}${commentsHtml}`
@@ -271,17 +230,14 @@ function feedbackTableHtml(block, data) {
 function strengthsWeaknessesHtml(block, data) {
   const f = fieldsMap(data)
   const rows = block.pairs.map((pair, i) =>
-    `<tr><td>${i + 1}.</td><td>${esc(pair.component)}</td><td>${escMultiline(f[pair.strength])}</td><td>${escMultiline(f[pair.weakness])}</td></tr>`,
+    `<tr><td>${i + 1}.</td><td>${esc(pair.component)}</td><td>${escMultiline(cellOrDash(f[pair.strength]))}</td><td>${escMultiline(cellOrDash(f[pair.weakness]))}</td></tr>`,
   ).join('')
-  return `<table class="grid"><tr><th>S.N.</th><th>Component</th><th>Strengths</th><th>Weakness</th></tr>${rows}</table>`
+  return `<table class="grid"><thead><tr><th>S.N.</th><th>Component</th><th>Strengths</th><th>Weakness</th></tr></thead><tbody>${rows}</tbody></table>`
 }
 
-// ---- section 16: improvement plan, minimum 3 rows ----
+// ---- section 16: improvement plan ----
 function planTableHtml(block, data) {
-  const entries = (data.cards && data.cards[block.key]) || []
-  const rows = entries.length >= 3 ? entries : entries.concat(Array.from({ length: 3 - entries.length }, () => ({})))
-  const body = rows.map((entry, i) => `<tr><td>${i + 1}.</td>${block.fields.map((field) => `<td>${escMultiline(entry[field.key])}</td>`).join('')}</tr>`).join('')
-  return `<table class="grid"><tr><th style="width:5%">S.N.</th>${block.fields.map((field) => `<th>${esc(field.label)}</th>`).join('')}</tr>${body}</table>`
+  return tableHtml(planTable(block, data))
 }
 
 // ---- sections 14/15: numbered lists from lines ----
@@ -347,7 +303,13 @@ const CSS = `
   .roman { display: inline-block; min-width: 22pt; }
   table.grid { width: 100%; border-collapse: collapse; margin: 4pt 0 8pt; }
   table.grid th, table.grid td { border: 0.75pt solid #000; padding: ${CELL_PADDING_CSS}; vertical-align: top; font-size: 9pt; }
+  table.grid.fixed { table-layout: fixed; }
+  table.grid td, table.grid th { overflow-wrap: break-word; }
+  table.grid.dense th { font-size: 8pt; }
+  table.grid.dense th, table.grid.dense td { padding: 4pt 3pt; }
   table.grid td.ctr { text-align: center; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; page-break-inside: avoid; }
   table.grid th { font-weight: 700; text-align: center; background: #eee; }
   table.grid td.c { text-align: center; width: 13%; }
   table.criteria th { text-align: left; }

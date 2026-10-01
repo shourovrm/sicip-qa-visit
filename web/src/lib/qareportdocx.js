@@ -4,17 +4,19 @@
 // already in this repo (context7 /dolanmiu/docx).
 import {
   AlignmentType, BorderStyle, Document, Packer, Paragraph,
-  ShadingType, Table, TableCell, TableLayoutType, TableRow, TextRun, WidthType,
+  ShadingType, Table, TableCell, TableLayoutType, TextRun, VerticalAlign, WidthType,
 } from 'docx'
 import {
-  CELL_MARGINS_TWIPS, CONTENT_WIDTH_TWIPS, footerTitle, isShortValue, weightedWidths,
+  CELL_MARGINS_TWIPS, CONTENT_WIDTH_TWIPS, cellOrDash, footerTitle, isShortValue, weightedWidths,
 } from './reportlayout.js'
+import { bodyTableRow, headerTableRow } from './reportdocx.js'
 import { A4_PAGE, NUMBERING, numberedParagraphs, pageFooter } from './docxparts.js'
 import { printedRemarks } from './remarks.js'
 import { feedbackGrid } from './feedbackgrid.js'
 import { signoffDocx } from './signoffdocx.js'
 import {
-  contractsTable, criteriaCardsTable, evidenceIndexTable, evidenceLines, mouTable, officersLine, registrationTable,
+  batchesTable, contractsTable, criteriaCardsTable, cumulativeTable, evidenceIndexTable, evidenceLines, headerRowsOf,
+  mouCoursesTable, mouTable, officersLine, personsTable, planTable, registrationTable, withoutLineHint,
 } from './qatables.js'
 import * as reportTemplateModule from './reporttemplate.js'
 
@@ -32,6 +34,8 @@ const SECTION_SIZE = 22 // 11pt
 const BODY_SIZE = 20 // 10pt
 const TABLE_SIZE = 18 // 9pt
 const SMALL_SIZE = 18 // 9pt
+const DENSE_HEADER_SIZE = 16 // 8pt header text for tables with 9+ columns
+const DENSE_CELL_MARGINS_TWIPS = { ...CELL_MARGINS_TWIPS, left: 60, right: 60 } // 3pt, so 9+ narrow columns fit whole words
 const FOOTER_SIZE = 16 // 8pt
 
 function blank(v) {
@@ -65,10 +69,10 @@ const TABLE_BORDERS = {
   insideHorizontal: CELL_BORDERS.top, insideVertical: CELL_BORDERS.top,
 }
 
-function fixedTable(widths, rows) {
+function fixedTable(widths, rows, margins = CELL_MARGINS_TWIPS) {
   return new Table({
     width: { size: CONTENT_WIDTH_TWIPS, type: WidthType.DXA }, columnWidths: widths, layout: TableLayoutType.FIXED,
-    borders: TABLE_BORDERS, margins: CELL_MARGINS_TWIPS, rows,
+    borders: TABLE_BORDERS, margins, rows,
   })
 }
 
@@ -78,7 +82,7 @@ function run(text, opts = {}) {
 
 // table text: 9 pt, centred when it is a count, percentage or short answer
 function cellText(value) {
-  const text = blank(value) ? '' : String(value)
+  const text = cellOrDash(value)
   if (text.includes('\n')) return multilineParagraph(text, { size: TABLE_SIZE })
   const alignment = isShortValue(text) ? AlignmentType.CENTER : AlignmentType.LEFT
   return new Paragraph({ alignment, children: [run(text, { size: TABLE_SIZE })] })
@@ -91,13 +95,21 @@ function multilineParagraph(value, opts = {}, paraOpts = {}) {
   return new Paragraph({ ...paraOpts, children })
 }
 
-function headerCell(text, widthTwips, opts = {}) {
+function headerCell(text, widthTwips, opts = {}, spans = {}) {
   return new TableCell({
     width: { size: widthTwips, type: WidthType.DXA },
+    columnSpan: spans.colSpan,
+    rowSpan: spans.rowSpan,
+    verticalAlign: VerticalAlign.CENTER,
     borders: CELL_BORDERS,
     shading: { type: ShadingType.CLEAR, fill: HEADER_FILL },
     children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [run(text, { bold: true, size: SMALL_SIZE, ...opts })] })],
   })
+}
+
+// a table cell's (possibly multi-line) text; blank prints "-"
+function cellMultiline(value, opts = {}) {
+  return multilineParagraph(cellOrDash(value), opts)
 }
 
 function bodyCell(widthTwips, paragraphs, opts = {}) {
@@ -132,19 +144,6 @@ function headerParagraphs(data) {
   ]
 }
 
-function cardsTableDocx(fields, entries, minRows) {
-  const rows = entries.length >= minRows ? entries : entries.concat(Array.from({ length: minRows - entries.length }, () => ({})))
-  const widths = weightedWidths(CONTENT_WIDTH_TWIPS, fields.map(() => 1))
-  const headerRow = new TableRow({ children: fields.map((f, i) => headerCell(f.label, widths[i])) })
-  const bodyRows = rows.map((entry) => new TableRow({ children: fields.map((f, i) => bodyCell(widths[i], [cellText(entry[f.key])])) }))
-  return fixedTable(widths, [headerRow, ...bodyRows])
-}
-
-function personsDocx(block, data) {
-  const entries = (data.cards && data.cards[block.key]) || []
-  return [subheadParagraph(block.heading), cardsTableDocx(block.fields, entries, block.start || 3)]
-}
-
 function mouFieldsDocx(block, data) {
   const f = fieldsMap(data)
   const out = block.heading ? [subheadParagraph(block.heading)] : []
@@ -162,71 +161,50 @@ function mouFieldsDocx(block, data) {
   return out
 }
 
-function pct(n, of) {
-  const num = Number(n)
-  const denom = Number(of)
-  if (!Number.isFinite(num) || !Number.isFinite(denom) || denom <= 0) return ''
-  return ` (${Math.round((num / denom) * 100)}%)`
-}
-
-function cumulativeDocx(block, data) {
-  const entries = (data.cards && data.cards[block.key]) || []
-  const minRows = block.start || 2
-  const rows = entries.length >= minRows ? entries : entries.concat(Array.from({ length: minRows - entries.length }, () => ({})))
-  const cols = 11
-  const widths = weightedWidths(CONTENT_WIDTH_TWIPS, Array.from({ length: cols }, () => 1))
-  const spanCell = (text, width, span) => new TableCell({
-    width: { size: width, type: WidthType.DXA }, columnSpan: span, borders: CELL_BORDERS,
-    shading: { type: ShadingType.CLEAR, fill: HEADER_FILL },
-    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [run(text, { bold: true, size: SMALL_SIZE })] })],
-  })
-  const tallCell = (text, width) => new TableCell({
-    width: { size: width, type: WidthType.DXA }, rowSpan: 2, borders: CELL_BORDERS,
-    shading: { type: ShadingType.CLEAR, fill: HEADER_FILL },
-    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [run(text, { bold: true, size: SMALL_SIZE })] })],
-  })
-  const headerRow1 = new TableRow({
-    children: [
-      // these three span both header rows, so the T/F row lines up under the paired columns
-      tallCell('S.N.', widths[0]), tallCell('Course Name', widths[1]), tallCell('Target', widths[2]),
-      spanCell('Enrolled', widths[3] + widths[4], 2), spanCell('Certified', widths[5] + widths[6], 2),
-      spanCell('Job Placed with Percentage', widths[7] + widths[8], 2), spanCell('No. of dropouts with Percentage', widths[9] + widths[10], 2),
-    ],
-  })
-  const headerRow2 = new TableRow({ children: ['T', 'F', 'T', 'F', 'T', 'F', 'T', 'F'].map((t, i) => headerCell(t, widths[3 + i])) })
-  const bodyRows = rows.map((c, i) => {
-    const placedT = blank(c.placed_t) ? '' : `${c.placed_t}${pct(c.placed_t, c.certified_t)}`
-    const placedF = blank(c.placed_f) ? '' : `${c.placed_f}${pct(c.placed_f, c.certified_f)}`
-    const dropoutT = blank(c.dropout_t) ? '' : `${c.dropout_t}${pct(c.dropout_t, c.enrolled_t)}`
-    const dropoutF = blank(c.dropout_f) ? '' : `${c.dropout_f}${pct(c.dropout_f, c.enrolled_f)}`
-    const cells = [String(i + 1), c.course, c.target, c.enrolled_t, c.enrolled_f, c.certified_t, c.certified_f, placedT, placedF, dropoutT, dropoutF]
-    return new TableRow({ children: cells.map((text, ci) => bodyCell(widths[ci], [cellText(text)])) })
-  })
-  return [
-    subheadParagraph(block.heading),
-    fixedTable(widths, [headerRow1, headerRow2, ...bodyRows]),
-    new Paragraph({ spacing: { before: 40, after: 80 }, children: [run(block.note || 'T= Total and F = Female', { italics: true, size: SMALL_SIZE, color: NOTE_COLOR })] }),
-  ]
-}
-
-function batchesDocx(block, data) {
-  const entries = (data.cards && data.cards[block.key]) || []
-  return [subheadParagraph(block.heading), cardsTableDocx(block.fields, entries, block.start || 2)]
-}
-
 function romanParagraphs(text) {
   const lines = String(text ?? '').split('\n').map((l) => l.trim()).filter(Boolean)
   return lines.map((line, i) => new Paragraph({ indent: { left: 240 }, children: [run(`${ROMAN[i] ?? i + 1}) `, {}), run(line)] }))
 }
 
-// qatables.js {heading?, headers, rows} -> [heading?, table]; null -> nothing
+// the header rows of `table` as docx rows; a cell's colSpan sums the widths it covers and a
+// rowSpan cell is left out of the rows below it (docx merges them). Every header row repeats on
+// each page.
+function headerRowsDocx(table, widths) {
+  const headerSize = table.dense ? DENSE_HEADER_SIZE : SMALL_SIZE
+  const coveredByRow = new Map()
+  return headerRowsOf(table).map((cells, rowIndex) => {
+    const covered = coveredByRow.get(rowIndex) ?? new Set()
+    let column = 0
+    const tableCells = cells.map((cell) => {
+      while (covered.has(column)) column += 1
+      const colSpan = cell.colSpan ?? 1
+      const rowSpan = cell.rowSpan ?? 1
+      const width = widths.slice(column, column + colSpan).reduce((sum, columnWidth) => sum + columnWidth, 0)
+      for (let below = 1; below < rowSpan; below += 1) {
+        const coveredBelow = coveredByRow.get(rowIndex + below) ?? new Set()
+        for (let offset = 0; offset < colSpan; offset += 1) coveredBelow.add(column + offset)
+        coveredByRow.set(rowIndex + below, coveredBelow)
+      }
+      const spans = { colSpan: colSpan > 1 ? colSpan : undefined, rowSpan: rowSpan > 1 ? rowSpan : undefined }
+      column += colSpan
+      return headerCell(cell.text, width, { size: headerSize }, spans)
+    })
+    return headerTableRow(tableCells)
+  })
+}
+
+// qatables.js {heading?, headers | headerRows, rows, weights?, note?, dense?} -> [heading?, table, note?];
+// null -> nothing. Tables without weights keep the old rule: narrow S.N./No. column, equal rest.
 function tableDocx(table, headingOverride) {
   if (!table) return []
   const heading = headingOverride ?? table.heading
-  const widths = weightedWidths(CONTENT_WIDTH_TWIPS, table.headers.map((h) => (h === 'S.N.' || h === 'No.' ? 6 : 20)))
-  const headerRow = new TableRow({ children: table.headers.map((h, i) => headerCell(h, widths[i])) })
-  const bodyRows = table.rows.map((row) => new TableRow({ children: row.map((cell, i) => bodyCell(widths[i], [cellText(cell)])) }))
-  return [...(heading ? [subheadParagraph(heading)] : []), fixedTable(widths, [headerRow, ...bodyRows])]
+  const weights = table.weights ?? table.headers.map((h) => (h === 'S.N.' || h === 'No.' ? 7 : 20))
+  const widths = weightedWidths(CONTENT_WIDTH_TWIPS, weights)
+  const bodyRows = table.rows.map((row) => bodyTableRow(row.map((cell, i) => bodyCell(widths[i], [cellText(cell)]))))
+  const note = table.note
+    ? [new Paragraph({ spacing: { before: 40, after: 80 }, children: [run(table.note, { italics: true, size: SMALL_SIZE, color: NOTE_COLOR })] })]
+    : []
+  return [...(heading ? [subheadParagraph(heading)] : []), fixedTable(widths, [...headerRowsDocx(table, widths), ...bodyRows], table.dense ? DENSE_CELL_MARGINS_TWIPS : CELL_MARGINS_TWIPS), ...note]
 }
 
 // qa-v2 section 1: registration table, officers as team members, MoU + contracts tables
@@ -238,7 +216,7 @@ function sectionOneV2Docx(section, template, data) {
   out.push(kvParagraph('ii) Purpose(s) of this Monitoring Visit', f.purposes))
   out.push(kvParagraph('iii) Monitoring Team Members with Designations', officersLine(data)))
   for (const block of section.blocks) {
-    if (block.key === 'persons') out.push(...personsDocx(block, data))
+    if (block.key === 'persons') out.push(...tableDocx(personsTable(block, data)))
     else if (block.key === 'mous') {
       const table = tableDocx(mouTable(template, data), block.heading)
       out.push(...(table.length ? table : [subheadParagraph(block.heading)]))
@@ -252,13 +230,13 @@ function sectionOneV2Docx(section, template, data) {
           out.push(multilineParagraph(f.comments, {}, { spacing: { after: 80 } }))
         }
       }
-    } else if (block.key === 'mou_courses') { out.push(subheadParagraph(block.heading)); out.push(cardsTableDocx(block.fields, (data.cards && data.cards[block.key]) || [], block.start || 1)) }
-    else if (block.key === 'cumulative') out.push(...cumulativeDocx(block, data))
-    else if (block.key === 'batches') out.push(...batchesDocx(block, data))
+    } else if (block.key === 'mou_courses') out.push(...tableDocx(mouCoursesTable(block, data)))
+    else if (block.key === 'cumulative') out.push(...tableDocx(cumulativeTable(block, data)))
+    else if (block.key === 'batches') out.push(...tableDocx(batchesTable(block, data)))
     else if (block.fields?.some((field) => field.key === 'dropout_reasons')) {
       for (const key of ['dropout_reasons', 'dropout_steps']) {
         const field = block.fields.find((fl) => fl.key === key)
-        out.push(new Paragraph({ spacing: { before: 60 }, children: [run(field.label, { bold: true })] }))
+        out.push(new Paragraph({ spacing: { before: 60 }, children: [run(withoutLineHint(field.label), { bold: true })] }))
         out.push(...romanParagraphs(f[key]))
       }
     }
@@ -274,18 +252,18 @@ function sectionOneDocx(section, data) {
     kvParagraph('iii) Monitoring Team Members with Designations', f.team),
   ]
   for (const block of section.blocks) {
-    if (block.type === 'cards' && block.key === 'persons') out.push(...personsDocx(block, data))
+    if (block.type === 'cards' && block.key === 'persons') out.push(...tableDocx(personsTable(block, data)))
     else if (block.type === 'fields' && block.heading === '1.20 Contract/MoU Information') out.push(...mouFieldsDocx(block, data))
     else if (block.type === 'fields' && block.heading && block.heading.startsWith('1.30')) out.push(...mouFieldsDocx(block, data))
-    else if (block.type === 'cards' && block.key === 'mou_courses') { out.push(subheadParagraph(block.heading)); out.push(cardsTableDocx(block.fields, (data.cards && data.cards[block.key]) || [], block.start || 4)) }
-    else if (block.type === 'cards' && block.key === 'cumulative') out.push(...cumulativeDocx(block, data))
-    else if (block.type === 'cards' && block.key === 'batches') out.push(...batchesDocx(block, data))
+    else if (block.type === 'cards' && block.key === 'mou_courses') out.push(...tableDocx(mouCoursesTable(block, data)))
+    else if (block.type === 'cards' && block.key === 'cumulative') out.push(...tableDocx(cumulativeTable(block, data)))
+    else if (block.type === 'cards' && block.key === 'batches') out.push(...tableDocx(batchesTable(block, data)))
     else if (block.type === 'fields' && block.fields.some((fl) => fl.key === 'dropout_reasons')) {
       const reasons = block.fields.find((fl) => fl.key === 'dropout_reasons')
       const steps = block.fields.find((fl) => fl.key === 'dropout_steps')
-      out.push(new Paragraph({ spacing: { before: 60 }, children: [run(reasons.label, { bold: true })] }))
+      out.push(new Paragraph({ spacing: { before: 60 }, children: [run(withoutLineHint(reasons.label), { bold: true })] }))
       out.push(...romanParagraphs(f.dropout_reasons))
-      out.push(new Paragraph({ spacing: { before: 60 }, children: [run(steps.label, { bold: true })] }))
+      out.push(new Paragraph({ spacing: { before: 60 }, children: [run(withoutLineHint(steps.label), { bold: true })] }))
       out.push(...romanParagraphs(f.dropout_steps))
     }
   }
@@ -296,31 +274,27 @@ function sectionOneDocx(section, data) {
 
 function criteriaRowDocx(item, data, widths, template) {
   if (item.heading) {
-    return new TableRow({
-      children: [
-        bodyCell(widths[0], [new Paragraph({ alignment: AlignmentType.CENTER, children: [run(item.no, { size: TABLE_SIZE })] })], { shading: { type: ShadingType.CLEAR, fill: HEADING_FILL } }),
-        new TableCell({
-          columnSpan: 3, width: { size: widths[1] + widths[2] + widths[3], type: WidthType.DXA }, borders: CELL_BORDERS,
-          shading: { type: ShadingType.CLEAR, fill: HEADING_FILL },
-          children: [new Paragraph({ children: [run(item.text, { bold: true, size: TABLE_SIZE })] })],
-        }),
-      ],
-    })
+    return bodyTableRow([
+    bodyCell(widths[0], [new Paragraph({ alignment: AlignmentType.CENTER, children: [run(item.no, { size: TABLE_SIZE })] })], { shading: { type: ShadingType.CLEAR, fill: HEADING_FILL } }),
+    new TableCell({
+      columnSpan: 3, width: { size: widths[1] + widths[2] + widths[3], type: WidthType.DXA }, borders: CELL_BORDERS,
+      shading: { type: ShadingType.CLEAR, fill: HEADING_FILL },
+      children: [new Paragraph({ children: [run(item.text, { bold: true, size: TABLE_SIZE })] })],
+    }),
+    ])
   }
   const entry = (data.criteria && data.criteria[item.id]) || {}
   const bullets = printedRemarks(item, entry)
   const remarksParagraphs = bullets.length
     ? bullets.map((b) => new Paragraph({ bullet: { level: 0 }, children: [run(b, { size: TABLE_SIZE })] }))
-    : [new Paragraph({ children: [run('', { size: TABLE_SIZE })] })]
-  return new TableRow({
-    children: [
-      bodyCell(widths[0], [new Paragraph({ alignment: AlignmentType.CENTER, children: [run(item.no, { size: TABLE_SIZE })] })]),
-      bodyCell(widths[1], [new Paragraph({ children: [run(item.text, { size: TABLE_SIZE })] })]),
-      // qa-v2: the numbered evidence the officer saw; v1: the form's own evidence text
-      bodyCell(widths[2], [multilineParagraph(template.evidenceRegister ? evidenceLines(data, item.id).join('\n') : item.evidence, { size: TABLE_SIZE })]),
-      bodyCell(widths[3], remarksParagraphs),
-    ],
-  })
+    : [new Paragraph({ children: [run(cellOrDash(''), { size: TABLE_SIZE })] })]
+  return bodyTableRow([
+    bodyCell(widths[0], [new Paragraph({ alignment: AlignmentType.CENTER, children: [run(item.no, { size: TABLE_SIZE })] })]),
+    bodyCell(widths[1], [new Paragraph({ children: [run(item.text, { size: TABLE_SIZE })] })]),
+    // qa-v2: the numbered evidence the officer saw; v1: the form's own evidence text
+    bodyCell(widths[2], [cellMultiline(template.evidenceRegister ? evidenceLines(data, item.id).join('\n') : item.evidence, { size: TABLE_SIZE })]),
+    bodyCell(widths[3], remarksParagraphs),
+  ])
 }
 
 function criteriaBlockDocx(block, data, template) {
@@ -330,7 +304,7 @@ function criteriaBlockDocx(block, data, template) {
   if (block.heading) out.push(subheadParagraph(block.heading))
   if (block.intro) out.push(new Paragraph({ spacing: { after: 60 }, children: [run(`(${block.intro})`, { italics: true })] }))
   const widths = weightedWidths(CONTENT_WIDTH_TWIPS, [7, 31, 31, 31])
-  const headerRow = new TableRow({ children: ['Sl.', 'QUALITY CRITERIA', 'EVIDENCE', 'REMARKS'].map((t, i) => headerCell(t, widths[i])) })
+  const headerRow = headerTableRow(['Sl.', 'QUALITY CRITERIA', 'EVIDENCE', 'REMARKS'].map((t, i) => headerCell(t, widths[i])))
   const rows = block.items.map((item) => criteriaRowDocx(item, data, widths, template))
   out.push(fixedTable(widths, [headerRow, ...rows]))
   return out
@@ -344,10 +318,10 @@ function feedbackDocx(block, data) {
   const out = tables.map((table) => {
     const respondentWeights = table.headers.slice(1).map(() => 13)
     const widths = weightedWidths(CONTENT_WIDTH_TWIPS, [100 - 13 * respondentWeights.length, ...respondentWeights])
-    const headerRow = new TableRow({ children: table.headers.map((h, i) => headerCell(h, widths[i])) })
-    const rows = table.rows.map((row) => new TableRow({
-      children: row.map((value, i) => bodyCell(widths[i], [new Paragraph({ alignment: i === 0 ? AlignmentType.LEFT : AlignmentType.CENTER, children: [run(value, { size: TABLE_SIZE })] })])),
-    }))
+    const headerRow = headerTableRow(table.headers.map((h, i) => headerCell(h, widths[i])))
+    const rows = table.rows.map((row) => bodyTableRow(
+      row.map((value, i) => bodyCell(widths[i], [new Paragraph({ alignment: i === 0 ? AlignmentType.LEFT : AlignmentType.CENTER, children: [run(i === 0 ? value : cellOrDash(value), { size: TABLE_SIZE })] })])),
+    ))
     return fixedTable(widths, [headerRow, ...rows])
   })
   if (comments.length) {
@@ -362,32 +336,20 @@ function feedbackDocx(block, data) {
 function strengthsWeaknessesDocx(block, data) {
   const f = fieldsMap(data)
   const widths = weightedWidths(CONTENT_WIDTH_TWIPS, [6, 24, 35, 35])
-  const headerRow = new TableRow({ children: ['S.N.', 'Component', 'Strengths', 'Weakness'].map((t, i) => headerCell(t, widths[i])) })
-  const rows = block.pairs.map((pair, i) => new TableRow({
-    children: [
-      bodyCell(widths[0], [cellText(`${i + 1}.`)]),
-      bodyCell(widths[1], [cellText(pair.component)]),
-      bodyCell(widths[2], [multilineParagraph(f[pair.strength], { size: TABLE_SIZE })]),
-      bodyCell(widths[3], [multilineParagraph(f[pair.weakness], { size: TABLE_SIZE })]),
-    ],
-  }))
+  const headerRow = headerTableRow(['S.N.', 'Component', 'Strengths', 'Weakness'].map((t, i) => headerCell(t, widths[i])))
+  const rows = block.pairs.map((pair, i) => bodyTableRow([
+    bodyCell(widths[0], [cellText(`${i + 1}.`)]),
+    bodyCell(widths[1], [cellText(pair.component)]),
+    bodyCell(widths[2], [cellMultiline(f[pair.strength], { size: TABLE_SIZE })]),
+    bodyCell(widths[3], [cellMultiline(f[pair.weakness], { size: TABLE_SIZE })]),
+  ]))
   return [fixedTable(widths, [headerRow, ...rows])]
 }
 
 // ---- section 16: improvement plan, minimum 3 rows ----
 
 function planDocx(block, data) {
-  const entries = (data.cards && data.cards[block.key]) || []
-  const rows = entries.length >= 3 ? entries : entries.concat(Array.from({ length: 3 - entries.length }, () => ({})))
-  const widths = weightedWidths(CONTENT_WIDTH_TWIPS, [6, 30, 34, 15, 15])
-  const headerRow = new TableRow({ children: ['S.N.', ...block.fields.map((field) => field.label)].map((t, i) => headerCell(t, widths[i])) })
-  const bodyRows = rows.map((entry, i) => new TableRow({
-    children: [
-      bodyCell(widths[0], [cellText(`${i + 1}.`)]),
-      ...block.fields.map((field, j) => bodyCell(widths[j + 1], [multilineParagraph(entry[field.key], { size: TABLE_SIZE })])),
-    ],
-  }))
-  return [fixedTable(widths, [headerRow, ...bodyRows])]
+  return tableDocx(planTable(block, data))
 }
 
 // ---- sections 14/15: findings and recommendations as real Word numbered lists ----

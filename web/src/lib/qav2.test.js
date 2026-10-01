@@ -136,7 +136,7 @@ describe('qa-v2 print', async () => {
     expect(html).toContain('<td class="ctr">BTEB</td><td class="ctr">Yes</td><td class="ctr">B-77</td><td class="ctr">3</td><td class="ctr">No</td>')
     expect(html).toContain('<td>Local chamber</td>')
     expect(html).toContain('<td class="ctr">ILO</td><td>Welding</td><td class="ctr">Yes</td><td>Same as SICIP</td>')
-    expect(html).toContain('<td class="ctr">GIZ</td><td></td>')
+    expect(html).toContain('<td class="ctr">GIZ</td><td class="ctr">-</td>') // blank cell prints a dash
     expect(html).toContain('Classroom - 300 sft and workshop/lab - 800 sft')
     expect(html).toContain('<td>Grinder</td><td class="ctr">2</td>')
     expect(html).toContain('R. M. Shourov, Program Officer (QA)')

@@ -1,6 +1,11 @@
 // qa-v2 print tables as plain {headers, rows} (strings only) -- shared by qareporthtml.js and
 // qareportdocx.js so the PDF and the Word file can't drift. 1:1 port of android
-// pdf/QaTables.kt. A table with no filled row returns null (nothing printed).
+// pdf/QaTables.kt. A conditional table (registration, MoU, contracts, ...) with no filled row
+// returns null (nothing printed); the 1.10/1.40/1.50/1.60/plan card tables always print, as ONE
+// blank row (S.N. "1.") when nobody filled them. Blank cells are '' here -- the renderers print
+// them as "-" through reportlayout.js cellOrDash.
+// A table may carry `weights` (relative column widths, fixed layout), `headerRows` (two-level
+// header, see headerRowsOf), `note` (printed under it) and `dense` (8 pt headers for 9+ columns).
 import { attachmentName, criteriaPath, evidenceLabel, itemEvidence, usedEvidence } from './evidence.js'
 import { visitingOfficers } from './signoff.js'
 
@@ -150,3 +155,112 @@ export function evidenceIndexTable(template, data) {
   }
 }
 
+
+
+// header rows as arrays of {text, colSpan?, rowSpan?}; a plain table has the single row `headers`
+export function headerRowsOf(table) {
+  return table.headerRows ?? [table.headers.map((header) => ({ text: header }))]
+}
+
+// the form's own "(one point per line)" hint is an editor instruction, never printed
+export function withoutLineHint(label) {
+  return String(label ?? '').replace(/\s*\(?one point per line\)?/i, '').trim()
+}
+
+const filledCards = (data, key) => cardsOf(data, key).filter(filled)
+
+// a card table nobody filled still prints one row of blank cells so the paper form has its line
+function numberedOrBlank(rows, cellCount) {
+  return numbered(rows.length ? rows : [Array(cellCount).fill('')])
+}
+
+function cardRow(card, keys) {
+  return keys.map((key) => text(card[key]))
+}
+
+// 1.10 persons met: the template's own columns, no S.N.
+export function personsTable(block, data) {
+  const cards = filledCards(data, block.key)
+  const blankRow = block.fields.map(() => '')
+  return {
+    heading: block.heading,
+    headers: block.fields.map((field) => field.label),
+    rows: cards.length ? cards.map((card) => cardRow(card, block.fields.map((f) => f.key))) : [blankRow],
+  }
+}
+
+// 1.40 courses in the MoU: S.N. | Training Course | Target | Duration | No. of Batches | Batch Size
+export function mouCoursesTable(block, data) {
+  const rows = filledCards(data, block.key).map((card) => cardRow(card, ['course', 'target', 'duration', 'batches', 'batch_size']))
+  return {
+    heading: block.heading,
+    headers: ['S.N.', 'Training Course', 'Target', 'Duration', 'No. of Batches', 'Batch Size'],
+    weights: [7, 40, 12, 16, 12, 13],
+    rows: numberedOrBlank(rows, 5),
+  }
+}
+
+// "n (p%)": percentage rounded to a whole number; just "n" when the base is unusable
+function withPercentage(count, base) {
+  if (!text(count)) return ''
+  const numerator = Number(count)
+  const denominator = Number(base)
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) return text(count)
+  return `${text(count)} (${Math.round((numerator / denominator) * 100)}%)`
+}
+
+const CUMULATIVE_NOTE = 'T= Total and F = Female'
+
+// 1.50 cumulative implementation: compact two-level header like the template. Placed % is of
+// certified, dropout % of enrolled.
+export function cumulativeTable(block, data) {
+  const rows = filledCards(data, block.key).map((card) => [
+    text(card.course), text(card.target),
+    text(card.enrolled_t), text(card.enrolled_f), text(card.certified_t), text(card.certified_f),
+    withPercentage(card.placed_t, card.certified_t), withPercentage(card.placed_f, card.certified_f),
+    withPercentage(card.dropout_t, card.enrolled_t), withPercentage(card.dropout_f, card.enrolled_f),
+  ])
+  const tall = (label) => ({ text: label, rowSpan: 2 })
+  const pair = (label) => ({ text: label, colSpan: 2 })
+  return {
+    heading: block.heading,
+    headerRows: [
+      [tall('S.N.'), tall('Course Name'), tall('Target'), pair('Enrolled'), pair('Certified'),
+        pair('Job Placed with Percentage'), pair('No. of dropouts with Percentage')],
+      ['T', 'F', 'T', 'F', 'T', 'F', 'T', 'F'].map((label) => ({ text: label })),
+    ],
+    // dense tables use 3 pt cell padding; the course column is the widest and every other column
+    // fits its header word and a value such as "75 (75%)" (which may wrap at its space)
+    weights: [5, 24, 7.5, 6, 6, 6, 6, 10, 10, 10, 10],
+    dense: true,
+    note: CUMULATIVE_NOTE,
+    rows: numberedOrBlank(rows, 10),
+  }
+}
+
+// 1.60 current batches, the template's ten columns
+export function batchesTable(block, data) {
+  const keys = ['course', 'batch', 'start_end', 'enrolled', 'female', 'attendance_today', 'attendance_7day', 'tms_mismatch', 'dropouts']
+  const rows = filledCards(data, block.key).map((card) => cardRow(card, keys))
+  return {
+    heading: block.heading,
+    headers: ['S.N.', 'Course Name', 'Batch No.', 'Start and End Date', 'Total Number of Enrolled Trainees',
+      'Number of Female Trainees', 'Attendance on Visit Date', 'Attendance (07-day average)',
+      'No. of Attendance Data-Mismatch with TMS', 'No. of Dropouts'],
+    // the course column fits "Entrepreneurship" unbroken; "07/09/2026 – 24/11/2026" wraps on two
+    // lines in the date column, never inside a date
+    weights: [5, 16, 6, 11.5, 8, 8, 10, 10, 10, 8.5],
+    dense: true,
+    rows: numberedOrBlank(rows, 9),
+  }
+}
+
+// 16 improvement plan: S.N. + the template's columns
+export function planTable(block, data) {
+  const rows = filledCards(data, block.key).map((card) => cardRow(card, block.fields.map((f) => f.key)))
+  return {
+    headers: ['S.N.', ...block.fields.map((field) => field.label)],
+    weights: [7, 30, 33, 15, 15],
+    rows: numberedOrBlank(rows, block.fields.length),
+  }
+}
