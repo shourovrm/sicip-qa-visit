@@ -1,5 +1,5 @@
 // suggestion options that carry where they came from, so the officer can tell a TMS name from a
-// shared-list or past-visit one. A browser datalist shows `label` next to the value.
+// shared-list or past-visit one. SuggestInput.svelte shows `label` as a tag beside each value.
 export const SOURCE_TMS = 'TMS'
 export const SOURCE_SHARED = 'Shared'
 export const SOURCE_PAST_VISITS = 'Past visits'
@@ -38,4 +38,16 @@ export function instituteOptions(tmsInstitutes, pastVisitNames) {
   const tmsNames = (tmsInstitutes ?? []).map((institute) => String(institute.institute_name ?? '').trim()).filter(Boolean).sort(byText)
   const pastNames = [...new Set(pastVisitNames ?? [])].filter(Boolean).sort(byText)
   return mergeLabelled(labelled(tmsNames, SOURCE_TMS), labelled(pastNames, SOURCE_PAST_VISITS))
+}
+
+const DEFAULT_MATCH_LIMIT = 50
+
+// options whose value contains the typed text (any case), in source order; none once the box
+// already holds exactly one of them, so a finished pick closes the list
+export function matchingOptions(options, query, limit = DEFAULT_MATCH_LIMIT) {
+  const needle = String(query ?? '').trim().toLowerCase()
+  const all = options ?? []
+  if (needle && all.some((option) => option.value.toLowerCase() === needle)) return []
+  const matches = needle ? all.filter((option) => option.value.toLowerCase().includes(needle)) : all
+  return matches.slice(0, limit)
 }

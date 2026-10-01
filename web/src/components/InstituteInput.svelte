@@ -4,7 +4,7 @@
   import { tmsSession } from '../lib/tmsstore.js'
   import { loadAssociationInstitutes } from '../lib/tmsinstitutes.js'
   import { instituteOptions } from '../lib/suggestoptions.js'
-  import SuggestList from './SuggestList.svelte'
+  import SuggestInput from './SuggestInput.svelte'
 
   export let value = ''
   export let association = ''
@@ -40,8 +40,7 @@
 </script>
 
 <label for="inst">Institute</label>
-<input id="inst" type="text" list="visit-institute-list" bind:value required />
-<SuggestList id="visit-institute-list" {options} />
+<SuggestInput id="inst" bind:value {options} required disabled={readonly} />
 {#if wantsTms && !readonly}
   {#if !$tmsSession}
     <p class="muted hint">Sign in to TMS on <a href="#/profile">Profile</a> to pick institutes from TMS.</p>

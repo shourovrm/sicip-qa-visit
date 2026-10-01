@@ -6,7 +6,7 @@
   import { createEventDispatcher } from 'svelte'
   import AnswerSegmented from './AnswerSegmented.svelte'
   import ImproveWording from './ImproveWording.svelte'
-  import SuggestList from '../SuggestList.svelte'
+  import SuggestInput from '../SuggestInput.svelte'
   import { labelled, mergeLabelled, SOURCE_SECTION_A, sourceLabelFor } from '../../lib/suggestoptions.js'
 
   export let field
@@ -19,7 +19,7 @@
   const dispatch = createEventDispatcher()
   // datalist id must be unique per rendered field (many identity cards can each have one)
   const courseRefListId = `courseref-${Math.random().toString(36).slice(2, 9)}`
-  $: hintListId = suggestions.length ? courseRefListId : undefined
+  $: hasHints = suggestions.length > 0
   // a courseRef with its own suggest (L course) offers section A courses and TMS courses together
   $: hintOptions = labelled(suggestions, sourceLabelFor(field.suggest))
   $: refChoices = suggestions.length
@@ -46,11 +46,10 @@
   {#if field.kind === 'choice'}
     <AnswerSegmented options={field.options} {value} {disabled} on:change={onChoice} />
   {:else if field.kind === 'courseRef'}
-    <!-- free text + datalist suggestions (not a native <select>) so a value survives even after
+    <!-- free text + suggestions (not a native <select>) so a value survives even after
          its source course/batch card is edited or removed, instead of silently reverting to
          blank the way a <select> would if its selected option disappears -->
-    <input type="text" list={courseRefListId} placeholder={field.placeholder ?? ''} {value} {disabled} on:input={onInput} />
-    <SuggestList id={courseRefListId} options={refChoices} />
+    <SuggestInput placeholder={field.placeholder ?? ''} {value} {disabled} options={refChoices} on:change={onChoice} />
   {:else if field.kind === 'select' && field.options.length > 8}
     <!-- long list (e.g. 1.21 partner): type-to-filter + free text, mirrors android -->
     <input type="text" list={courseRefListId} {value} {disabled} on:input={onInput} />
@@ -62,19 +61,20 @@
     </select>
   {:else if field.kind === 'longtext'}
     <textarea rows="2" placeholder={field.placeholder ?? ''} {value} {disabled} on:input={onInput}></textarea>
+  {:else if field.kind === 'number' && hasHints}
+    <SuggestInput inputmode="numeric" placeholder={field.placeholder ?? ''} {value} {disabled} options={hintOptions} on:change={onChoice} />
   {:else if field.kind === 'number'}
-    <input type="number" inputmode="numeric" list={hintListId} placeholder={field.placeholder ?? ''} {value} {disabled} on:input={onInput} />
+    <input type="number" inputmode="numeric" placeholder={field.placeholder ?? ''} {value} {disabled} on:input={onInput} />
   {:else if field.kind === 'date'}
     <input type="date" {value} {disabled} on:input={onInput} />
   {:else if field.kind === 'time'}
     <input type="time" {value} {disabled} on:input={onInput} />
   {:else if field.kind === 'phone'}
     <input type="tel" placeholder={field.placeholder ?? ''} {value} {disabled} on:input={onInput} />
+  {:else if hasHints}
+    <SuggestInput placeholder={field.placeholder ?? ''} {value} {disabled} options={hintOptions} on:change={onChoice} />
   {:else}
-    <input type="text" list={hintListId} placeholder={field.placeholder ?? ''} {value} {disabled} on:input={onInput} />
-  {/if}
-  {#if hintListId && field.kind !== 'courseRef'}
-    <SuggestList id={hintListId} options={hintOptions} />
+    <input type="text" placeholder={field.placeholder ?? ''} {value} {disabled} on:input={onInput} />
   {/if}
 </label>
 {#if field.kind === 'longtext' && field.rewrite}

@@ -1,6 +1,6 @@
 // labelled suggestion options (made-up names only)
 import { describe, it, expect } from 'vitest'
-import { instituteOptions, labelled, mergeLabelled, sourceLabelFor } from './suggestoptions.js'
+import { instituteOptions, labelled, matchingOptions, mergeLabelled, sourceLabelFor } from './suggestoptions.js'
 
 describe('sourceLabelFor', () => {
   it('names the source of each suggest kind', () => {
@@ -36,5 +36,30 @@ describe('instituteOptions', () => {
   })
   it('falls back to past visits alone without TMS', () => {
     expect(instituteOptions(null, ['B', 'A', 'A'])).toEqual([{ value: 'A', label: 'Past visits' }, { value: 'B', label: 'Past visits' }])
+  })
+})
+
+describe('matchingOptions', () => {
+  const options = [
+    { value: 'Skus Technical Training Centre (STTC)', label: 'TMS' },
+    { value: 'Sundarban Institute of Technology (SIT)', label: 'TMS' },
+    { value: 'HDS Medical and Technical Institute', label: 'Past visits' },
+  ]
+
+  it('lists everything in order for an empty query', () => {
+    expect(matchingOptions(options, '').map((o) => o.value)).toEqual(options.map((o) => o.value))
+  })
+
+  it('matches any part of the name, ignoring case, keeping source order', () => {
+    expect(matchingOptions(options, 'tech').map((o) => o.label)).toEqual(['TMS', 'TMS', 'Past visits'])
+    expect(matchingOptions(options, 'sttc').map((o) => o.value)).toEqual(['Skus Technical Training Centre (STTC)'])
+  })
+
+  it('hides the list once the box holds exactly one option', () => {
+    expect(matchingOptions(options, 'HDS Medical and Technical Institute')).toEqual([])
+  })
+
+  it('caps the list length', () => {
+    expect(matchingOptions(options, '', 2)).toHaveLength(2)
   })
 })
