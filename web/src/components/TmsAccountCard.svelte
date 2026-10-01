@@ -1,12 +1,11 @@
 <!-- Profile card: log in to / out of the officer's own TMS account (lib/tmslogin.js), web twin
      of android ui/settings/TmsAccountCard.kt. Only token + name + expiry are kept (tmssession.js);
-     once the token expires the login form comes back -- the browser never keeps the password. -->
+     once the token expires (or TMS answers 401) the login form comes back -- the browser never keeps the password. -->
 <script>
   import { onDestroy } from 'svelte'
   import { loginToTms } from '../lib/tmslogin.js'
-  import { loadTmsSession, saveTmsSession, clearTmsSession } from '../lib/tmssession.js'
+  import { refreshTmsSession, signInTms, signOutTms, tmsSession } from '../lib/tmsstore.js'
 
-  let session = loadTmsSession()
   let username = ''
   let password = ''
   let loading = false
@@ -14,10 +13,7 @@
 
   // drop back to the login form the moment the token runs out
   const expiryCheck = setInterval(() => {
-    if (session && !loadTmsSession()) {
-      session = null
-      error = 'TMS session expired. Log in again.'
-    }
+    if ($tmsSession && !refreshTmsSession()) error = 'TMS session expired. Sign in again.'
   }, 60_000)
   onDestroy(() => clearInterval(expiryCheck))
 
@@ -25,9 +21,7 @@
     loading = true
     error = ''
     try {
-      const fresh = await loginToTms(username.trim(), password)
-      saveTmsSession(fresh)
-      session = fresh
+      signInTms(await loginToTms(username.trim(), password))
       password = ''
     } catch (e) {
       error = e.message
@@ -36,9 +30,8 @@
     }
   }
 
-  function logOut() {
-    clearTmsSession()
-    session = null
+  function signOut() {
+    signOutTms()
   }
 
   function untilText(expiresAt) {
@@ -48,9 +41,10 @@
 
 <div class="card">
   <h2>TMS account</h2>
-  {#if session}
-    <p>Signed in as <b>{session.displayName}</b> until {untilText(session.expiresAt)}</p>
-    <button type="button" class="btn" on:click={logOut}>Log out</button>
+  {#if $tmsSession}
+    <p class="name">{$tmsSession.displayName}</p>
+    <p class="muted until">Signed in until {untilText($tmsSession.expiresAt)}</p>
+    <button type="button" class="btn" on:click={signOut}>Sign out</button>
   {:else}
     <form on:submit|preventDefault={logIn}>
       <div class="field"><label for="tms-user">TMS username</label><input id="tms-user" bind:value={username} autocomplete="username" disabled={loading} /></div>
@@ -66,4 +60,6 @@
   h2 { font-size: 15px; margin: 0 0 8px; }
   .card { margin-bottom: 16px; }
   .hint { margin-top: 8px; font-size: 12px; }
+  .name { margin: 0; font-weight: 700; }
+  .until { margin: 2px 0 10px; font-size: 14px; }
 </style>
