@@ -49,42 +49,42 @@ private val TONE_COLOR = mapOf(
 private const val TICK_CHECKED = "☒" // ☒ BALLOT BOX WITH X
 private const val TICK_UNCHECKED = "☐" // ☐ BALLOT BOX
 
-private data class LayoutColumn(val label: String, val weight: Int)
+private data class LayoutColumn(val label: String, val weight: Double)
 
 // checklist table: # | Item | Yes | No | Part | N/A | Remarks. Weights sum to 100, used
 // directly as CSS % -- hand-kept copy of web/src/lib/reportlayout.js's CHECKLIST_COLUMNS.
 private val CHECKLIST_COLUMNS = listOf(
-    LayoutColumn("#", 4),
-    LayoutColumn("Item", 44),
-    LayoutColumn("Yes", 6),
-    LayoutColumn("No", 6),
-    LayoutColumn("Part", 6),
-    LayoutColumn("N/A", 6),
-    LayoutColumn("Remarks", 28),
+    LayoutColumn("#", 4.0),
+    LayoutColumn("Item", 38.0),
+    LayoutColumn("Yes", 7.5),
+    LayoutColumn("No", 7.5),
+    LayoutColumn("Part", 7.5),
+    LayoutColumn("N/A", 7.5),
+    LayoutColumn("Remarks", 28.0),
 )
 
 // interview per-course sub-table (section I): Item | Yes | No | Part | N/A -- no #, no Remarks
 // column (interview questions carry no per-question remarks, only a shared feedback field).
 private val INTERVIEW_TICK_COLUMNS = listOf(
-    LayoutColumn("Item", 76),
-    LayoutColumn("Yes", 6),
-    LayoutColumn("No", 6),
-    LayoutColumn("Part", 6),
-    LayoutColumn("N/A", 6),
+    LayoutColumn("Item", 70.0),
+    LayoutColumn("Yes", 7.5),
+    LayoutColumn("No", 7.5),
+    LayoutColumn("Part", 7.5),
+    LayoutColumn("N/A", 7.5),
 )
 
 // surprise v2 interviews: questions carry their own remarks box (`noteFor` fields)
 private val INTERVIEW_NOTE_COLUMNS = listOf(
-    LayoutColumn("Item", 48),
-    LayoutColumn("Yes", 6),
-    LayoutColumn("No", 6),
-    LayoutColumn("Part", 6),
-    LayoutColumn("N/A", 6),
-    LayoutColumn("Remarks", 28),
+    LayoutColumn("Item", 42.0),
+    LayoutColumn("Yes", 7.5),
+    LayoutColumn("No", 7.5),
+    LayoutColumn("Part", 7.5),
+    LayoutColumn("N/A", 7.5),
+    LayoutColumn("Remarks", 28.0),
 )
 
 // flags: narrow tick column + wide text column.
-private val FLAGS_COLUMNS = listOf(LayoutColumn("", 6), LayoutColumn("", 94))
+private val FLAGS_COLUMNS = listOf(LayoutColumn("", 6.0), LayoutColumn("", 94.0))
 
 private fun esc(s: String?): String = (s ?: "")
     .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
