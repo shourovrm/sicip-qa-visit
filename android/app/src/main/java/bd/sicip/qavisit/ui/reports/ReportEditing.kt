@@ -71,7 +71,7 @@ class ReportEditor(
     // TMS: fetch progress/failure shared by every screen of this report, and the "Use" / "TMS"
     // hints derived from the cached snapshot (recomputed from data, so they survive reopening).
     val tmsFill = TmsFillState()
-    val tmsHints: TmsHints by derivedStateOf { TmsHints.of(data.tmsSnapshot(), data) }
+    val tmsHints: TmsHints by derivedStateOf { TmsHints.of(template, data.tmsSnapshot(), data) }
 
     // submitted reports are read-only on both platforms (spec, "Lifecycle") -- the UI must not
     // offer editable controls once true, but this is also the last line of defense.

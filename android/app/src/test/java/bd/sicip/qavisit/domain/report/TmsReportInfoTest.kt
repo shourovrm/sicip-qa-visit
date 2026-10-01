@@ -50,11 +50,12 @@ class TmsReportInfoTest {
             ),
         )
         val filled = prefillFromTms(snapshot, differing).data
-        val hints = TmsHints.of(snapshot, filled)
+        val qa = parseReportTemplate(java.io.File("../../shared/report-templates/qa-v2.json").readText())
+        val hints = TmsHints.of(qa, snapshot, filled)
         assertEquals("22", hints.suggestionFor("cumulative", 0, "enrolled_t")?.tmsValue)
         assertTrue(hints.matchesTms("cumulative", 0, "enrolled_f")) // filled from TMS, now equals it
         assertFalse(hints.matchesTms("cumulative", 0, "enrolled_t"))
-        assertFalse(TmsHints.of(null, filled).matchesTms("cumulative", 0, "enrolled_f"))
+        assertFalse(TmsHints.of(qa, null, filled).matchesTms("cumulative", 0, "enrolled_f"))
     }
 
     @Test

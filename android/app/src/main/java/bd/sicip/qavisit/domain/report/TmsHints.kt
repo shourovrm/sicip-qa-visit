@@ -19,8 +19,13 @@ class TmsHints(result: TmsPrefillResult) {
         val NONE = TmsHints(TmsPrefillResult(ReportData.EMPTY, emptyList()))
 
         // no snapshot -> no hints. the prefilled data of the result is dropped on purpose.
-        fun of(snapshot: TmsSnapshot?, data: ReportData): TmsHints =
-            if (snapshot == null) NONE else TmsHints(prefillFromTms(snapshot, data))
+        // QA: 1.40-1.60 cards; surprise: C attendance. both: the linked institute's address.
+        fun of(template: ReportTemplate, snapshot: TmsSnapshot?, data: ReportData): TmsHints {
+            if (snapshot == null) return NONE
+            val result = if (template.id == "qa") prefillFromTms(snapshot, data) else prefillSurpriseFromTms(snapshot, data)
+            val address = addressDifference(data)
+            return TmsHints(result.copy(suggestions = listOfNotNull(address) + result.suggestions))
+        }
     }
 }
 

@@ -1,7 +1,8 @@
 // report hub: always-visible TMS link status (surprise + QA). existing reports (made before the
 // link step, or on another phone) can be linked here; linking or refreshing reloads the suggestion
-// lists and fills from TMS (surprise C attendance, QA 1.40-1.60). section A courses are filled only
-// while empty, so typed courses are never overwritten.
+// lists and fills EMPTY fields from TMS (surprise C attendance, QA 1.40-1.60, address); a filled
+// field that differs from TMS is listed with Use / Use all, never overwritten on its own. section A
+// courses are filled only while empty, so typed courses are never overwritten.
 package bd.sicip.qavisit.ui.reports
 
 import androidx.compose.foundation.layout.Arrangement
@@ -34,8 +35,14 @@ import bd.sicip.qavisit.domain.report.tmsLink
 import bd.sicip.qavisit.domain.report.visitDate
 import bd.sicip.qavisit.domain.report.withRunningCoursesIfEmpty
 import bd.sicip.qavisit.domain.report.hasSuggestFields
+import bd.sicip.qavisit.domain.report.tmsDifferenceContext
+import bd.sicip.qavisit.domain.report.tmsDifferenceLabel
+import bd.sicip.qavisit.domain.report.withAllTmsValues
+import bd.sicip.qavisit.domain.report.withTmsValue
 import bd.sicip.qavisit.ui.common.LocalOpenTmsSettings
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 @Composable
 fun rememberTmsSignedIn(): Boolean {
@@ -56,8 +63,8 @@ fun TmsStatusRow(editor: ReportEditor, template: ReportTemplate) {
     val fill = editor.tmsFill
     val isQa = template.id == "qa"
 
-    // refresh = the officer asked for fresh TMS data: TMS numbers may overwrite earlier ones
-    fun reloadTmsData(forLink: TmsLink, refresh: Boolean) {
+    // fills empty fields only; differing filled ones are listed below with Use / Use all
+    fun reloadTmsData(forLink: TmsLink) {
         scope.launch {
             if (template.hasSuggestFields()) {
                 suggestions.forgetTmsData()
@@ -69,7 +76,7 @@ fun TmsStatusRow(editor: ReportEditor, template: ReportTemplate) {
                 }
             }
             editor.launchForReport {
-                fillFromTms(editor, template, services, origin = "hub", prefill = tmsPrefillFor(template, refresh))
+                fillFromTms(editor, template, services, origin = "hub")
             }
         }
     }
@@ -92,13 +99,14 @@ fun TmsStatusRow(editor: ReportEditor, template: ReportTemplate) {
                 else -> "Sign in to TMS in Profile, then link the institute."
             }
             Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TmsDifferencesList(editor, template)
             if (!editor.readOnly) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (!signedIn) TextButton(onClick = openProfile) { Text("Open Profile") }
                     if (signedIn && link == null) TextButton(onClick = { pickerOpen = true }) { Text("Link institute") }
                     if (signedIn && link != null) {
                         TextButton(onClick = { pickerOpen = true }) { Text("Change") }
-                        TextButton(onClick = { reloadTmsData(link, refresh = true) }, enabled = !suggestions.loading && !fill.busy) { Text("Refresh") }
+                        TextButton(onClick = { reloadTmsData(link) }, enabled = !suggestions.loading && !fill.busy) { Text("Refresh") }
                     }
                 }
             }
@@ -112,9 +120,45 @@ fun TmsStatusRow(editor: ReportEditor, template: ReportTemplate) {
             onPick = { picked ->
                 pickerOpen = false
                 editor.linkTms(picked)
-                reloadTmsData(picked, refresh = false)
+                reloadTmsData(picked)
             },
             onDismiss = { pickerOpen = false },
         )
+    }
+}
+
+// filled fields whose value differs from TMS: "Label (Course · batch): yours -> TMS" + Use, and Use all
+@Composable
+private fun TmsDifferencesList(editor: ReportEditor, template: ReportTemplate) {
+    val differences = editor.tmsHints.suggestions
+    if (differences.isEmpty()) return
+    Text(
+        "Differs from TMS (${differences.size})",
+        style = MaterialTheme.typography.labelLarge,
+        modifier = Modifier.padding(top = 6.dp),
+    )
+    differences.forEach { difference ->
+        val context = tmsDifferenceContext(editor.data, difference)
+        val label = tmsDifferenceLabel(template, difference) + if (context.isEmpty()) "" else " ($context)"
+        val current = if (difference.cardsKey.isEmpty()) {
+            editor.data.field(difference.fieldKey)
+        } else {
+            val index = editor.data.cards(difference.cardsKey).indexOfFirst { (it["_id"] as? JsonPrimitive)?.contentOrNull == difference.cardId }
+            if (index < 0) "" else editor.data.cardField(difference.cardsKey, index, difference.fieldKey)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(label, style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "Yours: $current · TMS: ${difference.tmsValue}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (!editor.readOnly) TextButton(onClick = { editor.editNow(withTmsValue(editor.data, difference)) }) { Text("Use") }
+        }
+    }
+    if (!editor.readOnly && differences.size > 1) {
+        TextButton(onClick = { editor.editNow(withAllTmsValues(editor.data, differences)) }) { Text("Use all") }
     }
 }

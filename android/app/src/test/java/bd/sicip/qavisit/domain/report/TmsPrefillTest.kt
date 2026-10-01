@@ -79,15 +79,14 @@ class TmsPrefillTest {
     }
 
     @Test
-    fun `card filled with the short TMS name is matched, not duplicated, and offered the full name`() {
+    fun `card filled with the short TMS name is matched, not duplicated, and its name is never a difference`() {
         val full = TmsFixture.snapshot(withAliases = true)
         val existing = dataWith("mou_courses", card("course" to "course a", "duration" to "1 day"))
         val result = prefillFromTms(full, existing)
         val cards = result.data.cards("mou_courses")
         assertEquals(listOf("course a", "Course B"), cards.map { (it["course"] as JsonPrimitive).content })
         assertEquals(2, cards.size) // Course A reused, Course B added under its short name (alias is shorter)
-        val suggestion = result.suggestions.single { it.cardsKey == "mou_courses" && it.fieldKey == "course" }
-        assertEquals("Course A Advanced Diploma", suggestion.tmsValue)
+        assertTrue(result.suggestions.none { it.fieldKey == "course" }) // identity, like web tmsprefill.js
         assertEquals("course a", result.data.cardField("mou_courses", 0, "course")) // not auto-overwritten
     }
 

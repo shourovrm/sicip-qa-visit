@@ -19,6 +19,10 @@ const val MOU_COURSES = "mou_courses"
 const val CUMULATIVE = "cumulative"
 const val BATCHES = "batches"
 
+// the values that say which row a card is: matched on, so never a difference (web IDENTITY)
+private val IDENTITY_KEYS = setOf("course", "batch")
+
+// cardsKey "" = a top-level report field (the address), cardIndex -1 and cardId "" then
 data class TmsSuggestion(
     val cardsKey: String,
     val cardIndex: Int,
@@ -158,7 +162,7 @@ private fun applyBlock(
             val current = cards[index].text(fieldKey)
             if (current.isBlank()) {
                 card[fieldKey] = JsonPrimitive(tmsValue)
-            } else {
+            } else if (fieldKey !in IDENTITY_KEYS) {
                 val entry = TmsSuggestion(cardsKey, index, cards[index].text("_id"), fieldKey, tmsValue)
                 if (sameValue(current, tmsValue)) matched += entry else suggestions += entry
             }

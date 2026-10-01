@@ -36,7 +36,7 @@ class SurpriseTmsPrefillTest {
 
     @Test
     fun `matching card gets enrolment, one-decimal TMS mean and a range note`() {
-        val data = prefillSurpriseFromTms(snapshot, dataWith(attendanceCard("Electrical Installation & Maintenance (EIM)", "03")))
+        val data = prefillSurpriseFromTms(snapshot, dataWith(attendanceCard("Electrical Installation & Maintenance (EIM)", "03"))).data
         assertEquals("25", data.cardField("attendance", 0, "enrolled_total"))
         assertEquals("7", data.cardField("attendance", 0, "enrolled_female"))
         assertEquals("21.4", data.cardField("attendance", 0, "tms_avg7"))
@@ -46,27 +46,26 @@ class SurpriseTmsPrefillTest {
     @Test
     fun `filled fields and typed remarks are kept`() {
         val card = attendanceCard("EIM", "3", "enrolled_total" to "24", "remarks" to "Register shows 22")
-        val data = prefillSurpriseFromTms(snapshot, dataWith(card))
+        val data = prefillSurpriseFromTms(snapshot, dataWith(card)).data
         assertEquals("24", data.cardField("attendance", 0, "enrolled_total"))
         assertEquals("Register shows 22", data.cardField("attendance", 0, "remarks"))
         assertEquals("7", data.cardField("attendance", 0, "enrolled_female"))
     }
 
     @Test
-    fun `refresh overwrites TMS values and an earlier TMS note, never typed remarks`() {
-        val stale = attendanceCard("EIM", "3", "enrolled_total" to "24", "tms_avg7" to "19.0", "remarks" to "TMS avg 1–9 Sep 2026 (7 class days)")
-        val refreshed = prefillSurpriseFromTms(snapshot, dataWith(stale), refresh = true)
-        assertEquals("25", refreshed.cardField("attendance", 0, "enrolled_total"))
-        assertEquals("21.4", refreshed.cardField("attendance", 0, "tms_avg7"))
-        assertEquals("TMS avg 18–28 Sep 2026 (7 class days)", refreshed.cardField("attendance", 0, "remarks"))
-
-        val typed = attendanceCard("EIM", "3", "remarks" to "Register shows 22")
-        assertEquals("Register shows 22", prefillSurpriseFromTms(snapshot, dataWith(typed), refresh = true).cardField("attendance", 0, "remarks"))
+    fun `differing filled values become Use suggestions, never overwritten, the note never one`() {
+        val stale = attendanceCard("EIM", "3", "enrolled_total" to "24", "tms_avg7" to "21.4", "remarks" to "TMS avg 1–9 Sep 2026 (7 class days)")
+        val result = prefillSurpriseFromTms(snapshot, dataWith(stale))
+        assertEquals("24", result.data.cardField("attendance", 0, "enrolled_total"))
+        assertEquals("TMS avg 1–9 Sep 2026 (7 class days)", result.data.cardField("attendance", 0, "remarks"))
+        assertEquals(listOf("enrolled_total" to "25"), result.suggestions.map { it.fieldKey to it.tmsValue })
+        assertEquals("a-EIM-3", result.suggestions.single().cardId)
+        assertEquals(listOf("tms_avg7"), result.matched.map { it.fieldKey })
     }
 
     @Test
     fun `other batches and unknown courses are untouched`() {
-        val data = prefillSurpriseFromTms(snapshot, dataWith(attendanceCard("EIM", "4"), attendanceCard("Welding", "3")))
+        val data = prefillSurpriseFromTms(snapshot, dataWith(attendanceCard("EIM", "4"), attendanceCard("Welding", "3"))).data
         assertEquals("", data.cardField("attendance", 0, "enrolled_total"))
         assertEquals("", data.cardField("attendance", 1, "tms_avg7"))
     }
@@ -81,7 +80,7 @@ class SurpriseTmsPrefillTest {
     @Test
     fun `no mean leaves the TMS fields blank`() {
         val noRows = snapshot.copy(runningBatches = listOf(batch.copy(attendance7day = null, averageFrom = null, averageTo = null, averageClassDays = 0)))
-        val data = prefillSurpriseFromTms(noRows, dataWith(attendanceCard("EIM", "3")))
+        val data = prefillSurpriseFromTms(noRows, dataWith(attendanceCard("EIM", "3"))).data
         assertEquals("", data.cardField("attendance", 0, "tms_avg7"))
         assertEquals("", data.cardField("attendance", 0, "remarks"))
         assertEquals("25", data.cardField("attendance", 0, "enrolled_total"))

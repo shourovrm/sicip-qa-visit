@@ -39,12 +39,12 @@ fun ReportEditor.linkTms(link: TmsLink) {
     editNow(withAddressIfEmpty(data.withTmsLink(link), link.address))
 }
 
-// QA: 1.40/1.50/1.60 cards; surprise: C attendance (refresh = overwrite TMS numbers)
-fun tmsPrefillFor(template: ReportTemplate, refresh: Boolean): (TmsSnapshot, ReportData) -> ReportData =
+// QA: 1.40/1.50/1.60 cards; surprise: C attendance. empty fields only, always
+fun tmsPrefillFor(template: ReportTemplate): (TmsSnapshot, ReportData) -> ReportData =
     if (template.id == "qa") {
         { snapshot, data -> prefillFromTms(snapshot, data).data }
     } else {
-        { snapshot, data -> prefillSurpriseFromTms(snapshot, data, refresh) }
+        { snapshot, data -> prefillSurpriseFromTms(snapshot, data).data }
     }
 
 // links saved before addresses were kept: look the institute up once
@@ -71,7 +71,6 @@ suspend fun fillFromTms(
     services: TmsServices,
     origin: String,
     useSaved: Boolean = false,
-    prefill: (TmsSnapshot, ReportData) -> ReportData = tmsPrefillFor(template, refresh = false),
 ) {
     val state = editor.tmsFill
     if (state.busy) return
@@ -87,7 +86,7 @@ suspend fun fillFromTms(
             editor.editNow(withAddressIfEmpty(editor.data.withTmsSnapshot(fetched), link.address))
             fetched
         }
-        editor.editNow(prefill(snapshot, editor.data))
+        editor.editNow(tmsPrefillFor(template)(snapshot, editor.data))
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
