@@ -124,23 +124,25 @@
     {
      "type": "cards",
      "key": "courses",
-     "heading": "Courses / batches scheduled today (routine or Training Delivery Plan)",
+     "heading": "Courses / batches scheduled",
      "itemLabel": "Course",
      "start": 1,
      "titleField": "course",
-     "note": "One entry per running batch. Sections C, D and I pick these up automatically.",
+     "note": "One entry per running batch. Sections C and K pick these up automatically; D and G offer them as choices.",
      "fields": [
       {
        "key": "course",
        "label": "Course name",
        "kind": "text",
-       "required": true
+       "required": true,
+       "suggest": "tmsCourse"
       },
       {
        "key": "batch",
        "label": "Batch no.",
        "kind": "number",
-       "required": true
+       "required": true,
+       "suggest": "tmsBatch"
       }
      ]
     }
@@ -208,7 +210,7 @@
    "letter": "C",
    "key": "attendance",
    "short": "Attendance",
-   "title": "Attendance and trainers in each course",
+   "title": "Attendance of trainees and trainers",
    "note": "Count heads in the room first. The register and TMS are updated after the session, so take the average presence of the last 7 days from each.",
    "blocks": [
     {
@@ -449,7 +451,8 @@
       {
        "key": "name",
        "label": "Name (from TMS)",
-       "kind": "text"
+       "kind": "text",
+       "suggest": "tmsTrainee"
       },
       {
        "key": "batch",
@@ -577,6 +580,44 @@
   },
   {
    "letter": "F",
+   "key": "registers",
+   "short": "Registers",
+   "title": "Daily registers",
+   "blocks": [
+    {
+     "type": "checklist",
+     "key": "registers",
+     "items": [
+      {
+       "id": "registers_1",
+       "text": "Daily consumption register updated",
+       "perCourse": true,
+       "says": {
+        "yes": "The daily consumption register is updated.",
+        "no": "The daily consumption register is not updated.",
+        "partial": "The daily consumption register is only partly updated."
+       }
+      },
+      {
+       "id": "registers_2",
+       "text": "Stock register up to date",
+       "says": {
+        "yes": "The stock register is up to date.",
+        "no": "The stock register is not up to date.",
+        "partial": "The stock register is only partly up to date."
+       }
+      }
+     ]
+    },
+    {
+     "type": "remarks",
+     "key": "registers_remarks",
+     "heading": "Remarks"
+    }
+   ]
+  },
+  {
+   "letter": "G",
    "key": "delivery",
    "short": "Delivery",
    "title": "Training delivery observation",
@@ -671,7 +712,8 @@
        "key": "name",
        "label": "Equipment name",
        "kind": "text",
-       "required": true
+       "required": true,
+       "suggest": "shared:equipment"
       },
       {
        "key": "status",
@@ -707,7 +749,7 @@
    ]
   },
   {
-   "letter": "G",
+   "letter": "H",
    "key": "premises",
    "short": "Premises",
    "title": "Premises and housekeeping",
@@ -785,7 +827,7 @@
    ]
   },
   {
-   "letter": "H",
+   "letter": "I",
    "key": "safety",
    "short": "Safety",
    "title": "Safety",
@@ -881,7 +923,7 @@
    ]
   },
   {
-   "letter": "I",
+   "letter": "J",
    "key": "assessment",
    "short": "Assessment",
    "title": "Formative assessment",
@@ -946,44 +988,6 @@
     {
      "type": "remarks",
      "key": "assessment_remarks",
-     "heading": "Remarks"
-    }
-   ]
-  },
-  {
-   "letter": "J",
-   "key": "registers",
-   "short": "Registers",
-   "title": "Daily registers",
-   "blocks": [
-    {
-     "type": "checklist",
-     "key": "registers",
-     "items": [
-      {
-       "id": "registers_1",
-       "text": "Daily consumption register updated",
-       "perCourse": true,
-       "says": {
-        "yes": "The daily consumption register is updated.",
-        "no": "The daily consumption register is not updated.",
-        "partial": "The daily consumption register is only partly updated."
-       }
-      },
-      {
-       "id": "registers_2",
-       "text": "Stock register up to date",
-       "says": {
-        "yes": "The stock register is up to date.",
-        "no": "The stock register is not up to date.",
-        "partial": "The stock register is only partly up to date."
-       }
-      }
-     ]
-    },
-    {
-     "type": "remarks",
-     "key": "registers_remarks",
      "heading": "Remarks"
     }
    ]
@@ -1353,7 +1357,8 @@
     {
      "type": "remarks",
      "key": "interview_remarks",
-     "heading": "Remarks"
+     "heading": "Remarks",
+     "manual": true
     }
    ]
   },
@@ -1371,35 +1376,33 @@
      "start": 5,
      "titleField": "name",
      "says": {
-      "text": "{name}[ ({course}[ batch-{batch}])]: {call}[, {confirmed}][ as {position}][, BDT {salary} per month][. {remarks}]"
+      "text": "{name}[ ({course}[ batch-{batch}])]: {call}[, {confirmed}][. {remarks}]"
      },
      "fields": [
       {
        "key": "name",
        "label": "Name",
-       "kind": "text"
+       "kind": "text",
+       "suggest": "tmsTrainee"
       },
       {
        "key": "course",
        "label": "Course",
        "kind": "courseRef",
        "optionsFrom": "courses",
-       "optionsPart": "course"
+       "optionsPart": "course",
+       "suggest": "tmsCourse"
       },
       {
        "key": "batch",
        "label": "Batch no.",
-       "kind": "number"
+       "kind": "number",
+       "suggest": "tmsBatch"
       },
       {
        "key": "phone",
        "label": "Phone",
        "kind": "phone"
-      },
-      {
-       "key": "employer_tms",
-       "label": "Employer as per TMS",
-       "kind": "text"
       },
       {
        "key": "call",
@@ -1464,28 +1467,20 @@
        ]
       },
       {
-       "key": "position",
-       "label": "Position",
-       "kind": "text"
-      },
-      {
-       "key": "salary",
-       "label": "Monthly salary (BDT)",
-       "kind": "number"
-      },
-      {
        "key": "remarks",
        "label": "Remarks",
        "kind": "longtext",
        "rewrite": true,
        "placeholder": "Job related to the trade? How long employed?"
       }
-     ]
+     ],
+     "newFrom": "firstCourse"
     },
     {
      "type": "remarks",
      "key": "graduates_remarks",
-     "heading": "Remarks"
+     "heading": "Remarks",
+     "manual": true
     }
    ]
   },

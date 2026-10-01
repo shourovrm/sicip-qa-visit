@@ -172,7 +172,9 @@ function coveredBlocks(section, remarksBlock) {
   return before.slice(last + 1)
 }
 
+// a `manual` remarks block (K, L) builds nothing: the officer writes it by hand
 export function buildRemarkLines(template, section, remarksBlock, data) {
+  if (remarksBlock.manual) return []
   return coveredBlocks(section, remarksBlock).flatMap((block) => {
     if (block.type === 'checklist') return checklistLines(block, data, template.answers ?? [])
     if (block.type === 'cards') return cardLines(block, data)
@@ -183,14 +185,18 @@ export function buildRemarkLines(template, section, remarksBlock, data) {
 
 // what prints: the officer's edit while still fresh (source == built lines), else the built
 // lines. An edited line keeps neg only when it is word-for-word a built issue line.
+// A manual block prints its text, one line per non-blank line, never an issue.
 export function printedRemarkLines(template, section, remarksBlock, data) {
+  if (remarksBlock.manual) return textLines(data.remarks?.[remarksBlock.key]?.text).map((l) => ({ text: l, neg: false }))
   const built = buildRemarkLines(template, section, remarksBlock, data)
   const entry = data.remarks?.[remarksBlock.key] ?? {}
   const edited = String(entry.text ?? '')
   if (!edited.trim() || entry.source !== built.map((l) => l.text).join('\n')) return built
   const negTexts = new Set(built.filter((l) => l.neg).map((l) => l.text))
-  return edited.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => ({ text: l, neg: negTexts.has(l) }))
+  return textLines(edited).map((l) => ({ text: l, neg: negTexts.has(l) }))
 }
+
+const textLines = (value) => String(value ?? '').split('\n').map((l) => l.trim()).filter(Boolean)
 
 // every remarks line of the report, issues first (template order within each group), no repeats
 export function findingCandidates(template, data) {

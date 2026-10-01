@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest'
 import v2 from '../../../shared/report-templates/surprise-v2.json'
 import fixture from '../../../shared/report-templates/fixtures/remarks-surprise-2.json'
-import { buildRemarkLines, fillSays, findingCandidates, parseMajorAnswer } from './sectionremarks.js'
+import { buildRemarkLines, printedRemarkLines, fillSays, findingCandidates, parseMajorAnswer } from './sectionremarks.js'
 import { compareMismatch, templateFor, needsConversion } from './reporttemplate.js'
 import { convertSurpriseV1ToV2, revertSurpriseV2ToV1 } from './reportconvert.js'
 import { reportHtml } from './reporthtml.js'
@@ -20,6 +20,19 @@ describe('surprise v2 remarks', () => {
   })
   it('finding candidates match the shared fixture', () => {
     expect(findingCandidates(v2, fixture.data)).toEqual(fixture.candidates)
+  })
+  it('manual remarks (K, L) build nothing and print the typed lines', () => {
+    const section = v2.sections.find((s) => s.key === 'interview')
+    const block = section.blocks.find((b) => b.key === 'interview_remarks')
+    expect(block.manual).toBe(true)
+    expect(buildRemarkLines(v2, section, block, fixture.data)).toEqual([])
+    const data = { ...fixture.data, remarks: { interview_remarks: { source: '', text: ' First point \n\nSecond point' } } }
+    expect(printedRemarkLines(v2, section, block, data)).toEqual([{ text: 'First point', neg: false }, { text: 'Second point', neg: false }])
+    expect(printedRemarkLines(v2, section, block, { ...data, remarks: {} })).toEqual([])
+  })
+  it('sections run A..N with registers right after materials', () => {
+    expect(v2.sections.map((s) => s.letter).join('')).toBe('ABCDEFGHIJKLMN')
+    expect(v2.sections.map((s) => s.key).slice(4, 7)).toEqual(['materials', 'registers', 'delivery'])
   })
   it('fills optional segments and drops a sentence with a blank key', () => {
     const lookup = (k) => ({ a: 'A', b: '' })[k]

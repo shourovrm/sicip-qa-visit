@@ -284,9 +284,7 @@
      "course": "Welding (SMAW)",
      "batch": "05",
      "call": "reached",
-     "confirmed": "employed",
-     "position": "Welder",
-     "salary": "16,000"
+     "confirmed": "employed"
     },
     {
      "_id": "g2",
@@ -311,6 +309,10 @@
    "followup_remarks": {
     "source": "Issues from the last visit were only partly complied with.\nThe monitoring logbook / visit register is available, but its findings were only partly complied with.\nIssue from the last visit still not resolved: Fume extraction not installed.",
     "text": "Issues from the last visit were only partly complied with.\nMy own extra point"
+   },
+   "interview_remarks": {
+    "source": "",
+    "text": "Trainees asked for more practice time.\n\n  The canteen was closed.  "
    }
   }
  },
@@ -370,6 +372,12 @@
    }
   ],
   "materials_remarks": [],
+  "registers_remarks": [
+   {
+    "text": "The stock register is only partly up to date. Last entry 12 Sep.",
+    "neg": true
+   }
+  ],
   "delivery_remarks": [
    {
     "text": "Welding (SMAW) · 07: Fume extraction unit unavailable (quantity 1).",
@@ -383,36 +391,8 @@
   "premises_remarks": [],
   "safety_remarks": [],
   "assessment_remarks": [],
-  "registers_remarks": [
-   {
-    "text": "The stock register is only partly up to date. Last entry 12 Sep.",
-    "neg": true
-   }
-  ],
-  "interview_remarks": [
-   {
-    "text": "Welding (SMAW) batch-07: 6 trainees interviewed; technical question on Electrode holder: most could answer. Complaints or other feedback: Want more practice.",
-    "neg": false
-   },
-   {
-    "text": "Welding (SMAW) batch-07: trainees said classes run on all scheduled days and hours.",
-    "neg": false
-   },
-   {
-    "text": "Welding (SMAW) batch-07: trainees said the stipend / allowance is sometimes late. August stipend 3 weeks late.",
-    "neg": true
-   }
-  ],
-  "graduates_remarks": [
-   {
-    "text": "Shahin (Welding (SMAW) batch-05): reached, employed as Welder, BDT 16,000 per month.",
-    "neg": false
-   },
-   {
-    "text": "Jewel: could not be reached. Phone off.",
-    "neg": true
-   }
-  ],
+  "interview_remarks": [],
+  "graduates_remarks": [],
   "followup_remarks": [
    {
     "text": "Issues from the last visit were only partly complied with.",
@@ -454,23 +434,15 @@
    "neg": true
   },
   {
+   "text": "The stock register is only partly up to date. Last entry 12 Sep.",
+   "neg": true
+  },
+  {
    "text": "Welding (SMAW) · 07: Fume extraction unit unavailable (quantity 1).",
    "neg": true
   },
   {
    "text": "Grinder damaged.",
-   "neg": true
-  },
-  {
-   "text": "The stock register is only partly up to date. Last entry 12 Sep.",
-   "neg": true
-  },
-  {
-   "text": "Welding (SMAW) batch-07: trainees said the stipend / allowance is sometimes late. August stipend 3 weeks late.",
-   "neg": true
-  },
-  {
-   "text": "Jewel: could not be reached. Phone off.",
    "neg": true
   },
   {
@@ -502,15 +474,11 @@
    "neg": false
   },
   {
-   "text": "Welding (SMAW) batch-07: 6 trainees interviewed; technical question on Electrode holder: most could answer. Complaints or other feedback: Want more practice.",
+   "text": "Trainees asked for more practice time.",
    "neg": false
   },
   {
-   "text": "Welding (SMAW) batch-07: trainees said classes run on all scheduled days and hours.",
-   "neg": false
-  },
-  {
-   "text": "Shahin (Welding (SMAW) batch-05): reached, employed as Welder, BDT 16,000 per month.",
+   "text": "The canteen was closed.",
    "neg": false
   },
   {
