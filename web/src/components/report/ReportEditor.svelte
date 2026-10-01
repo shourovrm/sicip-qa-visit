@@ -21,6 +21,7 @@
   import SectionIndex from './SectionIndex.svelte'
   import SectionRail from './SectionRail.svelte'
   import TmsPanel from './TmsPanel.svelte'
+  import TmsLinkBar from './TmsLinkBar.svelte'
   import { tmsSession } from '../../lib/tmsstore.js'
   import { isLinked, loadCourseCatalog, loadTraineeHints } from '../../lib/tmsreport.js'
   import { runningCourseCards } from '../../lib/tmscatalog.js'
@@ -379,6 +380,12 @@
         {/if}
         <button type="button" class="btn" on:click={convert}>Convert to new format</button>
       </div>
+    {/if}
+    {#if !disabled && !isLinked(data.tms)}
+      <!-- re-created on entering/leaving section A so the picker opens by itself there -->
+      {#key currentIndex === 0}
+        <TmsLinkBar signedIn={Boolean($tmsSession)} association={partner} instituteText={meta.institute} expanded={currentIndex === 0} on:link={linkTms} />
+      {/key}
     {/if}
     {#if progress.customFlags.length > 0}
       <ul class="custom-flags">{#each progress.customFlags as text}<li>{text}</li>{/each}</ul>

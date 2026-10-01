@@ -11,7 +11,7 @@
   import ReportEditor from '../components/report/ReportEditor.svelte'
   import TmsLinkPicker from '../components/report/TmsLinkPicker.svelte'
   import { tmsSession } from '../lib/tmsstore.js'
-  import { loadCourseCatalog } from '../lib/tmsreport.js'
+  import { isLinked, loadCourseCatalog } from '../lib/tmsreport.js'
   import { runningCourseCards } from '../lib/tmscatalog.js'
   import { normalize } from '../lib/reporttemplate.js'
   import { openReportPrint } from '../lib/reporthtml.js'
@@ -228,7 +228,7 @@
             <td>{formatDate(visitDateFor(r))}</td>
             <td>{officerNameFor(r) || '—'}</td>
             <td><span class="bar"><span style="width:{percent}%"></span></span> {percent}%</td>
-            <td>{#if r.data?.tms}<span class="linked">Linked</span>{:else}—{/if}</td>
+            <td>{#if isLinked(r.data?.tms)}<span class="linked">Linked</span>{:else if r.status === 'draft'}<button type="button" class="btn-link" on:click|stopPropagation={() => open(r)}>Link</button>{:else}—{/if}</td>
             <td>{formatSaved(r.updated_at)}</td>
             <td><button class="btn open" on:click|stopPropagation={() => open(r)}>Open</button></td>
           </tr>

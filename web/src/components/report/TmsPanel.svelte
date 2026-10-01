@@ -1,11 +1,11 @@
 <!-- report editor side panel: the report's TMS link, the batches running on the visit date and
-     "Refresh from TMS". Signed out -> a signed-out card pointing at Profile; not linked -> the
-     link picker. Fetching is the editor's job; this only shows state and raises events. -->
+     "Refresh from TMS" / Change. Signed out -> a card pointing at Profile; not linked -> a pointer
+     to the link bar (TmsLinkBar) at the top of the editor. Fetching is the editor's job; this only shows state and raises events. -->
 <script>
   import { createEventDispatcher } from 'svelte'
   import { runningBatches } from '../../lib/tmscatalog.js'
   import { isLinked } from '../../lib/tmsreport.js'
-  import TmsLinkPicker from './TmsLinkPicker.svelte'
+  import TmsLinkForm from './TmsLinkForm.svelte'
 
   export let signedIn = false
   export let tms = null // data.tms
@@ -19,13 +19,11 @@
 
   const dispatch = createEventDispatcher()
   let picking = false
-  let picked = null
 
   $: running = catalog ? runningBatches(catalog, visitDate) : []
 
-  function saveLink() {
-    if (!picked) return
-    dispatch('link', picked)
+  function onLink(e) {
+    dispatch('link', e.detail)
     picking = false
   }
 </script>
@@ -51,15 +49,11 @@
       <button type="button" class="btn" on:click={() => dispatch('refresh')} disabled={loading}>Refresh from TMS</button>
       {#if !disabled}<button type="button" class="btn-link" on:click={() => (picking = true)}>Change</button>{/if}
     </div>
-  {:else if disabled}
-    <p class="small">Not linked to a TMS institute.</p>
-  {:else if picking || !isLinked(tms)}
-    <p class="small">Link this report to its TMS institute for course, batch and trainee suggestions.</p>
-    <TmsLinkPicker {association} {instituteText} on:pick={(e) => (picked = e.detail)} />
-    <div class="row-wrap buttons">
-      <button type="button" class="btn" disabled={!picked} on:click={saveLink}>Link</button>
-      {#if picking}<button type="button" class="btn-link" on:click={() => (picking = false)}>Cancel</button>{/if}
-    </div>
+  {:else if !isLinked(tms)}
+    <p class="small">Not linked to a TMS institute.{#if !disabled} Use <b>Link institute</b> at the top of the report.{/if}</p>
+  {:else}
+    <p class="small">Pick the institute this report is about.</p>
+    <TmsLinkForm {association} {instituteText} cancellable={picking} on:link={onLink} on:cancel={() => (picking = false)} />
   {/if}
 </section>
 
