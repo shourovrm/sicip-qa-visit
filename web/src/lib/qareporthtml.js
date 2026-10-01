@@ -297,7 +297,7 @@ const CSS = `
   .kv { margin: 6pt 0 10pt; }
   .kv-line { margin: 2pt 0; }
   .sh { font-weight: 700; font-size: 11pt; text-transform: uppercase; margin: 12pt 0 3pt; }
-  .sub-h { font-weight: 700; font-size: 10pt; margin: 8pt 0 3pt; }
+  .sub-h { font-weight: 700; font-size: 10pt; margin: 8pt 0 3pt; break-after: avoid; page-break-after: avoid; }
   .intro { font-style: italic; margin: 0 0 4pt; }
   .roman-line { margin: 1pt 0 1pt 12pt; }
   .roman { display: inline-block; min-width: 22pt; }

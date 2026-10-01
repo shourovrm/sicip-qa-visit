@@ -120,8 +120,9 @@ function kvParagraph(label, value) {
   return new Paragraph({ spacing: { after: 40 }, children: [run(`${label} : `, { bold: true }), run(blank(value) ? '' : String(value))] })
 }
 
+// keepNext: a table's heading never sits alone at the foot of a page (1.40 did)
 function subheadParagraph(text) {
-  return new Paragraph({ spacing: { before: 120, after: 40 }, children: [run(text, { bold: true })] })
+  return new Paragraph({ keepNext: true, spacing: { before: 120, after: 40 }, children: [run(text, { bold: true })] })
 }
 
 // ---- section 1 ----
