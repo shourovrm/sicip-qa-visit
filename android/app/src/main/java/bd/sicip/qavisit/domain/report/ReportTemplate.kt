@@ -248,8 +248,16 @@ sealed class ReportBlock {
         val showIf: ShowIf? = null,
         // "firstCourse": a new card starts with course + batch of the first section-A course card
         val newFrom: String? = null,
+        // editor-only field order (surprise L: course, batch before name); print keeps `fields`
+        val formOrder: List<String> = emptyList(),
         val fields: List<Field>,
-    ) : ReportBlock()
+    ) : ReportBlock() {
+        // fields as the editor shows them: formOrder first, any field it does not list after
+        fun editorFields(): List<Field> {
+            val listed = formOrder.mapNotNull { key -> fields.find { it.key == key } }
+            return listed + fields.filterNot { it in listed }
+        }
+    }
 
     @Serializable
     data class Flags(val items: List<FlagItem>) : ReportBlock()
@@ -265,7 +273,15 @@ sealed class ReportBlock {
 
     // surprise v2: major findings picked from every remarks line of the report
     @Serializable
-    data class Findings(val key: String, val heading: String? = null, val note: String? = null) : ReportBlock()
+    // surprise v2 N: boxKey = top-level data key of the editable "Major findings" text (one per
+    // line, printed numbered); tickedKey = data key of the ticked candidate lines (FindingsBox.kt)
+    data class Findings(
+        val key: String,
+        val heading: String? = null,
+        val note: String? = null,
+        val boxKey: String = "findingsText",
+        val tickedKey: String = "findingsTicked",
+    ) : ReportBlock()
 
     @Serializable
     data class Criteria(val key: String, val intro: String? = null, val items: List<CriteriaItem>) : ReportBlock()

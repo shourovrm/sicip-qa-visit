@@ -29,6 +29,21 @@ class SurpriseV2Test {
     private val data = ReportData(fixture["data"]!!.jsonObject)
 
     @Test
+    fun `graduate cards edit course and batch first but keep the print order`() {
+        val graduate = v2.sections.flatMap { it.blocks }.filterIsInstance<ReportBlock.Cards>().first { it.key == "graduate" }
+        assertEquals(listOf("course", "batch", "name", "phone", "call", "confirmed", "remarks"), graduate.editorFields().map { it.key })
+        assertEquals("name", graduate.fields.first().key)
+    }
+
+    @Test
+    fun `editor order without formOrder is the template order, unlisted fields last`() {
+        val fields = listOf("a", "b", "c").map { Field(key = it, label = it, kind = "text") }
+        val plain = ReportBlock.Cards(key = "x", itemLabel = "X", start = 0, titleField = "a", fields = fields)
+        assertEquals(listOf("a", "b", "c"), plain.editorFields().map { it.key })
+        assertEquals(listOf("c", "a", "b"), plain.copy(formOrder = listOf("c", "zz")).editorFields().map { it.key })
+    }
+
+    @Test
     fun `remark lines match the shared fixture`() {
         val built = fixture["built"]!!.jsonObject
         v2.sections.forEach { section ->

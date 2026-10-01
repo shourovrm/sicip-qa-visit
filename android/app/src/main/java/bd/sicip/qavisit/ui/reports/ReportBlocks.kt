@@ -694,7 +694,7 @@ private fun CardEntryView(
     val hasContent = entry.values.any { it.toString().trim('"').isNotBlank() }
     // linked fields show read-only in the header (linkedCardHeader) instead of as an editable
     // row further down -- everything else on the card still edits normally.
-    val linkedOut = if (link != null) block.fields.filterNot { it.key in link.fields } else block.fields
+    val linkedOut = if (link != null) block.editorFields().filterNot { it.key in link.fields } else block.editorFields()
     // qa-v2 showIf: a card field shows only while this card's controlling answer matches
     val editableFields = linkedOut.filter { field -> field.showIf.shown { entry[it]?.jsonPrimitive?.contentOrNull.orEmpty() } }
     // mismatch = one warning line under the header, not a red card: a tinted card body
