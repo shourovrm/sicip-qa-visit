@@ -17,7 +17,13 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
-data class PrintTable(val headers: List<String>, val rows: List<List<String>>, val heading: String? = null)
+// centred: column indexes printed centred (S.N., numbers, dates, short choice answers)
+data class PrintTable(
+    val headers: List<String>,
+    val rows: List<List<String>>,
+    val heading: String? = null,
+    val centred: Set<Int> = emptySet(),
+)
 
 private fun JsonObject.text(key: String): String = this[key]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
 
@@ -63,7 +69,7 @@ fun registrationTable(template: ReportTemplate, data: ReportData): PrintTable? {
         )
     }
     if (rows.isEmpty()) return null
-    return PrintTable(listOf("Body", "Registered", "Registration no.", "Accredited courses", "Up to date", "Remarks"), rows)
+    return PrintTable(listOf("Body", "Registered", "Registration no.", "Accredited courses", "Up to date", "Remarks"), rows, centred = setOf(1, 2, 4))
 }
 
 // 1.20: one row per MoU, "Others" printed as the typed organisation name
@@ -76,6 +82,7 @@ fun mouTable(data: ReportData): PrintTable? {
     return PrintTable(
         listOf("S.N.", "Contract/MoU signed with", "Date of signing", "Total target", "Duration", "Total amount"),
         numbered(rows),
+        centred = setOf(0, 2, 3, 4, 5),
     )
 }
 
@@ -95,7 +102,11 @@ fun contractsTable(template: ReportTemplate, data: ReportData): PrintTable? {
         if (organisation.isNotEmpty() && courses.none { it.text("contract") == organisation }) rows += listOf(organisation, "", "", "")
     }
     if (rows.isEmpty()) return null
-    return PrintTable(listOf("S.N.", "Organization / project", "Training course", "Overlaps a SICIP course", "Facilities"), numbered(rows))
+    return PrintTable(
+        listOf("S.N.", "Organization / project", "Training course", "Overlaps a SICIP course", "Facilities"),
+        numbered(rows),
+        centred = setOf(0, 3, 4),
+    )
 }
 
 // "Classroom - 300 sft and workshop/lab - 800 sft" | "Classroom cum workshop/lab - 1000 sft"
@@ -119,12 +130,14 @@ fun cardsTable(block: ReportBlock.Cards, data: ReportData): PrintTable? {
             listOf("S.N.", "Course", "Classroom and workshop size", "Trainees per batch"),
             numbered(cards.map { listOf(it.text("course"), roomSize(it), it.text("trainees")) }),
             block.heading,
+            centred = setOf(0, 3),
         )
     }
     return PrintTable(
         listOf("S.N.") + block.fields.map { it.label },
         numbered(cards.map { card -> block.fields.map { shownValue(it, card.text(it.key)) } }),
         block.heading,
+        centred = setOf(0) + block.fields.indices.filter { isCentredField(block.fields[it]) }.map { it + 1 },
     )
 }
 
@@ -147,5 +160,6 @@ fun evidenceIndexTable(template: ReportTemplate, data: ReportData): PrintTable? 
         listOf("Attachment", "Evidence", "Criteria"),
         used.map { listOf(attachmentName(it), it.name, citedBy.getValue(it.id).joinToString(", ")) },
         "List of attachments",
+        centred = setOf(0),
     )
 }

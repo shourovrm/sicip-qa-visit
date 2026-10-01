@@ -129,4 +129,21 @@ class QaReportHtmlTest {
         assertTrue(html.contains("<th>Improvement action</th>"))
         assertTrue(html.contains("<td class=\"sl\">3.</td><td></td>"))
     }
+
+    @Test
+    fun `qa print uses Arial, report margins, title footer and numbered findings`() {
+        val template = parseReportTemplate(File("../../shared/report-templates/qa-v2.json").readText())
+        val findingsKey = template.sections.flatMap { it.blocks }.filterIsInstance<bd.sicip.qavisit.domain.report.ReportBlock.Fields>()
+            .flatMap { it.fields }.first { it.draftFrom == "weaknesses" }.key
+        val data = ReportData.EMPTY.withField(findingsKey, "First finding\n\nSecond finding")
+
+        val html = buildQaReportHtml(template, data)
+
+        assertTrue(html.contains("<ol class=\"points\"><li>First finding</li><li>Second finding</li></ol>"))
+        assertTrue(html.contains("margin: 25.4mm 19.05mm;"))
+        assertTrue(html.contains("content: \"Quality Assurance Visit Report · Page \" counter(page)"))
+        assertTrue(html.contains("font-family: Arial"))
+        assertFalse(html.contains("Times New Roman"))
+        assertFalse(html.contains("SICIP Quality Assurance Visit Report"))
+    }
 }

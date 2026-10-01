@@ -100,16 +100,14 @@ fun ReportReview(
 
     val report by remember(reportId) { db.reportDao().byIdFlow(reportId).filterNotNull() }.collectAsState(initial = null)
     var visit by remember { mutableStateOf<Visit?>(null) }
-    var officerName by remember { mutableStateOf("") }
     var showSubmitConfirm by remember { mutableStateOf(false) }
     var pdfBusy by remember { mutableStateOf(false) }
     var submitting by remember { mutableStateOf(false) }
     var showRetractConfirm by remember { mutableStateOf(false) }
 
-    LaunchedEffect(report?.visitId, report?.officerId) {
+    LaunchedEffect(report?.visitId) {
         val r = report ?: return@LaunchedEffect
         visit = db.visitDao().byId(r.visitId)
-        officerName = db.officerDao().byId(r.officerId)?.name ?: ""
     }
 
     val current = report ?: return
@@ -165,7 +163,7 @@ fun ReportReview(
                         if (pdfBusy) return@OutlinedButton
                         pdfBusy = true
                         scope.launch {
-                            shareReportPdf(context, template, editor.report, officerName)
+                            shareReportPdf(context, template, editor.report)
                             pdfBusy = false
                         }
                     },

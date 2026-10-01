@@ -34,10 +34,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
-// what the header/footer needs beyond the template+data: who filed it and where it stands.
-// status is the Report entity's own "draft"/"submitted" string.
-data class ReportMeta(val officerName: String, val status: String, val submittedAt: String? = null)
-
 // answer/choice colours -- MUST match ui/theme/Color.kt's Light* tone values and
 // web/src/lib/reportlayout.js's TONE_COLOR exactly (three independent copies of the same four
 // hex values by necessity: this file has no android/compose dependency, reportlayout.js has no
@@ -189,10 +185,11 @@ internal fun numberedListHtml(heading: String, lines: List<String>): String {
 internal fun remarkBulletsHtml(lines: List<RemarkLine>): String =
     "<ul class=\"bul\">${lines.joinToString("") { "<li${if (it.neg) " class=\"neg\"" else ""}>${esc(it.text)}</li>" }}</ul>"
 
+// no "Remarks" label: the bullets follow the table/heading directly; nothing typed = nothing printed
 private fun remarksBoxHtml(block: ReportBlock.Remarks, section: ReportSection, data: ReportData, template: ReportTemplate): String {
     val lines = printedRemarkLines(template, section, block, data)
     if (lines.isEmpty()) return ""
-    return "<div class=\"remark-box\"><span class=\"label\">${esc(block.heading ?: "Remarks")}</span>${remarkBulletsHtml(lines)}</div>"
+    return remarkBulletsHtml(lines)
 }
 
 private fun fieldsBlockHtml(block: ReportBlock.Fields, data: ReportData): String =
@@ -203,6 +200,15 @@ private fun fieldsBlockHtml(block: ReportBlock.Fields, data: ReportData): String
 // per-course summary line.
 private fun courseList(data: ReportData): List<JsonObject> =
     data.cards("courses").filter { !blank(it.stringOrNull("course")) }
+
+// numbers, batch no., counts, quantities, dates/times and short choice answers print centred;
+// long text stays left. decided by the field, so a whole column lines up the same way.
+private val CENTRED_KINDS = setOf("number", "choice", "select", "date", "time", "phone")
+
+internal fun isCentredField(field: Field): Boolean =
+    field.kind in CENTRED_KINDS || (field.key == "batch" && field.kind == "text")
+
+internal fun cellClassAttr(field: Field): String = if (isCentredField(field)) " class=\"c\"" else ""
 
 private fun tickCellHtml(checked: Boolean, tone: String?): String {
     val color = if (checked) tone?.let { TONE_COLOR[it] } else null
@@ -259,7 +265,7 @@ private fun cardsBlockHtml(block: ReportBlock.Cards, data: ReportData): String {
     val mismatchedRows = mutableListOf<Int>()
     val rows = entries.mapIndexed { i, entry ->
         if (block.compare != null && cardCompareMismatch(block.compare, entry)) mismatchedRows.add(i + 1)
-        "<tr>${block.fields.joinToString("") { f -> "<td>${fieldValueHtml(f, entry.stringOrNull(f.key))}</td>" }}</tr>"
+        "<tr>${block.fields.joinToString("") { f -> "<td${cellClassAttr(f)}>${fieldValueHtml(f, entry.stringOrNull(f.key))}</td>" }}</tr>"
     }.joinToString("")
     var warning = ""
     if (mismatchedRows.isNotEmpty() && block.compare != null && block.compare.print) {
@@ -267,6 +273,21 @@ private fun cardsBlockHtml(block: ReportBlock.Cards, data: ReportData): String {
         warning = "<p class=\"mismatch-msg\">${esc(block.compare.message)}$which</p>"
     }
     return "$heading$note<table class=\"cards-table\"><thead><tr>$headerRow</tr></thead><tbody>$rows</tbody></table>$warning"
+}
+
+// interview rows (non-linked, non-note fields) that at least one course card answered; a
+// question's note alone also counts, so typed text is never dropped. shared with the narrative.
+internal fun answeredRowKeys(block: ReportBlock.Cards, cards: List<JsonObject>): Set<String> {
+    val linkedKeys = block.linkFrom?.fields?.toSet() ?: emptySet()
+    fun filled(card: JsonObject, key: String) = !blank(card.stringOrNull(key))
+    return block.fields
+        .filter { it.key !in linkedKeys && it.noteFor == null }
+        .filter { row ->
+            val note = block.fields.find { it.noteFor == row.key }
+            cards.any { card -> filled(card, row.key) || (note != null && filled(card, note.key)) }
+        }
+        .map { it.key }
+        .toSet()
 }
 
 // linked cards block with display:"tabs" (section I "interviews"): tabs are an editor-only
@@ -278,10 +299,12 @@ private fun tabsCardsBlockHtml(block: ReportBlock.Cards, data: ReportData, templ
     val entries = data.cards(block.key)
     if (entries.isEmpty()) return "<p class=\"empty\">Add courses in section A.</p>"
     val linkedKeys = block.linkFrom?.fields?.toSet() ?: emptySet()
-    val tickFields = block.fields.filter { it.key !in linkedKeys && isStandardAnswerChoice(it, template) }
+    // a question (and its note) prints only when at least one course answered it
+    val answeredKeys = answeredRowKeys(block, entries)
+    val tickFields = block.fields.filter { it.key !in linkedKeys && it.key in answeredKeys && isStandardAnswerChoice(it, template) }
     val tickFieldKeys = tickFields.map { it.key }.toSet()
     val noteFields = block.fields.filter { it.noteFor != null }
-    val otherFields = block.fields.filter { it.key !in linkedKeys && it.key !in tickFieldKeys && it.noteFor == null }
+    val otherFields = block.fields.filter { it.key !in linkedKeys && it.key in answeredKeys && it.key !in tickFieldKeys && it.noteFor == null }
     val answerIds = template.answers.map { it.id }
     val columns = if (noteFields.isEmpty()) INTERVIEW_TICK_COLUMNS else INTERVIEW_NOTE_COLUMNS
     return entries.joinToString("") { entry ->
@@ -361,55 +384,46 @@ private fun sectionHtml(section: ReportSection, data: ReportData, template: Repo
     return "<section class=\"keep\"><h2><span class=\"letter\">${esc(section.letter)}</span>${esc(section.title)}$optionalTag$note</h2>$blocks</section>"
 }
 
-private fun statusLabel(status: String): String = if (status == "submitted") "Submitted" else "Draft"
+// program line + title + rule; no subtitle, no officer/status line (spec 2026-10-01 §5)
+private fun headerHtml(template: ReportTemplate): String =
+    "<header><div class=\"program\">${esc(template.program)}</div><h1>${esc(template.title)}</h1></header>"
 
-private fun metaHtml(meta: ReportMeta): String {
-    val status = statusLabel(meta.status)
-    val submitted = if (meta.status == "submitted" && !blank(meta.submittedAt)) {
-        " &middot; submitted ${esc(meta.submittedAt)}"
-    } else {
-        ""
-    }
-    return "<div class=\"meta\">Officer: ${esc(meta.officerName)} &middot; $status$submitted</div>"
-}
+// footer title: the report's name without its ": Quality Assurance" tail ("Surprise Visit Report")
+internal fun footerTitle(template: ReportTemplate): String = template.title.substringBefore(':').trim()
 
-private fun headerHtml(template: ReportTemplate, meta: ReportMeta): String = """
-    <header>
-      <div>
-        <div class="program">${esc(template.program)}</div>
-        <h1>${esc(template.title)}</h1>
-        ${metaHtml(meta)}
-      </div>
-      <div class="form-code">${esc(template.subtitle)}</div>
-    </header>
-""".trimIndent()
-
-// print CSS -- A4 portrait, margins top 10mm/sides 11mm/bottom 12mm (paper form geometry), page
-// numbers via @page counters. Kept in lockstep with web/src/lib/reporthtml.js's CSS const.
-private val CSS = """
+// @page rule shared by every report PDF: A4, 1 in top/bottom, 0.75 in sides, "<title> · Page X of Y"
+internal fun pageCss(footer: String, fontFamily: String): String {
+    val quoted = footer.replace("\\", "").replace("\"", "")
+    return """
   @page {
     size: A4 portrait;
-    margin: 10mm 11mm 12mm;
-    @bottom-left { content: "SICIP Surprise Visit Report"; font: 7pt "Noto Sans", Arial, sans-serif; color: #555; }
-    @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 7pt "Noto Sans", Arial, sans-serif; color: #555; }
-  }
+    margin: 25.4mm 19.05mm;
+    @bottom-center { content: "$quoted · Page " counter(page) " of " counter(pages); font: 8pt $fontFamily; color: #333; }
+  }""".trimIndent()
+}
+
+// one font for every report PDF (surprise form, narrative, QA)
+internal const val REPORT_FONT = "Arial, \"Liberation Sans\", \"Noto Sans\", sans-serif"
+
+// print CSS (spec 2026-10-01 §5): Arial, body 10 pt, tables 9 pt, section heading 11 pt with
+// letter badge, sub-heading 10 pt, title 15 pt, program 9 pt; cell padding 4 pt / 6 pt.
+// page geometry + footer come from pageCss. kept in lockstep with web/src/lib/reporthtml.js.
+private val BODY_CSS = """
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: "Noto Sans", "Segoe UI", Arial, sans-serif; font-size: 8.4pt; line-height: 1.25; color: #111; }
+  body { margin: 0; font-family: $REPORT_FONT; font-size: 10pt; line-height: 1.3; color: #111; }
 
-  header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1.6pt solid #111; padding-bottom: 4pt; margin-bottom: 6pt; }
-  header .program { font-size: 8pt; }
-  header h1 { margin: 1pt 0 0; font-size: 13pt; font-weight: 700; letter-spacing: 0.01em; }
-  header .form-code { font-size: 7.5pt; text-align: right; color: #333; }
-  .meta { margin-top: 2pt; font-size: 7.5pt; color: #333; }
+  header { border-bottom: 1.6pt solid #111; padding-bottom: 4pt; margin-bottom: 8pt; }
+  header .program { font-size: 9pt; }
+  header h1 { margin: 2pt 0 0; font-size: 15pt; font-weight: 700; }
 
-  h2 { display: flex; align-items: baseline; gap: 5pt; margin: 8pt 0 3pt; font-size: 9.2pt; font-weight: 700; break-after: avoid; }
-  h2 .letter { display: inline-block; min-width: 13pt; padding: 0.5pt 0; text-align: center; background: #111; color: #fff; font-size: 8pt; }
-  h2 .note { margin-left: auto; font-weight: 400; font-size: 7.4pt; font-style: italic; color: #333; }
-  h2 .optional-tag { font-weight: 700; font-size: 6.6pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8a4600; border: 0.6pt solid #8a4600; border-radius: 3pt; padding: 0.5pt 3pt; }
-  h3 { margin: 4pt 0 2pt; font-size: 8.2pt; font-weight: 700; }
+  h2 { display: flex; align-items: baseline; gap: 6pt; margin: 12pt 0 4pt; font-size: 11pt; font-weight: 700; break-after: avoid; }
+  h2 .letter { display: inline-block; min-width: 15pt; padding: 1pt 0; text-align: center; background: #111; color: #fff; font-size: 10pt; }
+  h2 .note { margin-left: auto; font-weight: 400; font-size: 9pt; font-style: italic; color: #333; }
+  h2 .optional-tag { font-weight: 700; font-size: 8pt; text-transform: uppercase; letter-spacing: 0.03em; color: #8a4600; border: 0.6pt solid #8a4600; border-radius: 3pt; padding: 0.5pt 3pt; }
+  h3 { margin: 6pt 0 3pt; font-size: 10pt; font-weight: 700; break-after: avoid; }
 
-  .details { margin: 0 0 2pt; }
-  .details .line { display: flex; align-items: baseline; gap: 4pt; min-height: 12pt; padding: 0.5pt 0; }
+  .details { margin: 0 0 4pt; }
+  .details .line { display: flex; align-items: baseline; gap: 4pt; min-height: 14pt; padding: 1pt 0; }
   .details .label { white-space: nowrap; font-weight: 700; }
   .details .label::after { content: ':'; }
   .details .label.question::after { content: ''; }
@@ -417,50 +431,42 @@ private val CSS = """
   .choice-opt { white-space: nowrap; }
   .choice-opt.checked { font-weight: 700; }
   .details .value { flex: 1; border-bottom: 0.6pt solid #ccc; }
-  .field-box { margin: 2pt 0 5pt; }
-  .field-box .label { font-weight: 700; display: block; margin-bottom: 1pt; }
-  .field-box .box { border: 0.6pt solid #666; min-height: 20pt; padding: 2pt 3pt; }
+  .field-box { margin: 3pt 0 6pt; }
+  .field-box .label { font-weight: 700; display: block; margin-bottom: 2pt; }
+  .field-box .box { border: 0.6pt solid #666; min-height: 22pt; padding: 4pt 6pt; }
 
-  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  th, td { border: 0.6pt solid #666; padding: 2pt 3pt; vertical-align: middle; }
-  th { background: #e6e6e6; font-weight: 700; font-size: 7.4pt; text-align: center; line-height: 1.15; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0 0 4pt; }
+  th, td { border: 0.6pt solid #666; padding: 4pt 6pt; vertical-align: middle; font-size: 9pt; text-align: left; }
+  th { background: #e6e6e6; font-weight: 700; text-align: center; line-height: 1.15; }
+  td.c, td.num, td.tick-cell { text-align: center; }
   tr { break-inside: avoid; }
-  td.num, th.num { text-align: center; }
 
-  .checklist td { height: 14pt; }
-  .checklist td.num { color: #333; text-align: center; }
-  .checklist td.question { text-align: left; }
-  .per-course-line { font-size: 6.8pt; font-weight: 400; color: #444; margin-top: 1pt; }
-  .per-course-tag { font-weight: 700; font-size: 6.2pt; text-transform: uppercase; letter-spacing: 0.02em; color: #4c4f66; border: 0.6pt solid #4c4f66; border-radius: 3pt; padding: 0 2pt; margin-left: 3pt; }
+  .checklist td.num { color: #333; }
+  .per-course-line { font-size: 8pt; font-weight: 400; color: #444; margin-top: 1pt; }
 
-  .tick-cell { text-align: center; }
-  .tick { font-size: 9pt; font-weight: 700; }
+  .tick { font-size: 10pt; font-weight: 700; }
 
-  .cards-table th { font-size: 7pt; }
-  .cards-table td { font-size: 7.6pt; }
-  .mismatch-msg { color: #b3261e; font-weight: 700; font-size: 7.6pt; margin: -2pt 0 5pt; }
-  p.empty, .block-note { color: #666; font-style: italic; margin: 2pt 0 6pt; font-size: 7.4pt; }
+  .mismatch-msg { color: #b3261e; font-weight: 700; font-size: 9pt; margin: 0 0 6pt; }
+  p.empty, .block-note { color: #666; font-style: italic; margin: 2pt 0 6pt; font-size: 9pt; }
 
-  .flags-table td.flag-text { text-align: left; }
   .flags-table td.flag-text.checked { font-weight: 700; color: #b3261e; }
 
   .interview-card { margin-bottom: 6pt; break-inside: avoid; }
-  .interview-ticks td.question { text-align: left; }
 
   .ans { font-weight: 700; }
 
   .keep { break-inside: avoid; }
 
-  .remark-box { border: 0.6pt solid #666; border-left: 2.4pt solid #111; padding: 3pt 5pt; margin: 3pt 0 6pt; break-inside: avoid; }
-  .remark-box .label { font-weight: 700; font-size: 7.2pt; text-transform: uppercase; letter-spacing: .03em; color: #333; display: block; margin-bottom: 1pt; }
-  ol.findings, ul.bul { margin: 2pt 0 6pt; padding-left: 14pt; }
+  ol.findings, ul.bul { margin: 3pt 0 8pt; padding-left: 16pt; }
   ol.findings li, ul.bul li { margin: 0 0 2pt; }
   ul.bul li.neg::marker { color: #b3261e; }
 """.trimIndent()
 
+private fun css(template: ReportTemplate): String = pageCss(footerTitle(template), REPORT_FONT) + "\n" + BODY_CSS
+
 // shared with NarrativeHtml.kt: same page, header and helpers, different body
-internal val reportCss: String get() = CSS
-internal fun reportHeaderHtml(template: ReportTemplate, meta: ReportMeta): String = headerHtml(template, meta)
+internal fun reportCss(template: ReportTemplate): String = css(template)
+internal fun reportHeaderHtml(template: ReportTemplate): String = headerHtml(template)
 internal fun reportEsc(s: String?): String = esc(s)
 internal fun reportFieldValueHtml(field: Field, rawValue: String?): String = fieldValueHtml(field, rawValue)
 
@@ -470,7 +476,7 @@ internal fun reportFieldValueHtml(field: Field, rawValue: String?): String = fie
 // normalize()s the data first (spec: exports must show the derived/synced state, e.g. a
 // perCourse item's derived overall answer and a stale linked card dropped), never the raw
 // stored row, and never mutates the caller's ReportData (ReportData itself is immutable).
-fun buildReportHtml(template: ReportTemplate, data: ReportData, meta: ReportMeta): String {
+fun buildReportHtml(template: ReportTemplate, data: ReportData): String {
     val normalizedData = normalize(template, data)
     val answerMap = answerMapOf(template)
     // an optional section (K) nobody touched is left out of the report entirely
@@ -478,7 +484,7 @@ fun buildReportHtml(template: ReportTemplate, data: ReportData, meta: ReportMeta
         .filter { !it.optional || sectionHasContent(it, normalizedData) }
         .joinToString("") { sectionHtml(it, normalizedData, template, answerMap) }
     return "<!doctype html><html><head><meta charset=\"utf-8\"><title>${esc(template.title)}</title>" +
-        "<style>$CSS\n$SIGNOFF_CSS</style></head><body>" +
-        headerHtml(template, meta) + sections + signoffHtml(normalizedData) +
+        "<style>${css(template)}\n$SIGNOFF_CSS</style></head><body>" +
+        headerHtml(template) + sections + signoffHtml(normalizedData) +
         "</body></html>"
 }

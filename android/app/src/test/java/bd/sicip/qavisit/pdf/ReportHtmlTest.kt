@@ -50,8 +50,6 @@ private fun template(sections: List<ReportSection>) = ReportTemplate(
     sections = sections,
 )
 
-private val META = ReportMeta(officerName = "Jane Doe", status = "draft")
-
 class ReportHtmlTest {
     @Test
     fun `field and checklist text is html-escaped`() {
@@ -66,7 +64,7 @@ class ReportHtmlTest {
             .withField("notes", "<script>alert(\"x\")</script> & 'quote'")
             .withCheck("a1", remarks = "Closed <early>")
 
-        val html = buildReportHtml(template(listOf(section)), data, META)
+        val html = buildReportHtml(template(listOf(section)), data)
 
         assertFalse("raw script tag must not appear unescaped", html.contains("<script>"))
         assertTrue(html.contains("&lt;script&gt;"))
@@ -89,7 +87,7 @@ class ReportHtmlTest {
                 ),
             ),
         )
-        val html = buildReportHtml(template(listOf(section)), ReportData.EMPTY, META)
+        val html = buildReportHtml(template(listOf(section)), ReportData.EMPTY)
 
         assertFalse(html.contains("Not answered"))
         // a blank choice prints every option unticked (paper-form style, same as web)
@@ -109,7 +107,7 @@ class ReportHtmlTest {
                 ),
             ),
         )
-        val html = buildReportHtml(template(listOf(section)), ReportData.EMPTY, META)
+        val html = buildReportHtml(template(listOf(section)), ReportData.EMPTY)
 
         assertFalse(html.contains("Not answered"))
         // 4 tick cells, all unchecked (no per-answer style attribute -- only a chosen tick gets one).
@@ -132,7 +130,7 @@ class ReportHtmlTest {
         )
         val data = ReportData.EMPTY.withCheck("arrival_1", answer = "no", remarks = "Shut early")
 
-        val html = buildReportHtml(template(listOf(section)), data, META)
+        val html = buildReportHtml(template(listOf(section)), data)
 
         val row = html.substringAfter("<td class=\"question\">Centre open on time</td>").substringBefore("</tr>")
         assertEquals(1, Regex(TICK_CHECKED_PATTERN).findAll(row).count())
@@ -158,7 +156,7 @@ class ReportHtmlTest {
             .withCheckCourse("arrival_1", "c1", "yes")
             .withCheckCourse("arrival_1", "c2", "no")
 
-        val html = buildReportHtml(template(listOf(section)), data, META)
+        val html = buildReportHtml(template(listOf(section)), data)
 
         assertFalse(html.contains("per-course-tag\">Per course"))
         assertTrue(html.contains("class=\"per-course-line\">Welding 07: Yes &middot; Electrical 03: No</div>"))
@@ -175,7 +173,7 @@ class ReportHtmlTest {
             .withCardAdded("persons").withCardField("persons", 0, "name", "Karim")
             .withCardAdded("persons").withCardField("persons", 1, "name", "Rahim")
 
-        val html = buildReportHtml(template(listOf(section)), data, META)
+        val html = buildReportHtml(template(listOf(section)), data)
 
         assertEquals(1, Regex("<table class=\"cards-table\"").findAll(html).count())
         assertTrue(html.contains("Karim"))
@@ -192,7 +190,7 @@ class ReportHtmlTest {
         val section = ReportSection(letter = "L", key = "flags", short = "Flags", title = "Critical non-compliance flags", blocks = listOf(flagsBlock, customBlock))
         val data = ReportData.EMPTY.withFlag("flag_1", true).withCardAdded("other_flags").withCardField("other_flags", 0, "flag", "Loose wiring")
 
-        val html = buildReportHtml(template(listOf(section)), data, META)
+        val html = buildReportHtml(template(listOf(section)), data)
 
         // both fixed items print (ticked flag_1 bold/checked, untouched flag_2 not) plus the custom flag row.
         assertTrue(html.contains("flag-text checked\">Centre closed"))
@@ -207,7 +205,7 @@ class ReportHtmlTest {
             letter = "L", key = "flags", short = "Flags", title = "Critical non-compliance flags",
             blocks = listOf(ReportBlock.Flags(items = emptyList())),
         )
-        val html = buildReportHtml(template(listOf(section)), ReportData.EMPTY, META)
+        val html = buildReportHtml(template(listOf(section)), ReportData.EMPTY)
 
         assertTrue(html.contains("None ticked."))
     }
@@ -234,7 +232,7 @@ class ReportHtmlTest {
         val synced = normalize(tmpl, withCourse)
         val data = synced.withCardField("interviews", 0, "q1", "yes")
 
-        val html = buildReportHtml(tmpl, data, META)
+        val html = buildReportHtml(tmpl, data)
 
         assertTrue(html.contains("<h3>Welding (SMAW) &middot; Batch 07</h3>"))
         assertTrue(html.contains("interview-ticks"))
@@ -252,7 +250,7 @@ class ReportHtmlTest {
         )
         val section = ReportSection(letter = "I", key = "interview", short = "Trainees", title = "Trainee interviews", blocks = listOf(block))
 
-        val html = buildReportHtml(template(listOf(section)), ReportData.EMPTY, META)
+        val html = buildReportHtml(template(listOf(section)), ReportData.EMPTY)
 
         assertTrue(html.contains("Add courses in section A."))
     }
@@ -265,26 +263,100 @@ class ReportHtmlTest {
             blocks = listOf(ReportBlock.Fields(listOf(dateField))),
         )
 
-        val untouched = buildReportHtml(template(listOf(section)), ReportData.EMPTY, META)
-        val filled = buildReportHtml(template(listOf(section)), ReportData.EMPTY.withField("last_visit_date", "2026-08-01"), META)
+        val untouched = buildReportHtml(template(listOf(section)), ReportData.EMPTY)
+        val filled = buildReportHtml(template(listOf(section)), ReportData.EMPTY.withField("last_visit_date", "2026-08-01"))
 
         assertFalse(untouched.contains("Previous visit follow-up"))
         assertTrue(filled.contains("<span class=\"optional-tag\">Optional</span>"))
     }
 
     @Test
-    fun `submitted meta shows the submitted timestamp, draft meta does not`() {
+    fun `header is program, title and rule only, footer is title and page count`() {
         val section = ReportSection(letter = "A", key = "visit", short = "Visit", title = "Visit details", blocks = emptyList())
-        val draftHtml = buildReportHtml(template(listOf(section)), ReportData.EMPTY, META)
-        val submittedHtml = buildReportHtml(
-            template(listOf(section)),
-            ReportData.EMPTY,
-            ReportMeta(officerName = "Jane Doe", status = "submitted", submittedAt = "2026-09-24T10:00:00Z"),
-        )
+        val html = buildReportHtml(template(listOf(section)), ReportData.EMPTY)
 
-        assertTrue(draftHtml.contains("Officer: Jane Doe &middot; Draft"))
-        assertFalse(draftHtml.contains("submitted 2026"))
-        assertTrue(submittedHtml.contains("Officer: Jane Doe &middot; Submitted"))
-        assertTrue(submittedHtml.contains("submitted 2026-09-24T10:00:00Z"))
+        assertTrue(html.contains("<header><div class=\"program\">SICIP</div><h1>Surprise Visit Report</h1></header>"))
+        assertFalse(html.contains("Unannounced visit"))
+        assertFalse(html.contains("Officer:"))
+        assertTrue(html.contains("margin: 25.4mm 19.05mm;"))
+        assertTrue(html.contains("content: \"Surprise Visit Report · Page \" counter(page) \" of \" counter(pages)"))
+        assertTrue(html.contains("font-family: Arial"))
+    }
+
+    @Test
+    fun `footer title drops the colon tail`() {
+        val section = ReportSection(letter = "A", key = "visit", short = "Visit", title = "Visit details", blocks = emptyList())
+        val named = template(listOf(section)).copy(title = "Surprise Visit Report: Quality Assurance")
+        assertEquals("Surprise Visit Report", footerTitle(named))
+    }
+
+    @Test
+    fun `times print as h-mm AM or PM`() {
+        assertEquals("10:43 AM", displayTime("10:43:00"))
+        assertEquals("12:05 PM", displayTime("12:05"))
+        assertEquals("12:00 AM", displayTime("00:00:00"))
+        assertEquals("1:29 PM", displayTime("13:29"))
+    }
+
+    @Test
+    fun `numbers and short choices are centred, long text left`() {
+        val block = ReportBlock.Cards(
+            key = "equipment", itemLabel = "Item", start = 0, titleField = "name",
+            fields = listOf(
+                Field(key = "name", label = "Equipment", kind = "text"),
+                choiceField("status", "Status", ANSWERS),
+                Field(key = "quantity", label = "Qty", kind = "number"),
+            ),
+        )
+        val section = ReportSection(letter = "G", key = "delivery", short = "Delivery", title = "Delivery", blocks = listOf(block))
+        val data = ReportData.EMPTY.withCardAdded("equipment").withCardField("equipment", 0, "name", "Grinder")
+            .withCardField("equipment", 0, "status", "yes").withCardField("equipment", 0, "quantity", "2")
+
+        val html = buildReportHtml(template(listOf(section)), data)
+
+        assertTrue(html.contains("<td>Grinder</td>"))
+        assertTrue(html.contains("<td class=\"c\"><span class=\"ans\""))
+        assertTrue(html.contains("<td class=\"c\">2</td>"))
+    }
+
+    @Test
+    fun `interview question nobody answered is not printed`() {
+        val block = ReportBlock.Cards(
+            key = "interviews", itemLabel = "Course", start = 0, titleField = "course", display = "tabs",
+            linkFrom = CardsLink(cards = "courses", fields = listOf("course", "batch")),
+            fields = listOf(
+                Field(key = "course", label = "Course", kind = "text"),
+                Field(key = "batch", label = "Batch no.", kind = "text"),
+                choiceField("q1", "Classes run on schedule", ANSWERS),
+                Field(key = "q1_note", label = "Remarks", kind = "longtext", noteFor = "q1"),
+                choiceField("q2", "Stipend paid on time", ANSWERS),
+                Field(key = "q2_note", label = "Remarks", kind = "longtext", noteFor = "q2"),
+                Field(key = "feedback", label = "Other feedback", kind = "longtext"),
+            ),
+        )
+        val section = ReportSection(letter = "K", key = "interview", short = "Trainees", title = "Trainee interviews", blocks = listOf(block))
+        val tmpl = template(listOf(section))
+        val withCourses = ReportData.EMPTY
+            .withCardAdded("courses").withCardField("courses", 0, "course", "Welding").withCardField("courses", 0, "batch", "7")
+            .withCardAdded("courses").withCardField("courses", 1, "course", "Electrical").withCardField("courses", 1, "batch", "3")
+        val data = normalize(tmpl, withCourses).withCardField("interviews", 1, "q1", "no")
+
+        listOf(buildReportHtml(tmpl, data), buildNarrativeReportHtml(tmpl, data)).forEach { html ->
+            assertTrue(html.contains("Classes run on schedule"))
+            assertFalse(html.contains("Stipend paid on time"))
+            assertFalse(html.contains("Other feedback"))
+        }
+    }
+
+    @Test
+    fun `remarks bullets print with no Remarks label`() {
+        val remarks = ReportBlock.Remarks(key = "k_remarks", heading = "Remarks", manual = true)
+        val section = ReportSection(letter = "K", key = "interview", short = "Trainees", title = "Trainee interviews", blocks = listOf(remarks))
+        val data = ReportData.EMPTY.withRemarks("k_remarks", "", "Point one")
+
+        val html = buildReportHtml(template(listOf(section)), data)
+
+        assertTrue(html.contains("<h2><span class=\"letter\">K</span>Trainee interviews</h2><ul class=\"bul\"><li>Point one</li></ul>"))
+        assertFalse(html.contains(">Remarks<"))
     }
 }

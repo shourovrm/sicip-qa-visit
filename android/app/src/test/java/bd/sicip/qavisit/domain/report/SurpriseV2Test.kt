@@ -2,7 +2,6 @@
 // (sectionremarks.test.js) is also checked against; plus the v1 -> v2 converter and the two PDFs.
 package bd.sicip.qavisit.domain.report
 
-import bd.sicip.qavisit.pdf.ReportMeta
 import bd.sicip.qavisit.pdf.buildNarrativeReportHtml
 import bd.sicip.qavisit.pdf.buildReportHtml
 import kotlinx.serialization.json.Json
@@ -122,8 +121,7 @@ class SurpriseV2Test {
     @Test
     fun `both PDFs print remarks as bullets and findings numbered, no legend`() {
         val withFindings = data.withFindings(listOf(Finding("", "Low attendance in EIM 03"))).withField("recommendations", "The institute should fix it.")
-        val meta = ReportMeta("Officer", "draft")
-        listOf(buildReportHtml(v2, withFindings, meta), buildNarrativeReportHtml(v2, withFindings, meta)).forEach { html ->
+        listOf(buildReportHtml(v2, withFindings), buildNarrativeReportHtml(v2, withFindings)).forEach { html ->
             assertTrue(html.contains("<li class=\"neg\">The training calendar was not displayed"))
             assertTrue(html.contains("<ol class=\"findings\"><li>Low attendance in EIM 03</li></ol>"))
             assertTrue(html.contains("<li>The institute should fix it.</li>"))

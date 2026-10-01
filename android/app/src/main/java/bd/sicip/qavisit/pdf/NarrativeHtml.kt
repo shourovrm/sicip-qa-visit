@@ -21,7 +21,7 @@ private val NARRATIVE_CSS = """
   .kv { display: grid; grid-template-columns: 34mm 1fr 30mm 1fr; gap: 1pt 6pt; margin: 0 0 4pt; }
   .kv b::after { content: ':'; }
   td.l, th.l { text-align: left; }
-  td small { color: #444; font-size: 6.8pt; }
+  td small { display: block; text-align: left; color: #444; font-size: 8pt; }
 """.trimIndent()
 
 private fun JsonObject.value(key: String): String = this[key]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
@@ -50,7 +50,7 @@ private fun cardsTableHtml(block: ReportBlock.Cards, data: ReportData): String {
     if (columns.isEmpty()) return ""
     val head = columns.joinToString("") { "<th>${reportEsc(it.label)}</th>" }
     val rows = cards.joinToString("") { card ->
-        "<tr>${columns.joinToString("") { f -> "<td>${reportFieldValueHtml(f, card.value(f.key))}</td>" }}</tr>"
+        "<tr>${columns.joinToString("") { f -> "<td${cellClassAttr(f)}>${reportFieldValueHtml(f, card.value(f.key))}</td>" }}</tr>"
     }
     val heading = block.heading?.let { "<h3>${reportEsc(it)}</h3>" } ?: ""
     return "$heading<table class=\"cards-table\"><thead><tr>$head</tr></thead><tbody>$rows</tbody></table>"
@@ -62,7 +62,9 @@ private fun interviewTableHtml(block: ReportBlock.Cards, data: ReportData): Stri
     // a course nobody was interviewed in prints no blank column
     val cards = data.cards(block.key).filter { card -> block.fields.any { it.key !in linked && !isBlank(card.value(it.key)) } }
     if (cards.isEmpty()) return ""
-    val rows = block.fields.filter { it.key !in linked && it.noteFor == null }
+    // a question (and its note) prints only when at least one course answered it
+    val answered = answeredRowKeys(block, cards)
+    val rows = block.fields.filter { it.key in answered }
     val head = "<th class=\"l\">Question</th>" + cards.joinToString("") { card ->
         "<th>${reportEsc(courseBatchLabel(card.value("course"), card.value("batch")))}</th>"
     }
@@ -70,8 +72,8 @@ private fun interviewTableHtml(block: ReportBlock.Cards, data: ReportData): Stri
         val note = block.fields.find { it.noteFor == f.key }
         val cells = cards.joinToString("") { card ->
             val noteText = note?.let { card.value(it.key) }.orEmpty()
-            val small = if (noteText.isEmpty()) "" else "<br><small>${reportEsc(noteText)}</small>"
-            "<td>${reportFieldValueHtml(f, card.value(f.key))}$small</td>"
+            val small = if (noteText.isEmpty()) "" else "<small>${reportEsc(noteText)}</small>"
+            "<td${cellClassAttr(f)}>${reportFieldValueHtml(f, card.value(f.key))}$small</td>"
         }
         "<tr><td class=\"l\">${reportEsc(f.label)}</td>$cells</tr>"
     }
@@ -92,13 +94,13 @@ private fun sectionHtml(section: ReportSection, data: ReportData, template: Repo
     return "<h2><span class=\"letter\">${reportEsc(section.letter)}</span>${reportEsc(section.title)}</h2>$blocks"
 }
 
-fun buildNarrativeReportHtml(template: ReportTemplate, data: ReportData, meta: ReportMeta): String {
+fun buildNarrativeReportHtml(template: ReportTemplate, data: ReportData): String {
     val normalized = normalize(template, data)
     val sections = template.sections
         .filter { !it.optional || sectionHasContent(it, normalized) }
         .joinToString("") { sectionHtml(it, normalized, template) }
     return "<!doctype html><html><head><meta charset=\"utf-8\"><title>${reportEsc(template.title)}</title>" +
-        "<style>$reportCss\n$NARRATIVE_CSS\n$SIGNOFF_CSS</style></head><body>" +
-        reportHeaderHtml(template, meta) + sections + signoffHtml(normalized) +
+        "<style>${reportCss(template)}\n$NARRATIVE_CSS\n$SIGNOFF_CSS</style></head><body>" +
+        reportHeaderHtml(template) + sections + signoffHtml(normalized) +
         "</body></html>"
 }

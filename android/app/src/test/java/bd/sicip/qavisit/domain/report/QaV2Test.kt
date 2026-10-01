@@ -144,15 +144,15 @@ class QaV2Test {
         data = withEvidenceAdded(data, "s8_2", "Trainers list") { "e${++n}" }
         val html = buildQaReportHtml(v2, data)
         assertFalse(html.contains("Annex-3"))
-        assertTrue(html.contains("<td>BTEB</td><td>Yes</td><td>B-77</td><td>3</td><td>No</td>"))
-        assertTrue(html.contains("<td>Local chamber</td><td>10/01/2026</td>"))
-        assertTrue(html.contains("<td>ILO</td><td>Welding</td><td>Yes</td><td>Same as SICIP</td>"))
+        assertTrue(html.contains("<td>BTEB</td><td class=\"c\">Yes</td><td class=\"c\">B-77</td><td>3</td><td class=\"c\">No</td>"))
+        assertTrue(html.contains("<td>Local chamber</td><td class=\"c\">10/01/2026</td>"))
+        assertTrue(html.contains("<td>ILO</td><td>Welding</td><td class=\"c\">Yes</td><td class=\"c\">Same as SICIP</td>"))
         assertTrue(html.contains("<td>GIZ</td><td></td>"))
         assertTrue(html.contains("Classroom - 300 sft and workshop/lab - 800 sft"))
-        assertTrue(html.contains("<td>Grinder</td><td>2</td>"))
+        assertTrue(html.contains("<td>Grinder</td><td class=\"c\">2</td>"))
         assertTrue(html.contains("Available CBLM and lesson plan indicate they cover every unit of competency."))
         assertEquals(2, html.split("Trainers list (Attachment 1)").size - 1)
-        assertTrue(html.contains("<td>Attachment 1</td><td>Trainers list</td><td>7.1a, 8.2</td>"))
+        assertTrue(html.contains("<td class=\"c\">Attachment 1</td><td>Trainers list</td><td>7.1a, 8.2</td>"))
         assertTrue(html.contains("Competency standards / course outlines are available and used for EIM and PPF courses."))
     }
 

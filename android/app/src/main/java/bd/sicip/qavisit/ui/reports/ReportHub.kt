@@ -86,7 +86,6 @@ fun ReportHub(
     // the SAME editor instance, so there is only ever one in-memory copy of this report's data.
     val report by remember(reportId) { db.reportDao().byIdFlow(reportId).filterNotNull() }.collectAsState(initial = null)
     var visit by remember { mutableStateOf<Visit?>(null) }
-    var officerName by remember { mutableStateOf("") }
     var menuOpen by remember { mutableStateOf(false) }
     var pdfMenuOpen by remember { mutableStateOf(false) }
     var showConvertConfirm by remember { mutableStateOf(false) }
@@ -94,10 +93,9 @@ fun ReportHub(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var pdfBusy by remember { mutableStateOf(false) }
 
-    LaunchedEffect(report?.visitId, report?.officerId) {
+    LaunchedEffect(report?.visitId) {
         val r = report ?: return@LaunchedEffect
         visit = db.visitDao().byId(r.visitId)
-        officerName = db.officerDao().byId(r.officerId)?.name ?: ""
     }
 
     val current = report ?: return
@@ -156,7 +154,7 @@ fun ReportHub(
                     if (pdfBusy) return
                     pdfBusy = true
                     scope.launch {
-                        shareReportPdf(context, template, editor.report, officerName, narrative)
+                        shareReportPdf(context, template, editor.report, narrative)
                         pdfBusy = false
                     }
                 }

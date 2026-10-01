@@ -42,33 +42,29 @@ private fun ddmmyyyy(isoDate: String): String {
     return "${parts[2]}/${parts[1]}/${parts[0]}"
 }
 
-// print CSS -- A4 portrait, Times New Roman 11pt, black on white, thin borders (spec §7), page
-// numbers via @page counters, footer text fixed per spec ("SICIP Quality Assurance Visit Report").
-private val CSS = """
-  @page {
-    size: A4 portrait;
-    margin: 10mm 11mm 12mm;
-    @bottom-left { content: "SICIP Quality Assurance Visit Report"; font: 8pt "Times New Roman", Times, serif; color: #333; }
-    @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 8pt "Times New Roman", Times, serif; color: #333; }
-  }
+// print CSS -- Annex-3 table structure in the surprise reports' type scale (spec 2026-10-01 §5):
+// Arial, body 10 pt, tables 9 pt, section heading 11 pt, sub-heading 10 pt, title 15 pt.
+// page geometry and "<title> · Page X of Y" footer from ReportHtml.kt's pageCss.
+private val BODY_CSS = """
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: "Times New Roman", Times, serif; font-size: 11pt; line-height: 1.3; color: #000; background: #fff; }
+  body { margin: 0; font-family: $REPORT_FONT; font-size: 10pt; line-height: 1.3; color: #000; background: #fff; }
 
   .annex { text-align: right; font-weight: 700; }
-  .program { text-align: center; font-weight: 700; margin-top: 2pt; }
-  .title { text-align: center; font-weight: 700; font-size: 13pt; margin: 2pt 0 8pt; }
+  .program { text-align: center; font-size: 9pt; margin-top: 2pt; }
+  .title { text-align: center; font-weight: 700; font-size: 15pt; margin: 2pt 0 8pt; padding-bottom: 4pt; border-bottom: 1.6pt solid #000; }
 
   .kv { margin: 0 0 8pt; }
   .kv div { margin: 1pt 0; }
   .kv b { font-weight: 700; }
 
-  h2.sh { font-weight: 700; text-transform: uppercase; font-size: 11.5pt; margin: 10pt 0 2pt; }
+  h2.sh { font-weight: 700; text-transform: uppercase; font-size: 11pt; margin: 12pt 0 4pt; break-after: avoid; }
   p.intro { font-style: italic; margin: 0 0 4pt; }
-  h3 { font-weight: 700; font-size: 11pt; margin: 6pt 0 2pt; }
+  h3 { font-weight: 700; font-size: 10pt; margin: 6pt 0 3pt; break-after: avoid; }
 
   table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 6pt; }
-  th, td { border: 0.75pt solid #000; padding: 3pt 4pt; vertical-align: top; font-size: 10.5pt; }
-  th { font-weight: 700; text-align: center; }
+  th, td { border: 0.6pt solid #000; padding: 4pt 6pt; vertical-align: top; font-size: 9pt; text-align: left; }
+  th { font-weight: 700; text-align: center; background: #e6e6e6; }
+  tr { break-inside: avoid; }
   td.sl { text-align: center; }
   td.c { text-align: center; }
   td.heading-row { font-weight: 700; }
@@ -78,13 +74,15 @@ private val CSS = """
 
   .field-line { margin: 1pt 0; }
   .field-line b { font-weight: 700; }
-  .field-box { margin: 2pt 0 6pt; }
+  .field-box { margin: 3pt 0 6pt; }
   .field-box .lbl { font-weight: 700; }
-  .field-box .box { border: 0.75pt solid #000; min-height: 16pt; padding: 2pt 4pt; margin-top: 1pt; }
+  .field-box .box { border: 0.6pt solid #000; min-height: 22pt; padding: 4pt 6pt; margin-top: 2pt; }
 
-  ul.points { margin: 2pt 0; padding-left: 16pt; }
-
+  ul.points, ol.points { margin: 2pt 0; padding-left: 16pt; }
+  ol.points li { margin: 0 0 2pt; }
 """.trimIndent()
+
+private fun css(template: ReportTemplate): String = pageCss(footerTitle(template), REPORT_FONT) + "\n" + BODY_CSS
 
 // header block: top-right "Annex-3", centred bold program line, centred bold title, then the
 // fixed key/value lines exactly as Annex-3 prints them (spec §7).
@@ -120,7 +118,13 @@ private fun headerHtml(template: ReportTemplate, data: ReportData): String {
 private fun tableHtml(table: PrintTable?, heading: String? = table?.heading): String {
     if (table == null) return ""
     val head = table.headers.joinToString("") { "<th>${esc(it)}</th>" }
-    val body = table.rows.joinToString("") { row -> "<tr>${row.joinToString("") { "<td>${escMultiline(it)}</td>" }}</tr>" }
+    val body = table.rows.joinToString("") { row ->
+        val cells = row.mapIndexed { index, cell ->
+            val cellClass = if (index in table.centred) " class=\"c\"" else ""
+            "<td$cellClass>${escMultiline(cell)}</td>"
+        }
+        "<tr>${cells.joinToString("")}</tr>"
+    }
     return (heading?.let { "<h3>${esc(it)}</h3>" } ?: "") + "<table><thead><tr>$head</tr></thead><tbody>$body</tbody></table>"
 }
 
@@ -179,6 +183,11 @@ private fun fieldsBlockHtml(block: ReportBlock.Fields, data: ReportData, templat
 private fun fieldHtml(field: Field, value: (String) -> String): String {
     val raw = value(field.key)
     if (field.kind == "longtext") {
+        // findings (s14) / recommendations (s15): always a real numbered list
+        if (field.draftFrom != null && !blank(raw)) {
+            val points = raw.split("\n").map { it.trim() }.filter { it.isNotBlank() }
+            return "<div class=\"field-box\"><div class=\"lbl\">${esc(field.label)}</div><ol class=\"points\">${points.joinToString("") { "<li>${esc(it)}</li>" }}</ol></div>"
+        }
         if (blank(raw)) return "<div class=\"field-box\"><div class=\"lbl\">${esc(field.label)}</div><div class=\"box\"></div></div>"
         // "one point per line" fields (spec §2's findings/recommendations/dropout-reasons/steps)
         // print as a bulleted list when they have more than one non-blank line, a plain box
@@ -205,7 +214,7 @@ private fun cardsBlockHtml(block: ReportBlock.Cards, data: ReportData, template:
     if (cards.isEmpty()) return ""
     val headerCells = block.fields.joinToString("") { "<th>${esc(it.label)}</th>" }
     val rows = cards.joinToString("") { card ->
-        val cells = block.fields.joinToString("") { f -> "<td>${esc(card.stringOrNull(f.key))}</td>" }
+        val cells = block.fields.joinToString("") { f -> "<td${cellClassAttr(f)}>${esc(card.stringOrNull(f.key))}</td>" }
         "<tr>$cells</tr>"
     }
     return "<table><thead><tr>$headerCells</tr></thead><tbody>$rows</tbody></table>"
@@ -239,7 +248,7 @@ fun buildQaReportHtml(template: ReportTemplate, data: ReportData): String {
     val normalizedData = normalize(template, data)
     val sections = template.sections.joinToString("") { sectionHtml(it, normalizedData, template) }
     return "<!doctype html><html><head><meta charset=\"utf-8\"><title>${esc(template.title)}</title>" +
-        "<style>$CSS\n$SIGNOFF_CSS</style></head><body>" +
+        "<style>${css(template)}\n$SIGNOFF_CSS</style></head><body>" +
         headerHtml(template, normalizedData) + sections + tableHtml(evidenceIndexTable(template, normalizedData)) +
         signoffHtml(normalizedData) +
         "</body></html>"
