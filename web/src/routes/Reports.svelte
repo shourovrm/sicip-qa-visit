@@ -12,10 +12,11 @@
   import { openReportPrint } from '../lib/reporthtml.js'
   import { openNarrativePrint } from '../lib/narrativehtml.js'
   import { openQaReportPrint } from '../lib/qareporthtml.js'
+  import { lazyAction } from '../lib/lazyaction.js'
   // docx lib is heavy: load it only when someone asks for a word file
-  const downloadDocx = (...args) => import('../lib/reportdocx.js').then((m) => m.downloadReportDocx(...args))
-  const downloadNarrativeDocx = (...args) => import('../lib/narrativedocx.js').then((m) => m.downloadNarrativeDocx(...args))
-  const downloadQaDocx = (...args) => import('../lib/qareportdocx.js').then((m) => m.downloadQaReportDocx(...args))
+  const downloadDocx = lazyAction(() => import('../lib/reportdocx.js'), 'downloadReportDocx')
+  const downloadNarrativeDocx = lazyAction(() => import('../lib/narrativedocx.js'), 'downloadNarrativeDocx')
+  const downloadQaDocx = lazyAction(() => import('../lib/qareportdocx.js'), 'downloadQaReportDocx')
 
   // report-row `type` -> its template's own `short` label ("Surprise visit" / "QA visit") --
   // never hardcode the label here, the template is the one source (spec section 1).
