@@ -9,7 +9,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import java.time.LocalDate
-import java.util.Locale
 
 private const val ATTENDANCE = "attendance"
 private const val NOTE_PREFIX = "TMS avg"
@@ -40,7 +39,7 @@ private fun filledCard(card: JsonObject, batch: TmsRunningBatch, refresh: Boolea
     fill("enrolled_total", batch.enrolled.toString())
     fill("enrolled_female", batch.female.toString())
     val mean = batch.attendance7day
-    if (mean != null) fill("tms_avg7", String.format(Locale.US, "%.1f", mean))
+    if (mean != null) fill("tms_avg7", formatMean(Math.round(mean * 10) / 10.0))
     val from = batch.averageFrom
     val to = batch.averageTo
     if (from != null && to != null) {

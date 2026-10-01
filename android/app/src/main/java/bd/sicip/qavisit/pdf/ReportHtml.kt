@@ -297,7 +297,7 @@ internal fun answeredRowKeys(block: ReportBlock.Cards, cards: List<JsonObject>):
 // linked cards block with display:"tabs" (section I "interviews"): tabs are an editor-only
 // concept -- exports print one small table per course instead. Fields whose choice options are
 // exactly the template's answer ids (e.g. q1-q7) render as a checklist-style tick sub-table;
-// every other field (trainees_interviewed, tech_topic, tech_result, feedback) renders through
+// every other field (tech_topic, tech_result, feedback) renders through
 // the normal fields renderer. Linked fields (course/batch) are shown in the caption, not twice.
 private fun tabsCardsBlockHtml(block: ReportBlock.Cards, data: ReportData, template: ReportTemplate, answerMap: Map<String, AnswerOption>): String {
     val entries = data.cards(block.key)

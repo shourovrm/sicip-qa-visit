@@ -597,8 +597,8 @@ private fun InterviewTab(title: String, subtitle: String, selected: Boolean, don
 }
 
 // q1..q7 (a choice field whose options are exactly the template's own yes/no/partial/na answer
-// set) render like a checklist answer row; every other field on the card (trainees_interviewed,
-// tech_topic, tech_result, feedback) renders through the normal FieldEditor. course/batch are
+// set) render like a checklist answer row; every other field on the card (tech_topic,
+// tech_result, feedback) renders through the normal FieldEditor. course/batch are
 // skipped entirely -- already shown read-only as the tab's own label.
 private fun looksLikeAnswerChoice(field: Field, templateAnswers: List<AnswerOption>): Boolean =
     field.kind == "choice" && field.choiceOptions().map { it.id }.toSet() == templateAnswers.map { it.id }.toSet()

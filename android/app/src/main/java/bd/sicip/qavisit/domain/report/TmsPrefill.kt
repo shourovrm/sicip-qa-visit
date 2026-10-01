@@ -105,7 +105,8 @@ private fun batchCard(batch: TmsRunningBatch) = WantedCard(
     ),
 )
 
-private fun formatMean(mean: Double): String =
+// "18" for a whole number, else one decimal "18.4" (same as web tmsprefill.js)
+internal fun formatMean(mean: Double): String =
     if (mean == Math.floor(mean)) mean.toLong().toString() else mean.toString()
 
 private fun sameText(a: String, b: String) = a.trim().equals(b.trim(), ignoreCase = true)
