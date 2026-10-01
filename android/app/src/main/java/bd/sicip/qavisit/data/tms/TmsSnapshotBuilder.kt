@@ -118,9 +118,12 @@ suspend fun buildTmsSnapshot(
                 endDate = batch.end.toString(),
                 enrolled = counts["enroll_trainee"].lenientInt(),
                 female = counts["enroll_female_trainee"].lenientInt(),
-                attendanceToday = attendance.first,
-                attendance7day = attendance.second,
+                attendanceToday = attendance.today,
+                attendance7day = attendance.mean,
                 tmsCourse = courseRowsById[batch.courseId]?.get("course_name").lenientText(),
+                averageFrom = attendance.from?.toString(),
+                averageTo = attendance.to?.toString(),
+                averageClassDays = attendance.classDays,
             )
         }
     return TmsSnapshot(fetchedAt, courses, running)
@@ -149,20 +152,27 @@ private fun durationOf(batches: List<BatchRow>): String {
     return "${latest.days} days / ${latest.hours} h"
 }
 
-// (present on visit date, mean present over the last 7 class days up to the visit date).
-private suspend fun attendanceOf(batch: BatchRow, visitDate: LocalDate, presentOn: TmsPresentOn): Pair<Int?, Double?> {
+// present on the visit date + mean present over the last 7 class days up to the visit date,
+// with the first/last class day of that mean (for the "TMS avg 18–28 Sep" note)
+private class BatchAttendance(val today: Int?, val mean: Double?, val from: LocalDate?, val to: LocalDate?, val classDays: Int)
+
+private suspend fun attendanceOf(batch: BatchRow, visitDate: LocalDate, presentOn: TmsPresentOn): BatchAttendance {
     val classDayCounts = mutableListOf<Int>()
+    val classDays = mutableListOf<LocalDate>()
     var today: Int? = null
     var day = visitDate
     var walked = 0
     while (classDayCounts.size < CLASS_DAYS_FOR_MEAN && walked <= MAX_DAYS_LOOKBACK && !day.isBefore(batch.start ?: visitDate)) {
         val present = presentOn(batch.courseId, batch.id, day)
         if (day == visitDate) today = present
-        if (present != null) classDayCounts += present
+        if (present != null) {
+            classDayCounts += present
+            classDays += day
+        }
         day = day.minusDays(1)
         walked++
     }
-    if (classDayCounts.isEmpty()) return today to null
-    val mean = classDayCounts.average()
-    return today to Math.round(mean * 10) / 10.0
+    if (classDayCounts.isEmpty()) return BatchAttendance(today, null, null, null, 0)
+    val mean = Math.round(classDayCounts.average() * 10) / 10.0
+    return BatchAttendance(today, mean, classDays.min(), classDays.max(), classDays.size)
 }

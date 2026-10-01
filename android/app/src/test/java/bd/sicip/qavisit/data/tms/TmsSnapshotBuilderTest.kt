@@ -79,10 +79,20 @@ class TmsSnapshotBuilderTest {
     }
 
     @Test
+    fun `seven day mean keeps its first and last class day and the day count`() {
+        val batch = snapshot.runningBatches.single()
+        assertEquals("2026-05-05", batch.averageFrom)
+        assertEquals("2026-05-13", batch.averageTo)
+        assertEquals(7, batch.averageClassDays)
+    }
+
+    @Test
     fun `no attendance rows anywhere gives null`() = runBlocking {
         val result = buildTmsSnapshot(TmsFixture.input(), TMS_SAMPLE_VISIT_DATE, "t") { _, _, _ -> null }
         assertNull(result.runningBatches.single().attendanceToday)
         assertNull(result.runningBatches.single().attendance7day)
+        assertNull(result.runningBatches.single().averageFrom)
+        assertEquals(0, result.runningBatches.single().averageClassDays)
     }
 
     @Test

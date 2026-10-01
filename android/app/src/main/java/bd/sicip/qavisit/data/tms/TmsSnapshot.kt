@@ -35,6 +35,10 @@ data class TmsRunningBatch(
     val attendanceToday: Int? = null, // null = no attendance rows that day
     val attendance7day: Double? = null,
     val tmsCourse: String = "", // short TMS course_name, see TmsCourse.tmsName
+    // first/last class day behind attendance7day (yyyy-mm-dd) and how many class days it averages
+    val averageFrom: String? = null,
+    val averageTo: String? = null,
+    val averageClassDays: Int = 0,
 )
 
 @Serializable

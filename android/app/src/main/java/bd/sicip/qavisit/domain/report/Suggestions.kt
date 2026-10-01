@@ -51,7 +51,7 @@ private fun isCourse(batch: TmsBatchRef, course: String): Boolean {
 }
 
 // "07" and "7" are the same batch
-private fun sameBatchNumber(a: String, b: String): Boolean {
+internal fun sameBatchNumber(a: String, b: String): Boolean {
     val left = a.trim()
     val right = b.trim()
     val leftNumber = left.toIntOrNull()
