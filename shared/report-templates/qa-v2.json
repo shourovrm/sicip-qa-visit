@@ -543,25 +543,29 @@
        "key": "placed_t",
        "label": "Job Placed, T",
        "kind": "number",
-       "tmsFill": "coursePlaced"
+       "tmsFill": "coursePlaced",
+       "percentOf": "certified_t"
       },
       {
        "key": "placed_f",
        "label": "Job Placed, F",
        "kind": "number",
-       "tmsFill": "coursePlacedFemale"
+       "tmsFill": "coursePlacedFemale",
+       "percentOf": "certified_f"
       },
       {
        "key": "dropout_t",
        "label": "No. of dropouts, T",
        "kind": "number",
-       "tmsFill": "courseDropouts"
+       "tmsFill": "courseDropouts",
+       "percentOf": "enrolled_t"
       },
       {
        "key": "dropout_f",
        "label": "No. of dropouts, F",
        "kind": "number",
-       "tmsFill": "courseDropoutsFemale"
+       "tmsFill": "courseDropoutsFemale",
+       "percentOf": "enrolled_f"
       }
      ],
      "tmsRows": "courses"

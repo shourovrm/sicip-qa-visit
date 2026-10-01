@@ -17,6 +17,7 @@
   import { createEventDispatcher } from 'svelte'
   import FieldInput from './FieldInput.svelte'
   import { compareMismatch, formFields, isBlank, isShown } from '../../lib/reporttemplate.js'
+  import { percentOnly } from '../../lib/percent.js'
 
   export let block // {type:'cards', key, itemLabel, start, titleField, compare?, fields, linkFrom?, display?}
   export let cards = [] // data.cards[block.key]
@@ -150,6 +151,10 @@
                 courseOptions={field.kind === 'courseRef' ? optionsFor(field, card) : undefined}
             suggestions={field.suggest ? suggest(field, card) : []}
                 on:change={(e) => setField(index, field.key, e.detail)} />
+              <!-- QA 1.50: the printed percentage, read-only (worked out at print time) -->
+              {#if field.percentOf && percentOnly(card[field.key], card[field.percentOf])}
+                <p class="percent">{percentOnly(card[field.key], card[field.percentOf])} of {block.fields.find((f) => f.key === field.percentOf)?.label ?? field.percentOf}</p>
+              {/if}
             </div>
           {/each}
         </div>
@@ -171,6 +176,7 @@
 
 <style>
   .cards { margin-top: 8px; }
+  .percent { margin: -6px 0 8px; font-size: 12px; color: var(--muted); }
   .entry { margin-bottom: 12px; }
   .entry-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
   .entry-title { font-weight: 700; font-size: 13px; }

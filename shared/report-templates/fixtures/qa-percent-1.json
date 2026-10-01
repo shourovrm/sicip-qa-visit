@@ -1,0 +1,25 @@
+{
+ "_note": "QA 1.50 'with Percentage' print rule, shared by web lib/percent.js and android. A field with percentOf prints 'count (p%)', p = round(count / base * 100) half up to a whole percent. Base blank, 0, negative or not a number -> count only. Count blank -> '' (the table prints '-'). Count not a number -> as typed. Values are trimmed. Stored values stay plain counts.",
+ "cases": [
+  { "count": "12", "base": "25", "printed": "12 (48%)" },
+  { "count": "75", "base": "100", "printed": "75 (75%)" },
+  { "count": "50", "base": "75", "printed": "50 (67%)" },
+  { "count": "1", "base": "8", "printed": "1 (13%)" },
+  { "count": "1", "base": "200", "printed": "1 (1%)" },
+  { "count": "1", "base": "201", "printed": "1 (0%)" },
+  { "count": "0", "base": "25", "printed": "0 (0%)" },
+  { "count": "30", "base": "25", "printed": "30 (120%)" },
+  { "count": " 12 ", "base": " 25 ", "printed": "12 (48%)" },
+  { "count": "12", "base": "0", "printed": "12" },
+  { "count": "12", "base": "", "printed": "12" },
+  { "count": "12", "base": null, "printed": "12" },
+  { "count": "12", "base": "n/a", "printed": "12" },
+  { "count": "", "base": "25", "printed": "" },
+  { "count": null, "base": "25", "printed": "" },
+  { "count": "few", "base": "25", "printed": "few" }
+ ],
+ "card": {
+  "fields": { "enrolled_t": "25", "enrolled_f": "10", "certified_t": "20", "certified_f": "0", "placed_t": "12", "placed_f": "3", "dropout_t": "5", "dropout_f": "" },
+  "printed": { "placed_t": "12 (60%)", "placed_f": "3", "dropout_t": "5 (20%)", "dropout_f": "" }
+ }
+}

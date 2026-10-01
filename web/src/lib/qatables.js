@@ -9,6 +9,16 @@
 import { attachmentName, criteriaPath, evidenceLabel, itemEvidence, usedEvidence } from './evidence.js'
 import { visitingOfficers } from './signoff.js'
 import { tableColumnLayout } from './reportlayout.js'
+import { countWithPercent } from './percent.js'
+
+// qa-v1 has no `percentOf`; its 1.50 card uses the same keys
+const PERCENT_OF_V1 = { placed_t: 'certified_t', placed_f: 'certified_f', dropout_t: 'enrolled_t', dropout_f: 'enrolled_f' }
+
+// a 1.50 count as "n (p%)" of its template `percentOf` field (lib/percent.js)
+function withPercent(block, card, key) {
+  const base = block.fields.find((f) => f.key === key)?.percentOf ?? PERCENT_OF_V1[key]
+  return countWithPercent(card[key], card[base])
+}
 
 const defaultWeight = (header) => (header === 'S.N.' || header === 'No.' ? 7 : 20)
 
@@ -218,14 +228,6 @@ export function mouCoursesTable(block, data) {
   }
 }
 
-// "n (p%)": percentage rounded to a whole number; just "n" when the base is unusable
-function withPercentage(count, base) {
-  if (!text(count)) return ''
-  const numerator = Number(count)
-  const denominator = Number(base)
-  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) return text(count)
-  return `${text(count)} (${Math.round((numerator / denominator) * 100)}%)`
-}
 
 const CUMULATIVE_NOTE = 'T= Total and F = Female'
 
@@ -235,8 +237,7 @@ export function cumulativeTable(block, data) {
   const rows = filledCards(data, block.key).map((card) => [
     text(card.course), text(card.target),
     text(card.enrolled_t), text(card.enrolled_f), text(card.certified_t), text(card.certified_f),
-    withPercentage(card.placed_t, card.certified_t), withPercentage(card.placed_f, card.certified_f),
-    withPercentage(card.dropout_t, card.enrolled_t), withPercentage(card.dropout_f, card.enrolled_f),
+    ...['placed_t', 'placed_f', 'dropout_t', 'dropout_f'].map((key) => withPercent(block, card, key)),
   ])
   const tall = (label) => ({ text: label, rowSpan: 2 })
   const pair = (label) => ({ text: label, colSpan: 2 })
