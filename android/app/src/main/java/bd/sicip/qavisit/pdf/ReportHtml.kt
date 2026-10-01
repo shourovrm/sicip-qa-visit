@@ -92,6 +92,9 @@ private fun blank(v: String?): Boolean = v == null || v.trim().isEmpty()
 
 private fun escMultiline(s: String): String = esc(s).replace("\n", "<br>")
 
+// a table cell with nothing in it prints "-" (spec 2026-10-02 §14); tick cells keep their glyphs
+internal fun dashIfBlank(cellHtml: String): String = if (cellHtml.isBlank()) "-" else cellHtml
+
 private fun answerMapOf(template: ReportTemplate): Map<String, AnswerOption> = template.answers.associateBy { it.id }
 
 private fun JsonObject.stringOrNull(key: String): String? = this[key]?.jsonPrimitive?.contentOrNull
@@ -249,7 +252,7 @@ private fun checklistBlockHtml(block: ReportBlock.Checklist, data: ReportData, t
         // no "Per course" badge on paper: the course line under the item already says it
         val itemHtml = "${esc(item.text)}${perCourseLineHtml(item, data, courses, answerMap)}"
         val remarks = data.checkRemarks(item.id)
-        val remarksHtml = if (blank(remarks)) "" else escMultiline(remarks)
+        val remarksHtml = if (blank(remarks)) "-" else escMultiline(remarks)
         "<tr><td class=\"num\">${i + 1}</td><td class=\"question\">$itemHtml</td>$tickCells<td class=\"remarks\">$remarksHtml</td></tr>"
     }.joinToString("")
     return "$heading<table class=\"checklist\">${colgroupHtml(CHECKLIST_COLUMNS)}${tableHeadHtml(CHECKLIST_COLUMNS)}<tbody>$rows</tbody></table>"
@@ -265,7 +268,7 @@ private fun cardsBlockHtml(block: ReportBlock.Cards, data: ReportData): String {
     val mismatchedRows = mutableListOf<Int>()
     val rows = entries.mapIndexed { i, entry ->
         if (block.compare != null && cardCompareMismatch(block.compare, entry)) mismatchedRows.add(i + 1)
-        "<tr>${block.fields.joinToString("") { f -> "<td${cellClassAttr(f)}>${fieldValueHtml(f, entry.stringOrNull(f.key))}</td>" }}</tr>"
+        "<tr>${block.fields.joinToString("") { f -> "<td${cellClassAttr(f)}>${dashIfBlank(fieldValueHtml(f, entry.stringOrNull(f.key)))}</td>" }}</tr>"
     }.joinToString("")
     var warning = ""
     if (mismatchedRows.isNotEmpty() && block.compare != null && block.compare.print) {
@@ -315,7 +318,7 @@ private fun tabsCardsBlockHtml(block: ReportBlock.Cards, data: ReportData, templ
         val caption = "${esc(titleValue)}${if (extra.isNotBlank()) " &middot; Batch ${esc(extra)}" else ""}"
         val tickRows = tickFields.joinToString("") { f ->
             val value = entry.stringOrNull(f.key)
-            val noteCell = if (noteFields.isEmpty()) "" else "<td>${escMultiline(noteFields.find { it.noteFor == f.key }?.let { entry.stringOrNull(it.key) }.orEmpty())}</td>"
+            val noteCell = if (noteFields.isEmpty()) "" else "<td>${dashIfBlank(escMultiline(noteFields.find { it.noteFor == f.key }?.let { entry.stringOrNull(it.key) }.orEmpty()))}</td>"
             "<tr><td class=\"question\">${esc(f.label)}</td>${answerIds.joinToString("") { id -> tickCellHtml(value == id, answerMap[id]?.tone) }}$noteCell</tr>"
         }
         val tickTable = if (tickFields.isNotEmpty()) {
@@ -441,6 +444,7 @@ private val BODY_CSS = """
   th, td { border: 0.6pt solid #666; padding: 4pt 6pt; vertical-align: middle; font-size: 9pt; text-align: left; }
   th { background: #e6e6e6; font-weight: 700; text-align: center; line-height: 1.15; }
   td.c, td.num, td.tick-cell { text-align: center; }
+  thead { display: table-header-group; }
   tr { break-inside: avoid; }
 
   .checklist td.num { color: #333; }

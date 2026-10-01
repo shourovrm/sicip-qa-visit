@@ -15,9 +15,12 @@ private const val PER_TABLE = 4
 private const val MIN_COLUMNS = 2
 private const val MIN_PLAN_ROWS = 3
 
-private fun escCell(s: String?): String = (s ?: "")
+private fun escText(s: String?): String = (s ?: "")
     .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
     .replace("\n", "<br>")
+
+// table cells: blank prints "-"
+private fun escCell(s: String?): String = dashIfBlank(escText(s))
 
 private fun JsonObject?.value(key: String): String = this?.get(key)?.jsonPrimitive?.contentOrNull ?: ""
 
@@ -37,13 +40,13 @@ fun feedbackTablesHtml(block: ReportBlock.Cards, data: ReportData): String {
 
     val tables = (0 until respondentCount step PER_TABLE).joinToString("") { start ->
         val group = (start until minOf(start + PER_TABLE, respondentCount)).toList()
-        val header = "<tr><th>Question</th>" + group.joinToString("") { "<th>${escCell(names[it])}</th>" } + "</tr>"
+        val header = "<tr><th>Question</th>" + group.joinToString("") { "<th>${escText(names[it])}</th>" } + "</tr>"
         val rows = rowFields.joinToString("") { field ->
             val cells = group.joinToString("") { i -> "<td class=\"c\">${escCell(answerLabel(field, cards.getOrNull(i).value(field.key)))}</td>" }
             "<tr><td>${escCell(field.label)}</td>$cells</tr>"
         }
         // fixed layout: question column wide, respondents share the rest
-        "<table><colgroup><col style=\"width:40%\"></colgroup>$header$rows</table>"
+        "<table><colgroup><col style=\"width:40%\"></colgroup><thead>$header</thead><tbody>$rows</tbody></table>"
     }
 
     val comments = cards.flatMapIndexed { i, card ->
@@ -52,7 +55,7 @@ fun feedbackTablesHtml(block: ReportBlock.Cards, data: ReportData): String {
         }
     }
     val commentsHtml = if (comments.isEmpty()) "" else
-        "<h3>Comments</h3><ul class=\"points\">" + comments.joinToString("") { "<li>${escCell(it)}</li>" } + "</ul>"
+        "<h3>Comments</h3><ul class=\"points\">" + comments.joinToString("") { "<li>${escText(it)}</li>" } + "</ul>"
     return tables + commentsHtml
 }
 
@@ -70,7 +73,7 @@ fun strengthsWeaknessesHtml(block: ReportBlock.Fields, data: ReportData): String
 fun planTableHtml(block: ReportBlock.Cards, data: ReportData): String {
     val cards = data.cards(block.key)
     val rowCount = maxOf(cards.size, MIN_PLAN_ROWS)
-    val header = "<tr><th style=\"width:7%\">S.N.</th>" + block.fields.joinToString("") { "<th>${escCell(it.label)}</th>" } + "</tr>"
+    val header = "<tr><th style=\"width:7%\">S.N.</th>" + block.fields.joinToString("") { "<th>${escText(it.label)}</th>" } + "</tr>"
     val rows = (0 until rowCount).joinToString("") { i ->
         val card = cards.getOrNull(i)
         "<tr><td class=\"sl\">${i + 1}.</td>" + block.fields.joinToString("") { "<td>${escCell(card.value(it.key))}</td>" } + "</tr>"

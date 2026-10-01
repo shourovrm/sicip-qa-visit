@@ -97,7 +97,7 @@ class ReportHtmlTest {
     }
 
     @Test
-    fun `blank checklist item renders four unchecked ticks and an empty remarks cell, never Not answered`() {
+    fun `blank checklist item renders four unchecked ticks and a dash remarks cell, never Not answered`() {
         val section = ReportSection(
             letter = "B", key = "arrival", short = "Arrival", title = "Status on arrival",
             blocks = listOf(
@@ -114,7 +114,26 @@ class ReportHtmlTest {
         val row = html.substringAfter("<td class=\"question\">Centre open on time</td>").substringBefore("</tr>")
         assertEquals(4, Regex(TICK_UNCHECKED_PATTERN).findAll(row).count())
         assertFalse(row.contains("style=\"color:"))
-        assertTrue(html.contains("<td class=\"remarks\"></td>"))
+        assertTrue(html.contains("<td class=\"remarks\">-</td>"))
+    }
+
+    @Test
+    fun `table headers repeat on every page and blank card cells print a dash`() {
+        val section = ReportSection(
+            letter = "A", key = "visit", short = "Visit", title = "Visit details",
+            blocks = listOf(
+                ReportBlock.Cards(
+                    key = "courses", itemLabel = "Course", start = 1, titleField = "course",
+                    fields = listOf(Field(key = "course", label = "Course", kind = "text"), Field(key = "batch", label = "Batch", kind = "number")),
+                ),
+            ),
+        )
+        val data = ReportData.EMPTY.withCardAdded("courses").withCardField("courses", 0, "course", "Welding")
+
+        val html = buildReportHtml(template(listOf(section)), data)
+
+        assertTrue(html.contains("thead { display: table-header-group; }"))
+        assertTrue(html.contains("<td>Welding</td><td class=\"c\">-</td>"))
     }
 
     @Test

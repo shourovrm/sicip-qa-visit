@@ -64,6 +64,7 @@ private val BODY_CSS = """
   table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 6pt; }
   th, td { border: 0.6pt solid #000; padding: 4pt 6pt; vertical-align: top; font-size: 9pt; text-align: left; }
   th { font-weight: 700; text-align: center; background: #e6e6e6; }
+  thead { display: table-header-group; }
   tr { break-inside: avoid; }
   td.sl { text-align: center; }
   td.c { text-align: center; }
@@ -121,7 +122,7 @@ private fun tableHtml(table: PrintTable?, heading: String? = table?.heading): St
     val body = table.rows.joinToString("") { row ->
         val cells = row.mapIndexed { index, cell ->
             val cellClass = if (index in table.centred) " class=\"c\"" else ""
-            "<td$cellClass>${escMultiline(cell)}</td>"
+            "<td$cellClass>${dashIfBlank(escMultiline(cell))}</td>"
         }
         "<tr>${cells.joinToString("")}</tr>"
     }
@@ -137,7 +138,7 @@ private fun criteriaBlockHtml(block: ReportBlock.Criteria, data: ReportData, tem
             val evidence = if (template.evidenceRegister) evidenceLines(data, item.id).joinToString("\n") else item.evidence.orEmpty()
             val evidenceHtml = escMultiline(evidence)
             val remarksHtml = remarksListHtml(item, data)
-            "<tr><td class=\"sl\">${esc(item.no)}</td><td>${esc(item.text)}</td><td>$evidenceHtml</td><td>$remarksHtml</td></tr>"
+            "<tr><td class=\"sl\">${esc(item.no)}</td><td>${esc(item.text)}</td><td>${dashIfBlank(evidenceHtml)}</td><td>${dashIfBlank(remarksHtml)}</td></tr>"
         }
     }
     val intro = block.intro?.takeIf { it.isNotBlank() }?.let { "<p class=\"intro\">(${esc(it)})</p>" } ?: ""
@@ -214,7 +215,7 @@ private fun cardsBlockHtml(block: ReportBlock.Cards, data: ReportData, template:
     if (cards.isEmpty()) return ""
     val headerCells = block.fields.joinToString("") { "<th>${esc(it.label)}</th>" }
     val rows = cards.joinToString("") { card ->
-        val cells = block.fields.joinToString("") { f -> "<td${cellClassAttr(f)}>${esc(card.stringOrNull(f.key))}</td>" }
+        val cells = block.fields.joinToString("") { f -> "<td${cellClassAttr(f)}>${dashIfBlank(esc(card.stringOrNull(f.key)))}</td>" }
         "<tr>$cells</tr>"
     }
     return "<table><thead><tr>$headerCells</tr></thead><tbody>$rows</tbody></table>"

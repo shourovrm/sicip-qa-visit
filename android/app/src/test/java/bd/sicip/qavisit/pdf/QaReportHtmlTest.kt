@@ -111,7 +111,7 @@ class QaReportHtmlTest {
 
         assertFalse(html.contains("Secret Name"))
         assertTrue(html.contains("<th>Trainee 4</th></tr>"))
-        assertTrue(html.contains("<tr><th>Question</th><th>Trainee 5</th></tr>"))
+        assertTrue(html.contains("<thead><tr><th>Question</th><th>Trainee 5</th></tr></thead>"))
         assertTrue(html.contains("<td>Trainer explains well and answers questions</td><td class=\"c\">No</td>"))
         assertTrue(html.contains("<li>Trainee 5: Need more practice</li>"))
         // trainer block has no cards: still 2 blank respondent columns
@@ -125,9 +125,9 @@ class QaReportHtmlTest {
 
         val html = buildQaReportHtml(template, data)
 
-        assertTrue(html.contains("<td>Physical Resources</td><td></td><td>No PPE list</td>"))
+        assertTrue(html.contains("<td>Physical Resources</td><td>-</td><td>No PPE list</td>"))
         assertTrue(html.contains("<th>Improvement action</th>"))
-        assertTrue(html.contains("<td class=\"sl\">3.</td><td></td>"))
+        assertTrue(html.contains("<td class=\"sl\">3.</td><td>-</td>"))
     }
 
     @Test

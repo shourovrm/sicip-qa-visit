@@ -147,7 +147,7 @@ class QaV2Test {
         assertTrue(html.contains("<td>BTEB</td><td class=\"c\">Yes</td><td class=\"c\">B-77</td><td>3</td><td class=\"c\">No</td>"))
         assertTrue(html.contains("<td>Local chamber</td><td class=\"c\">10/01/2026</td>"))
         assertTrue(html.contains("<td>ILO</td><td>Welding</td><td class=\"c\">Yes</td><td class=\"c\">Same as SICIP</td>"))
-        assertTrue(html.contains("<td>GIZ</td><td></td>"))
+        assertTrue(html.contains("<td>GIZ</td><td>-</td>"))
         assertTrue(html.contains("Classroom - 300 sft and workshop/lab - 800 sft"))
         assertTrue(html.contains("<td>Grinder</td><td class=\"c\">2</td>"))
         assertTrue(html.contains("Available CBLM and lesson plan indicate they cover every unit of competency."))

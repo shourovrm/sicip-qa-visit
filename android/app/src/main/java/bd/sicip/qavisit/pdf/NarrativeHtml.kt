@@ -50,7 +50,7 @@ private fun cardsTableHtml(block: ReportBlock.Cards, data: ReportData): String {
     if (columns.isEmpty()) return ""
     val head = columns.joinToString("") { "<th>${reportEsc(it.label)}</th>" }
     val rows = cards.joinToString("") { card ->
-        "<tr>${columns.joinToString("") { f -> "<td${cellClassAttr(f)}>${reportFieldValueHtml(f, card.value(f.key))}</td>" }}</tr>"
+        "<tr>${columns.joinToString("") { f -> "<td${cellClassAttr(f)}>${dashIfBlank(reportFieldValueHtml(f, card.value(f.key)))}</td>" }}</tr>"
     }
     val heading = block.heading?.let { "<h3>${reportEsc(it)}</h3>" } ?: ""
     return "$heading<table class=\"cards-table\"><thead><tr>$head</tr></thead><tbody>$rows</tbody></table>"
@@ -73,7 +73,7 @@ private fun interviewTableHtml(block: ReportBlock.Cards, data: ReportData): Stri
         val cells = cards.joinToString("") { card ->
             val noteText = note?.let { card.value(it.key) }.orEmpty()
             val small = if (noteText.isEmpty()) "" else "<small>${reportEsc(noteText)}</small>"
-            "<td${cellClassAttr(f)}>${reportFieldValueHtml(f, card.value(f.key))}$small</td>"
+            "<td${cellClassAttr(f)}>${dashIfBlank(reportFieldValueHtml(f, card.value(f.key)) + small)}</td>"
         }
         "<tr><td class=\"l\">${reportEsc(f.label)}</td>$cells</tr>"
     }
