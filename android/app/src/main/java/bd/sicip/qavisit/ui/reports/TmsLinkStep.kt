@@ -21,7 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import bd.sicip.qavisit.data.tms.TmsAuthState
+import bd.sicip.qavisit.data.tms.isSignedIn
 import bd.sicip.qavisit.data.tms.TmsLink
 import bd.sicip.qavisit.data.tms.TmsServices
 import bd.sicip.qavisit.domain.report.ReportTemplate
@@ -55,7 +55,7 @@ private sealed interface StepState {
 fun SurpriseTmsLinkStep(editor: ReportEditor, template: ReportTemplate) {
     val auth = TmsServices.get(LocalContext.current).auth
     val authState by auth.state.collectAsState()
-    val signedIn = authState is TmsAuthState.LoggedIn || (authState as? TmsAuthState.Failed)?.credentialsStored == true
+    val signedIn = authState.isSignedIn
     val offered = remember(editor.report.id) { NewReportLinkStep.take(editor.report.id) }
     var state by remember(editor.report.id) { mutableStateOf<StepState>(StepState.Picking) }
     val scope = rememberCoroutineScope()

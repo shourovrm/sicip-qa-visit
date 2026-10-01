@@ -35,6 +35,12 @@ class ReportSuggestions(private val shared: SharedSuggestions?, private val tmsA
     var sources by mutableStateOf(SuggestionSources())
         private set
 
+    // for the hub's TMS status row: a catalog fetch is running / the last one failed
+    var loading by mutableStateOf(false)
+        private set
+    var loadFailed by mutableStateOf(false)
+        private set
+
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var catalogInstituteId: Long? = null
     private var equipmentLoaded = false
@@ -51,12 +57,24 @@ class ReportSuggestions(private val shared: SharedSuggestions?, private val tmsA
             sources = sources.copy(equipment = equipment)
         }
         if (link == null || tmsApi == null || catalogInstituteId == link.instituteId) return@withLock
-        quietly {
-            val catalog = fetchTmsCourseCatalog(tmsApi, link)
-            catalogInstituteId = link.instituteId
-            sources = sources.copy(catalog = catalog, traineesByBatch = emptyMap())
-            traineeBatchesRequested.clear()
+        loading = true
+        try {
+            loadFailed = !quietly {
+                val catalog = fetchTmsCourseCatalog(tmsApi, link)
+                catalogInstituteId = link.instituteId
+                sources = sources.copy(catalog = catalog, traineesByBatch = emptyMap())
+                traineeBatchesRequested.clear()
+            }
+        } finally {
+            loading = false
         }
+    }
+
+    // "Refresh": forget the cached catalog + trainee lists so the next load fetches them again
+    fun forgetTmsData() {
+        catalogInstituteId = null
+        sources = sources.copy(catalog = null, traineesByBatch = emptyMap())
+        traineeBatchesRequested.clear()
     }
 
     // a trainee field resolved to this batch: fetch its names once
@@ -89,13 +107,16 @@ class ReportSuggestions(private val shared: SharedSuggestions?, private val tmsA
         }
     }
 
-    private suspend fun quietly(block: suspend () -> Unit) {
+    // false when the block failed (suggestions are optional, so nothing is thrown)
+    private suspend fun quietly(block: suspend () -> Unit): Boolean {
         try {
             block()
+            return true
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             // suggestions are optional: any TMS failure just leaves the lists as they were
+            return false
         }
     }
 }

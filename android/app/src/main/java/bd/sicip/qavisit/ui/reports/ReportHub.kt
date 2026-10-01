@@ -109,7 +109,8 @@ fun ReportHub(
     val progress = remember(data) { computeProgress(template, data) }
     // suggestion lists: fetched on open (TMS only when linked + signed in), memory only
     val tmsLink = data.tmsLink()
-    LaunchedEffect(editor.suggestions, tmsLink?.instituteId) {
+    val tmsSignedIn = rememberTmsSignedIn() // signing in later must retry the fetch that failed while signed out
+    LaunchedEffect(editor.suggestions, tmsLink?.instituteId, tmsSignedIn) {
         if (template.hasSuggestFields() && !editor.readOnly) editor.suggestions.load(tmsLink)
     }
 
@@ -201,6 +202,9 @@ fun ReportHub(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+            if (template.hasSuggestFields()) {
+                item(key = "tms-status") { TmsStatusRow(editor, template) }
             }
             if (needsConversion(editor.report)) {
                 item(key = "convert") {

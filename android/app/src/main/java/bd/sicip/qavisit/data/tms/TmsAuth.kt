@@ -25,6 +25,11 @@ sealed interface TmsAuthState {
     data class Failed(val message: String, val credentialsStored: Boolean = false) : TmsAuthState
 }
 
+// signed in = a live token, or a stored login whose background re-login failed (the card and the
+// editors keep treating the officer as signed in then)
+val TmsAuthState.isSignedIn: Boolean
+    get() = this is TmsAuthState.LoggedIn || (this as? TmsAuthState.Failed)?.credentialsStored == true
+
 sealed interface TmsLoginResult {
     data object Success : TmsLoginResult
     data class Failure(val message: String) : TmsLoginResult
