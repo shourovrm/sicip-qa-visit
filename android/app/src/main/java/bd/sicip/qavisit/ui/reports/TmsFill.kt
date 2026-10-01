@@ -84,7 +84,7 @@ suspend fun fillFromTms(
         } else {
             val link = withLookedUpAddress(editor, services, editor.data.tmsLink() ?: return)
             val fetched = fetchTmsSnapshot(services.api, link, template.visitDate(editor.data), Instant.now().toString())
-            editor.editNow(editor.data.withTmsSnapshot(fetched))
+            editor.editNow(withAddressIfEmpty(editor.data.withTmsSnapshot(fetched), link.address))
             fetched
         }
         editor.editNow(prefill(snapshot, editor.data))
