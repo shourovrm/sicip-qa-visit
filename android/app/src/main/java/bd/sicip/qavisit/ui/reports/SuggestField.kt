@@ -8,6 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import bd.sicip.qavisit.domain.report.Field
 import bd.sicip.qavisit.domain.report.ReportBlock
+import bd.sicip.qavisit.domain.report.SUGGEST_EQUIPMENT
 import bd.sicip.qavisit.domain.report.SUGGEST_TMS_TRAINEE
 import bd.sicip.qavisit.domain.report.suggestionsFor
 import bd.sicip.qavisit.domain.report.tmsLink
@@ -37,7 +38,9 @@ fun SuggestCardField(
             if (batch != null) editor.suggestions.loadTrainees(editor.data.tmsLink(), batch)
         }
     }
-    val suggestions = (ownOptions + suggestionsFor(field, card, sources)).distinct()
+    val sourced = suggestionsFor(field, card, sources)
+    val suggestions = (ownOptions + sourced).distinct()
+    val sourceTag = if (field.suggest == SUGGEST_EQUIPMENT) "Shared" else "TMS"
     if (editor.readOnly || suggestions.isEmpty()) {
         plainEditor()
         return
@@ -57,6 +60,7 @@ fun SuggestCardField(
         },
         onTextChange = { typed -> editor.editDebounced(editor.data.withCardField(block.key, index, field.key, typed)) },
         searchable = true,
+        optionTag = { option -> if (option in sourced && option !in ownOptions) sourceTag else null },
         modifier = modifier,
     )
 }

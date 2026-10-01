@@ -17,6 +17,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -41,6 +42,8 @@ fun PickerDropdown(
     // options/selected stay the stored value (e.g. a category code); this only controls what's
     // shown for them (e.g. the category's full "code — span (pts)" explanation).
     displayLabel: (String) -> String = { it },
+    // small source tag at the end of an option row (e.g. "TMS"); null = no tag
+    optionTag: (String) -> String? = { null },
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -67,6 +70,7 @@ fun PickerDropdown(
             filtered.forEach { option ->
                 DropdownMenuItem(
                     text = { Text(displayLabel(option)) },
+                    trailingIcon = optionTag(option)?.let { tag -> { Text(tag, style = MaterialTheme.typography.labelSmall) } },
                     onClick = { onSelect(option); query = displayLabel(option); expanded = false },
                 )
             }
