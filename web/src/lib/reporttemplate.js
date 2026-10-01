@@ -43,6 +43,15 @@ export function isBlank(value) {
   return value == null || String(value).trim() === ''
 }
 
+// a cards block's fields in EDITOR order: `formOrder` keys first (L graduate asks course + batch
+// before the name so name suggestions can follow them), the rest in template order. Prints keep
+// block.fields order.
+export function formFields(block) {
+  const order = block.formOrder ?? []
+  const listed = order.map((key) => block.fields.find((f) => f.key === key)).filter(Boolean)
+  return [...listed, ...block.fields.filter((f) => !order.includes(f.key))]
+}
+
 // linked cards with something typed beyond the copied course/batch -- a course nobody was
 // interviewed in prints no blank column
 export function answeredCards(block, data) {

@@ -16,7 +16,7 @@
 <script>
   import { createEventDispatcher } from 'svelte'
   import FieldInput from './FieldInput.svelte'
-  import { compareMismatch, isBlank, isShown } from '../../lib/reporttemplate.js'
+  import { compareMismatch, formFields, isBlank, isShown } from '../../lib/reporttemplate.js'
 
   export let block // {type:'cards', key, itemLabel, start, titleField, compare?, fields, linkFrom?, display?}
   export let cards = [] // data.cards[block.key]
@@ -32,7 +32,7 @@
   $: linked = Boolean(block.linkFrom)
   $: tabs = block.display === 'tabs'
   $: linkFields = block.linkFrom?.fields ?? []
-  $: editableFields = linked ? block.fields.filter((f) => !linkFields.includes(f.key)) : block.fields
+  $: editableFields = formFields(block).filter((f) => !linked || !linkFields.includes(f.key))
 
   let activeTab = 0
   // a course card can disappear (removed in section A, then normalize drops it here) --

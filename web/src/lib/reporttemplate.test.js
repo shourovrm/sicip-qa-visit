@@ -161,3 +161,18 @@ describe('newCardSeed', () => {
     expect(newCardSeed({ newFrom: 'firstCourse' }, { cards: {} })).toEqual({})
   })
 })
+
+describe('formFields (cards formOrder)', () => {
+  it('editor order follows formOrder, unlisted fields keep template order at the end', async () => {
+    const { formFields } = await import('./reporttemplate.js')
+    const block = { fields: [{ key: 'name' }, { key: 'course' }, { key: 'batch' }, { key: 'phone' }, { key: 'extra' }], formOrder: ['course', 'batch', 'name', 'phone'] }
+    expect(formFields(block).map((f) => f.key)).toEqual(['course', 'batch', 'name', 'phone', 'extra'])
+    expect(formFields({ fields: block.fields }).map((f) => f.key)).toEqual(['name', 'course', 'batch', 'phone', 'extra'])
+  })
+  it('surprise L graduate: course and batch before the name in the editor, print order unchanged', async () => {
+    const { formFields } = await import('./reporttemplate.js')
+    const graduate = templateFor('surprise').sections.flatMap((s) => s.blocks).find((b) => b.key === 'graduate')
+    expect(formFields(graduate).map((f) => f.key)).toEqual(['course', 'batch', 'name', 'phone', 'call', 'confirmed', 'remarks'])
+    expect(graduate.fields[0].key).toBe('name')
+  })
+})
