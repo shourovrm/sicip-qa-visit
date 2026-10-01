@@ -4,12 +4,14 @@
 //   tmsCourse        -> full course names of the linked institute
 //   tmsBatch         -> batch numbers of the card's `course`, all batches, newest first
 //   tmsTrainee       -> trainees of the card's course + batch (D: "Course · N"; L: course + batch)
+//   tmsTrainer       -> the institute's trainers, the card's course trainers first (C)
 //   shared:equipment -> the shared equipment-name list
 package bd.sicip.qavisit.domain.report
 
 import bd.sicip.qavisit.data.tms.TmsBatchRef
 import bd.sicip.qavisit.data.tms.TmsCourseCatalog
 import bd.sicip.qavisit.data.tms.TmsTraineeHint
+import bd.sicip.qavisit.data.tms.TmsTrainerHint
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -21,6 +23,7 @@ const val SUGGEST_TMS_COURSE = "tmsCourse"
 const val SUGGEST_TMS_BATCH = "tmsBatch"
 const val SUGGEST_TMS_TRAINEE = "tmsTrainee"
 const val SUGGEST_EQUIPMENT = "shared:equipment"
+const val SUGGEST_TMS_TRAINER = "tmsTrainer"
 
 // courseRef value separator, as built by ui/reports/ReportBlocks.kt courseRefOptions
 private const val COURSE_BATCH_SEPARATOR = " · "
@@ -29,6 +32,7 @@ data class SuggestionSources(
     val catalog: TmsCourseCatalog? = null,
     val equipment: List<String> = emptyList(),
     val traineesByBatch: Map<Long, List<TmsTraineeHint>> = emptyMap(),
+    val trainers: List<TmsTrainerHint> = emptyList(),
 )
 
 private fun JsonObject.text(key: String): String = this[key]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
@@ -94,12 +98,28 @@ private fun traineesOf(card: JsonObject, sources: SuggestionSources): List<TmsTr
     return sources.traineesByBatch[batch.id].orEmpty()
 }
 
+// trainers mapped to the card's course (courseRef "Course · N" in `batch`) first, then the rest
+private fun trainersFor(card: JsonObject, sources: SuggestionSources): List<TmsTrainerHint> {
+    val courseId = sources.catalog?.let { traineeBatchOf(card, it) }?.courseId
+    val (ofCourse, others) = sources.trainers.partition { courseId != null && courseId in it.courseIds }
+    return ofCourse + others
+}
+
 fun suggestionsFor(field: Field, card: JsonObject, sources: SuggestionSources): List<String> = when (field.suggest) {
     SUGGEST_TMS_COURSE -> sources.catalog?.courseNames.orEmpty()
     SUGGEST_TMS_BATCH -> sources.catalog?.let { catalog -> batchesOfCourse(card.text("course"), catalog).map { it.number }.distinct() }.orEmpty()
     SUGGEST_TMS_TRAINEE -> traineesOf(card, sources).map { it.name }.distinct()
+    SUGGEST_TMS_TRAINER -> trainersFor(card, sources).map { it.name }.distinct()
     SUGGEST_EQUIPMENT -> sources.equipment
     else -> emptyList()
+}
+
+// after a trainer is picked: the TMS designation for the card's empty designation field, else null
+fun trainerDesignationFor(block: ReportBlock.Cards, card: JsonObject, pickedName: String, sources: SuggestionSources): String? {
+    val designationField = block.fields.firstOrNull { it.key == "designation" } ?: return null
+    if (card.text(designationField.key).isNotEmpty()) return null
+    val trainer = sources.trainers.firstOrNull { it.name == pickedName } ?: return null
+    return trainer.designation.ifEmpty { null }
 }
 
 // after a trainee is picked: the mobile to put in the card's empty phone field, else null

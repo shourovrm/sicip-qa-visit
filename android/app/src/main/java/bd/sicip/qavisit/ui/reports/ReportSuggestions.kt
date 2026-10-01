@@ -1,6 +1,6 @@
 // one report's suggestion data, in memory only (never written to the report or logged): the
-// linked TMS institute's courses/batches, trainee names per batch (fetched when a trainee field
-// needs them) and the shared equipment list. also shares new equipment names after a save.
+// linked TMS institute's courses/batches, its trainers, trainee names per batch (fetched when a
+// trainee field needs them) and the shared equipment list. also shares new equipment names after a save.
 // lives in ReportEditorRegistry per report id, so a fresher editor for the same report keeps it.
 package bd.sicip.qavisit.ui.reports
 
@@ -13,6 +13,7 @@ import bd.sicip.qavisit.data.tms.TmsBatchRef
 import bd.sicip.qavisit.data.tms.TmsLink
 import bd.sicip.qavisit.data.tms.fetchTmsCourseCatalog
 import bd.sicip.qavisit.data.tms.fetchTmsTrainees
+import bd.sicip.qavisit.data.tms.fetchTmsTrainers
 import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportTemplate
 import bd.sicip.qavisit.domain.report.SuggestionSources
@@ -65,6 +66,8 @@ class ReportSuggestions(private val shared: SharedSuggestions?, private val tmsA
                 sources = sources.copy(catalog = catalog, traineesByBatch = emptyMap())
                 traineeBatchesRequested.clear()
             }
+            // trainers are optional on top of the catalog: a failure leaves the list empty
+            if (!loadFailed) quietly { sources = sources.copy(trainers = fetchTmsTrainers(tmsApi, link)) }
         } finally {
             loading = false
         }
@@ -73,7 +76,7 @@ class ReportSuggestions(private val shared: SharedSuggestions?, private val tmsA
     // "Refresh": forget the cached catalog + trainee lists so the next load fetches them again
     fun forgetTmsData() {
         catalogInstituteId = null
-        sources = sources.copy(catalog = null, traineesByBatch = emptyMap())
+        sources = sources.copy(catalog = null, traineesByBatch = emptyMap(), trainers = emptyList())
         traineeBatchesRequested.clear()
     }
 

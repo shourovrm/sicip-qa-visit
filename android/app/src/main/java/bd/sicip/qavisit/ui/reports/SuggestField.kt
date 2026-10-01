@@ -1,5 +1,6 @@
 // a card field with a template `suggest` list (TMS courses/batches/trainees, shared equipment):
-// free text with a dropdown of matches. picking a trainee also fills the card's empty phone.
+// free text with a dropdown of matches. picking a trainee also fills the card's empty phone, a
+// trainer the card's empty designation.
 // no suggestions yet (not linked, signed out, offline) -> the plain field editor as before.
 package bd.sicip.qavisit.ui.reports
 
@@ -10,6 +11,8 @@ import bd.sicip.qavisit.domain.report.Field
 import bd.sicip.qavisit.domain.report.ReportBlock
 import bd.sicip.qavisit.domain.report.SUGGEST_EQUIPMENT
 import bd.sicip.qavisit.domain.report.SUGGEST_TMS_TRAINEE
+import bd.sicip.qavisit.domain.report.SUGGEST_TMS_TRAINER
+import bd.sicip.qavisit.domain.report.trainerDesignationFor
 import bd.sicip.qavisit.domain.report.suggestionsFor
 import bd.sicip.qavisit.domain.report.tmsLink
 import bd.sicip.qavisit.domain.report.traineeBatchOf
@@ -55,6 +58,11 @@ fun SuggestCardField(
             var next = editor.data.withCardField(block.key, index, field.key, picked)
             if (field.suggest == SUGGEST_TMS_TRAINEE) {
                 traineePhoneFor(block, card, picked, sources)?.let { phone -> next = next.withCardField(block.key, index, "phone", phone) }
+            }
+            if (field.suggest == SUGGEST_TMS_TRAINER) {
+                trainerDesignationFor(block, card, picked, sources)?.let { designation ->
+                    next = next.withCardField(block.key, index, "designation", designation)
+                }
             }
             editor.editNow(next)
         },

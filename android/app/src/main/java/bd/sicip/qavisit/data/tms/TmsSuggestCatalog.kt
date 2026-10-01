@@ -1,5 +1,6 @@
 // TMS data behind the report's suggestion dropdowns: the linked institute's courses (full names)
-// with ALL their batches, and one batch's trainees as name + mobile only. held in memory by the
+// with ALL their batches, one batch's trainees as name + mobile only, and the institute's trainers
+// as name + designation only. held in memory by the
 // editor, never stored in the report, never logged.
 package bd.sicip.qavisit.data.tms
 
@@ -20,6 +21,9 @@ data class TmsBatchRef(
 data class TmsCourseCatalog(val courseNames: List<String>, val batches: List<TmsBatchRef>)
 
 data class TmsTraineeHint(val name: String, val mobile: String)
+
+// an institute trainer: name, TMS designation ("" when TMS has none), courses mapped to them
+data class TmsTrainerHint(val name: String, val designation: String, val courseIds: Set<Long>)
 
 // course names = institute targets (longer of course_name and its alias); a batch whose course
 // is not a target still gets its own course_info name.
@@ -58,6 +62,27 @@ fun traineeHintsOf(rows: JsonArray): List<TmsTraineeHint> = rows.mapNotNull { ro
     val name = trainee["trainee_name"].lenientText()
     if (name.isEmpty()) null else TmsTraineeHint(name, trainee["mobile"].lenientText())
 }
+
+// entity/trainer/list rows -> name + designation + mapped course ids; every other trainer field
+// (phone, NID, addresses, certificates) is dropped here.
+fun trainerHintsOf(rows: JsonArray): List<TmsTrainerHint> = rows.mapNotNull { row ->
+    val trainer = row.objectOrEmpty()
+    val employee = trainer["employee_info"].objectOrEmpty()
+    val name = employee["name"].lenientText().trim()
+    if (name.isEmpty()) return@mapNotNull null
+    val mappings = trainer["map_entity_institute_course_trainer"] as? JsonArray ?: JsonArray(emptyList())
+    val courseIds = mappings.map { it.objectOrEmpty()["course_info_id"].lenientLong() }.filter { it != 0L }.toSet()
+    TmsTrainerHint(name, employee["designation"].lenientText().trim(), courseIds)
+}
+
+// the linked institute's active trainers (TMS SPA "trainer list" page uses the same call)
+suspend fun fetchTmsTrainers(api: TmsApi, link: TmsLink): List<TmsTrainerHint> =
+    trainerHintsOf(
+        api.getList(
+            "entity/trainer/list?tranche_id=${link.trancheId}&entity_info_id=${link.entityId}" +
+                "&institute_info_id=${link.instituteId}&active_status=1",
+        ),
+    )
 
 suspend fun fetchTmsCourseCatalog(api: TmsApi, link: TmsLink): TmsCourseCatalog {
     val targets = api.getList(
