@@ -391,14 +391,16 @@ private fun headerHtml(template: ReportTemplate): String =
 // footer title: the report's name without its ": Quality Assurance" tail ("Surprise Visit Report")
 internal fun footerTitle(template: ReportTemplate): String = template.title.substringBefore(':').trim()
 
-// @page rule shared by every report PDF: A4, 1 in top/bottom, 0.75 in sides, "<title> · Page X of Y"
+// @page rule shared by every report PDF: A4, 1 in top/bottom, 0.75 in sides; footer = title
+// bottom-left, "Page X of Y" bottom-right (same as the web print and Word)
 internal fun pageCss(footer: String, fontFamily: String): String {
     val quoted = footer.replace("\\", "").replace("\"", "")
     return """
   @page {
     size: A4 portrait;
     margin: 25.4mm 19.05mm;
-    @bottom-center { content: "$quoted · Page " counter(page) " of " counter(pages); font: 8pt $fontFamily; color: #333; }
+    @bottom-left { content: "$quoted"; font: 8pt $fontFamily; color: #333; }
+    @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 8pt $fontFamily; color: #333; }
   }""".trimIndent()
 }
 

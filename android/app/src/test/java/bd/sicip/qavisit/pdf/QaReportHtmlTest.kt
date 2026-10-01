@@ -141,7 +141,8 @@ class QaReportHtmlTest {
 
         assertTrue(html.contains("<ol class=\"points\"><li>First finding</li><li>Second finding</li></ol>"))
         assertTrue(html.contains("margin: 25.4mm 19.05mm;"))
-        assertTrue(html.contains("content: \"Quality Assurance Visit Report · Page \" counter(page)"))
+        assertTrue(html.contains("@bottom-left { content: \"Quality Assurance Visit Report\";"))
+        assertTrue(html.contains("@bottom-right { content: \"Page \" counter(page)"))
         assertTrue(html.contains("font-family: Arial"))
         assertFalse(html.contains("Times New Roman"))
         assertFalse(html.contains("SICIP Quality Assurance Visit Report"))

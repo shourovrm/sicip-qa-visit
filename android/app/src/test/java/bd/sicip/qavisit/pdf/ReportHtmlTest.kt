@@ -279,7 +279,8 @@ class ReportHtmlTest {
         assertFalse(html.contains("Unannounced visit"))
         assertFalse(html.contains("Officer:"))
         assertTrue(html.contains("margin: 25.4mm 19.05mm;"))
-        assertTrue(html.contains("content: \"Surprise Visit Report · Page \" counter(page) \" of \" counter(pages)"))
+        assertTrue(html.contains("@bottom-left { content: \"Surprise Visit Report\";"))
+        assertTrue(html.contains("@bottom-right { content: \"Page \" counter(page) \" of \" counter(pages);"))
         assertTrue(html.contains("font-family: Arial"))
     }
 
