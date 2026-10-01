@@ -117,6 +117,7 @@ suspend fun findOrCreateReport(
         dirty = true,
     )
     db.reportDao().upsert(report)
+    if (type == REPORT_TYPE_SURPRISE) NewReportLinkStep.markNew(report.id) // hub offers the TMS link once
     return report
 }
 

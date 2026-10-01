@@ -56,6 +56,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Visit
+import bd.sicip.qavisit.domain.report.tmsLink
+import bd.sicip.qavisit.domain.report.hasSuggestFields
 import bd.sicip.qavisit.domain.report.ReportBlock
 import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportSection
@@ -105,6 +107,14 @@ fun ReportHub(
     // Room row this Flow delivered (a debounced write from a section screen still in flight).
     val data = editor.data
     val progress = remember(data) { computeProgress(template, data) }
+    // suggestion lists: fetched on open (TMS only when linked + signed in), memory only
+    val tmsLink = data.tmsLink()
+    LaunchedEffect(editor.suggestions, tmsLink?.instituteId) {
+        if (template.hasSuggestFields() && !editor.readOnly) editor.suggestions.load(tmsLink)
+    }
+
+    // a surprise report just created: link TMS + add running batches (skippable)
+    SurpriseTmsLinkStep(editor, template)
 
     // insets already applied by AppShell's scaffold
     Scaffold(

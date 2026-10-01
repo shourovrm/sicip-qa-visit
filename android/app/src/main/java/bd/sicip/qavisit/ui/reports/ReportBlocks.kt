@@ -730,15 +730,26 @@ private fun CardEntryView(
                 }
             }
             @Composable
-            fun PlainCardField(field: Field, modifier: Modifier = Modifier) = FieldEditor(
-                field = field,
-                value = data.cardField(block.key, index, field.key),
-                readOnly = readOnly,
-                onImmediate = { v -> editor.editNow(data.withCardField(block.key, index, field.key, v)) },
-                onDebounced = { v -> editor.editDebounced(data.withCardField(block.key, index, field.key, v)) },
-                modifier = modifier,
-                courseOptions = if (field.kind == "courseRef") courseRefOptions(data, field, entry) else emptyList(),
-            )
+            fun PlainCardField(field: Field, modifier: Modifier = Modifier) {
+                val courseOptions = if (field.kind == "courseRef") courseRefOptions(data, field, entry) else emptyList()
+                val plainEditor = @Composable {
+                    FieldEditor(
+                        field = field,
+                        value = data.cardField(block.key, index, field.key),
+                        readOnly = readOnly,
+                        onImmediate = { v -> editor.editNow(data.withCardField(block.key, index, field.key, v)) },
+                        onDebounced = { v -> editor.editDebounced(data.withCardField(block.key, index, field.key, v)) },
+                        modifier = modifier,
+                        courseOptions = courseOptions,
+                    )
+                }
+                // template `suggest`: TMS / shared lists as a dropdown, still free text
+                if (field.suggest == null) {
+                    plainEditor()
+                } else {
+                    SuggestCardField(field, block, index, entry, editor, courseOptions, plainEditor, modifier)
+                }
+            }
             // qa-v2 TMS cards: "Use"/marker/present-count notes under each field
             @Composable
             fun CardField(field: Field, modifier: Modifier = Modifier) {

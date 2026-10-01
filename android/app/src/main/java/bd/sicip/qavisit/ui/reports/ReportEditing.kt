@@ -29,7 +29,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import bd.sicip.qavisit.data.auth.SessionStore
 import bd.sicip.qavisit.data.db.AppDb
+import bd.sicip.qavisit.data.remote.SupabaseClient
+import bd.sicip.qavisit.data.suggest.SharedSuggestions
+import bd.sicip.qavisit.data.tms.TmsServices
 import bd.sicip.qavisit.data.db.Report
 import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportTemplate
@@ -48,7 +53,13 @@ import java.time.Instant
 
 private const val TEXT_DEBOUNCE_MS = 400L
 
-class ReportEditor(initialReport: Report, private val db: AppDb, private val template: ReportTemplate) {
+class ReportEditor(
+    initialReport: Report,
+    private val db: AppDb,
+    private val template: ReportTemplate,
+    // suggestion lists (in memory) + sharing new equipment names after a save
+    val suggestions: ReportSuggestions = ReportSuggestions(shared = null, tmsApi = null),
+) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var saveJob: Job? = null
 
@@ -110,6 +121,7 @@ class ReportEditor(initialReport: Report, private val db: AppDb, private val tem
         // column update, not a row upsert: keeps base_data that sync may have moved meanwhile
         db.reportDao().updateData(updated.id, updated.data, updated.updatedAt)
         report = updated
+        suggestions.afterSave(template, data)
     }
 
     // no debounced write waiting or running -- safe to swap this editor for a fresher row
@@ -143,18 +155,33 @@ class ReportEditor(initialReport: Report, private val db: AppDb, private val tem
 // templateFor resolves a report's own `type` ("surprise"/"qa") to its template -- there is no
 // single shared template anymore (ui/reports/ReportStart.kt's templateForType), so each editor
 // is built against whichever one its own report row actually needs.
-class ReportEditorRegistry(private val db: AppDb, private val templateFor: (Report) -> ReportTemplate) {
+class ReportEditorRegistry(
+    private val db: AppDb,
+    private val templateFor: (Report) -> ReportTemplate,
+    private val newSuggestions: () -> ReportSuggestions = { ReportSuggestions(shared = null, tmsApi = null) },
+) {
     private val editors = mutableMapOf<String, ReportEditor>()
+    private val suggestionsByReport = mutableMapOf<String, ReportSuggestions>()
 
     // reuse the open editor (one in-memory copy per report), but take the room row instead
     // when sync pulled a different version (web edit, submit elsewhere) and nothing is pending.
     fun forReport(report: Report): ReportEditor {
         val existing = editors[report.id]
         if (existing != null && (!existing.isIdle || existing.report.updatedAt == report.updatedAt)) return existing
-        return ReportEditor(report, db, templateFor(report)).also { editors[report.id] = it }
+        val template = templateFor(report)
+        val suggestions = suggestionsByReport.getOrPut(report.id) {
+            newSuggestions().also { it.rememberAlreadyShared(template, ReportData.parse(report.data)) }
+        }
+        return ReportEditor(report, db, template, suggestions).also { editors[report.id] = it }
     }
 }
 
 @Composable
-fun rememberReportEditorRegistry(db: AppDb, templateFor: (Report) -> ReportTemplate): ReportEditorRegistry =
-    remember(db) { ReportEditorRegistry(db, templateFor) }
+fun rememberReportEditorRegistry(db: AppDb, templateFor: (Report) -> ReportTemplate): ReportEditorRegistry {
+    val context = LocalContext.current.applicationContext
+    return remember(db) {
+        val shared = SharedSuggestions(SupabaseClient(), SessionStore(context))
+        val tmsApi = TmsServices.get(context).api
+        ReportEditorRegistry(db, templateFor) { ReportSuggestions(shared, tmsApi) }
+    }
+}
