@@ -11,8 +11,7 @@
 <script>
   import { createEventDispatcher, onMount } from 'svelte'
   import { computeProgress, percentDone, normalize, needsConversion, templateFor, TEMPLATES } from '../../lib/reporttemplate.js'
-  import { getReport, updateReport, updateReportIfUnchanged, submitReport, retractReport, canRetract, RETRACT_DAYS, softDeleteReport } from '../../lib/db.js'
-  import { isAdmin } from '../../lib/auth.js'
+  import { getReport, updateReport, updateReportIfUnchanged, submitReport, retractReport, softDeleteReport } from '../../lib/db.js'
   import { mergeReportData } from '../../lib/reportmerge.js'
   import { convertSurpriseV1ToV2, revertSurpriseV2ToV1 } from '../../lib/reportconvert.js'
   import { convertQaV1ToV2 } from '../../lib/qaconvert.js'
@@ -150,8 +149,8 @@
     e.returnValue = ''
   }
 
-  // admin: reopen any time; owner: only inside the retract window
-  $: canReopen = report.status === 'submitted' && ($isAdmin || canRetract(report))
+  // owner or admin can take a submitted report back to draft at any time
+  $: canReopen = report.status === 'submitted'
 
   async function reopen() {
     if (!confirm('Move this report back to draft so it can be edited? It must be submitted again afterwards.')) return
@@ -164,7 +163,7 @@
   }
 
   async function submit() {
-    if (!confirm(`Submit this report? Please check it first. You can take it back to draft within ${RETRACT_DAYS} days; after that it is locked and only the admin can reopen it.`)) return
+    if (!confirm(`Submit this report? Please check it first. You can take it back to draft at any time to edit it.`)) return
     await flush()
     if (saveState === 'offline') {
       alert('Could not save the latest answers. Check the connection and try Submit again.')

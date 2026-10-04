@@ -56,12 +56,10 @@ import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Visit
 import bd.sicip.qavisit.data.sync.SyncNow
-import bd.sicip.qavisit.domain.report.RETRACT_DAYS
 import bd.sicip.qavisit.domain.report.ReportBlock
 import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportSection
 import bd.sicip.qavisit.domain.report.ReportTemplate
-import bd.sicip.qavisit.domain.report.canRetract
 import bd.sicip.qavisit.domain.report.collectRewritableLocations
 import bd.sicip.qavisit.domain.report.computeProgress
 import bd.sicip.qavisit.domain.report.currentText
@@ -70,7 +68,6 @@ import bd.sicip.qavisit.ui.theme.LocalToneColors
 import bd.sicip.qavisit.ui.theme.forToneId
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
-import java.time.Instant
 
 // where an unanswered checklist item id came from -- lets a "Not answered" row jump straight to
 // its section instead of making the officer hunt for it.
@@ -175,7 +172,8 @@ fun ReportReview(
                         colors = actionButtonColors(),
                         modifier = Modifier.weight(1.4f).height(48.dp),
                     ) { Text("Submit") }
-                } else if (canRetract(editor.report.status, editor.report.submittedAt, Instant.now())) {
+                } else {
+                    // owner may take a submitted report back to draft at any time (no window)
                     OutlinedButton(
                         onClick = { showRetractConfirm = true },
                         modifier = Modifier.weight(1.4f).height(48.dp),
@@ -308,11 +306,9 @@ fun ReportReview(
             item {
                 Text(
                     if (editor.report.status != "submitted") {
-                        "After submitting, the report becomes read-only. You can take it back to draft within $RETRACT_DAYS days; after that only the admin can reopen it. The PDF can be shared at any time."
-                    } else if (canRetract(editor.report.status, editor.report.submittedAt, Instant.now())) {
-                        "This report is submitted. Within $RETRACT_DAYS days of submitting you can take it back to draft to edit it. The PDF can be shared at any time."
+                        "After submitting, the report becomes read-only. You can take it back to draft at any time to edit it. The PDF can be shared at any time."
                     } else {
-                        "This report is submitted and locked. Ask the admin to reopen it if it needs changes. The PDF can be shared at any time."
+                        "This report is submitted. You can take it back to draft at any time to edit it. The PDF can be shared at any time."
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -325,7 +321,7 @@ fun ReportReview(
         AlertDialog(
             onDismissRequest = { if (!submitting) showSubmitConfirm = false },
             title = { Text("Submit report?") },
-            text = { Text("Please check the report before submitting. You can take it back to draft within $RETRACT_DAYS days; after that it is locked and only the admin can reopen it.") },
+            text = { Text("Please check the report before submitting. You can take it back to draft at any time to edit it.") },
             confirmButton = {
                 Button(
                     onClick = {

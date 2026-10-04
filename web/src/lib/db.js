@@ -170,14 +170,7 @@ export async function submitReport(id) {
   return updateReport(id, { status: 'submitted', submitted_at: new Date().toISOString() })
 }
 
-// submitted -> draft: owner within RETRACT_DAYS of submitting, admin any time (Android: domain/report/Retract.kt)
-export const RETRACT_DAYS = 3
-
-export function canRetract(report, now = new Date()) {
-  if (report.status !== 'submitted' || !report.submitted_at) return false
-  return now.getTime() < new Date(report.submitted_at).getTime() + RETRACT_DAYS * 86400000
-}
-
+// submitted -> draft: owner or admin, any time (Android: ReportEditor.retract)
 export async function retractReport(id) {
   return updateReport(id, { status: 'draft', submitted_at: null })
 }

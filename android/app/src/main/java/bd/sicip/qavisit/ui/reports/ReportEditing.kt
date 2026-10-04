@@ -149,7 +149,7 @@ class ReportEditor(
         }
     }
 
-    // back to draft within the retract window (domain/report/Retract.kt); caller checks canRetract
+    // submitted -> back to draft; allowed at any time, caller checks status == submitted
     suspend fun retract() = writeLock.withLock {
         val now = Instant.now().toString()
         val updated = report.copy(status = "draft", submittedAt = null, updatedAt = now, dirty = true)
