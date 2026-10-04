@@ -74,7 +74,7 @@ android {
     // runtime as assets/surprise-v1.json (context.assets.open("surprise-v1.json")).
     sourceSets {
         getByName("main") {
-            assets.srcDirs("src/main/assets", "../../shared/report-templates", "../../shared/visit-kit")
+            assets.srcDirs("src/main/assets", "../../shared/report-templates", "../../shared/visit-kit", "../../shared/lab-standards")
         }
     }
 

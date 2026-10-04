@@ -185,6 +185,9 @@ data class Field(
     // free-text input with a suggestion list: tmsCourse | tmsBatch | tmsTrainee | shared:equipment
     // (ui/reports/Suggestions.kt). suggestions never restrict what can be typed.
     val suggest: String? = null,
+    // shared:equipment only: the card field holding the course whose lab-standard equipment is
+    // offered first (domain/report/LabEquipment.kt)
+    val suggestCourse: String? = null,
 ) {
     fun selectOptions(): List<String> =
         (options as? JsonArray)?.map { it.jsonPrimitive.content } ?: emptyList()

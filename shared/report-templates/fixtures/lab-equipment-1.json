@@ -1,0 +1,16 @@
+{
+  "note": "course matching against shared/lab-standards/lab-equipment.json. expect = standard course names matched; equipmentHas/equipmentLacks = names in standardEquipment().",
+  "cases": [
+    { "association": "BEIOA", "course": "Welding", "expect": ["Welding (1G, 2G & 3G)"], "equipmentHas": ["MIG welding machine"], "equipmentLacks": ["CNC Lathe Machine"] },
+    { "association": "beioa", "course": "Welding ", "expect": ["Welding (1G, 2G & 3G)"] },
+    { "association": "BEIOA", "course": "RAC", "expect": ["Refrigeration and Air Conditioning"] },
+    { "association": "BEIOA", "course": "Electrical Installation and Maintenance", "expect": ["Electrical Installation & Maintenance (Industry)"] },
+    { "association": "BACI", "course": "Tiles & Marble Works (TMW)", "expect": ["Tile and Marble Works"] },
+    { "association": "BACI", "course": "Masonry, Steel Binding &  Fabrication (MSBF)", "expect": ["Masonry and Steel Binding"] },
+    { "association": "BACI", "course": "Plumbing & Pipe Fitting (PPF)", "expect": ["Plumbing and Pipe Fitting"] },
+    { "association": "ISC-TH", "course": "", "expect": [] },
+    { "association": "BEIOA", "course": "Pottery", "expect": [], "equipmentHas": ["MIG welding machine", "CNC Lathe Machine"] },
+    { "association": "BEIOA", "course": "", "expect": [], "equipmentHas": ["MIG welding machine"] },
+    { "association": "Kumudini", "course": "Welding", "expect": [], "equipmentCount": 0 }
+  ]
+}

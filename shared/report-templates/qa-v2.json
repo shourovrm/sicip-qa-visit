@@ -2292,7 +2292,9 @@
       {
        "key": "equipment",
        "label": "Equipment name",
-       "kind": "text"
+       "kind": "text",
+       "suggest": "shared:equipment",
+       "suggestCourse": "course"
       },
       {
        "key": "count",

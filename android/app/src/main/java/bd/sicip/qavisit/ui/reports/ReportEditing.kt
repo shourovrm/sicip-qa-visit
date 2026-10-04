@@ -36,6 +36,8 @@ import bd.sicip.qavisit.data.remote.SupabaseClient
 import bd.sicip.qavisit.data.suggest.SharedSuggestions
 import bd.sicip.qavisit.data.tms.TmsServices
 import bd.sicip.qavisit.data.db.Report
+import bd.sicip.qavisit.domain.report.loadLabCourses
+import bd.sicip.qavisit.domain.report.prefilledValue
 import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportTemplate
 import bd.sicip.qavisit.domain.report.TmsHints
@@ -67,6 +69,9 @@ class ReportEditor(
         private set
     var data by mutableStateOf(normalize(template, ReportData.parse(initialReport.data)))
         private set
+
+    // the visit's association as the report holds it (picks the lab-standard equipment lists)
+    val association: String get() = template.prefilledValue(data, "association")
 
     // TMS: fetch progress/failure shared by every screen of this report, and the "Use" / "TMS"
     // hints derived from the cached snapshot (recomputed from data, so they survive reopening).
@@ -188,6 +193,8 @@ fun rememberReportEditorRegistry(db: AppDb, templateFor: (Report) -> ReportTempl
     return remember(db) {
         val shared = SharedSuggestions(SupabaseClient(), SessionStore(context))
         val tmsApi = TmsServices.get(context).api
-        ReportEditorRegistry(db, templateFor) { ReportSuggestions(shared, tmsApi) }
+        // a missing or unreadable equipment asset only costs the "Standard" suggestions
+        val labCourses = runCatching { loadLabCourses(context) }.getOrDefault(emptyList())
+        ReportEditorRegistry(db, templateFor) { ReportSuggestions(shared, tmsApi, labCourses) }
     }
 }

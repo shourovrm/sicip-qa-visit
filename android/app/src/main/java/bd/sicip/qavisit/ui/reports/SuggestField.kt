@@ -1,4 +1,4 @@
-// a card field with a template `suggest` list (TMS courses/batches/trainees, shared equipment):
+// a card field with a template `suggest` list (TMS courses/batches/trainees, lab-standard + shared equipment):
 // free text with a dropdown of matches. picking a trainee also fills the card's empty phone, a
 // trainer the card's empty designation.
 // no suggestions yet (not linked, signed out, offline) -> the plain field editor as before.
@@ -12,6 +12,8 @@ import bd.sicip.qavisit.domain.report.ReportBlock
 import bd.sicip.qavisit.domain.report.SUGGEST_EQUIPMENT
 import bd.sicip.qavisit.domain.report.SUGGEST_TMS_TRAINEE
 import bd.sicip.qavisit.domain.report.SUGGEST_TMS_TRAINER
+import bd.sicip.qavisit.domain.report.cardCourse
+import bd.sicip.qavisit.domain.report.standardEquipment
 import bd.sicip.qavisit.domain.report.trainerDesignationFor
 import bd.sicip.qavisit.domain.report.suggestionsFor
 import bd.sicip.qavisit.domain.report.tmsLink
@@ -41,7 +43,13 @@ fun SuggestCardField(
             if (batch != null) editor.suggestions.loadTrainees(editor.data.tmsLink(), batch)
         }
     }
-    val sourced = suggestionsFor(field, card, sources)
+    // equipment: the lab-standard list of the card's course first, then the shared names
+    val standard = if (field.suggest == SUGGEST_EQUIPMENT) {
+        standardEquipment(sources.labCourses, editor.association, cardCourse(field, card))
+    } else {
+        emptyList()
+    }
+    val sourced = (standard + suggestionsFor(field, card, sources)).distinctBy { it.lowercase() }
     val suggestions = (ownOptions + sourced).distinct()
     val sourceTag = if (field.suggest == SUGGEST_EQUIPMENT) "Shared" else "TMS"
     if (editor.readOnly || suggestions.isEmpty()) {
@@ -68,7 +76,13 @@ fun SuggestCardField(
         },
         onTextChange = { typed -> editor.editDebounced(editor.data.withCardField(block.key, index, field.key, typed)) },
         searchable = true,
-        optionTag = { option -> if (option in sourced && option !in ownOptions) sourceTag else null },
+        optionTag = { option ->
+            when {
+                option in ownOptions || option !in sourced -> null
+                option in standard -> "Standard"
+                else -> sourceTag
+            }
+        },
         modifier = modifier,
     )
 }

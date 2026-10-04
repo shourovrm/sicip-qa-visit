@@ -14,6 +14,7 @@ import bd.sicip.qavisit.data.tms.TmsLink
 import bd.sicip.qavisit.data.tms.fetchTmsCourseCatalog
 import bd.sicip.qavisit.data.tms.fetchTmsTrainees
 import bd.sicip.qavisit.data.tms.fetchTmsTrainers
+import bd.sicip.qavisit.domain.report.LabCourse
 import bd.sicip.qavisit.domain.report.ReportData
 import bd.sicip.qavisit.domain.report.ReportTemplate
 import bd.sicip.qavisit.domain.report.SuggestionSources
@@ -32,8 +33,12 @@ import kotlinx.coroutines.sync.withLock
 private const val EQUIPMENT_LIST = "equipment"
 private const val SHARE_DEBOUNCE_MS = 5_000L
 
-class ReportSuggestions(private val shared: SharedSuggestions?, private val tmsApi: TmsApi?) {
-    var sources by mutableStateOf(SuggestionSources())
+class ReportSuggestions(
+    private val shared: SharedSuggestions?,
+    private val tmsApi: TmsApi?,
+    labCourses: List<LabCourse> = emptyList(),
+) {
+    var sources by mutableStateOf(SuggestionSources(labCourses = labCourses))
         private set
 
     // for the hub's TMS status row: a catalog fetch is running / the last one failed

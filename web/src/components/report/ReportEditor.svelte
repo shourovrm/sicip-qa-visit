@@ -25,6 +25,8 @@
   import { instituteAddress, isLinked, loadCourseCatalog, loadTmsSnapshot, loadTraineeHints, loadTrainerHints } from '../../lib/tmsreport.js'
   import { runningCourseCards } from '../../lib/tmscatalog.js'
   import { phoneFill, suggestionsFor, traineeBatchOf, traineeKey } from '../../lib/suggest.js'
+  import { cardCourse, standardEquipment } from '../../lib/labequipment.js'
+  import { labelled, mergeLabelled, SOURCE_SHARED, SOURCE_STANDARD } from '../../lib/suggestoptions.js'
   import { designationFill } from '../../lib/tmstrainers.js'
   import { applyTmsPrefill, usesTmsFill, useTmsValue } from '../../lib/tmsprefill.js'
   import { openFindingsBox } from '../../lib/findingsbox.js'
@@ -249,6 +251,7 @@
   let trainers = [] // lib/tmstrainers.js hints of the linked institute
   let tmsFill = null // {filled, differences} of the last TMS prefill (lib/tmsprefill.js)
   let sharedLists = {} // list name -> values, e.g. {equipment: [...]}
+  let labCourses = [] // lab-standard equipment per association course (lib/labequipment.js)
   let tmsLoading = false
   let tmsError = ''
   const traineeLoads = new Set()
@@ -303,6 +306,10 @@
   onMount(() => {
     if (findingsMoved && !disabled) onChange()
     loadTms().then(prefillFromTms)
+    // lab-standard equipment: only reports with an equipment list load the 89 KB file
+    if (sharedListNames.includes('equipment')) {
+      import('../../../../shared/lab-standards/lab-equipment.json').then((module) => { labCourses = module.default }).catch(() => {})
+    }
     for (const list of sharedListNames) {
       listSharedSuggestions(list).then((values) => { sharedLists = { ...sharedLists, [list]: values } }).catch(() => {})
     }
@@ -323,7 +330,10 @@
 
   $: suggest = (field, card) => {
     if (field.suggest === 'tmsTrainee' && catalog) requestTrainees(traineeBatchOf(card, catalog))
-    return suggestionsFor(field, card, { catalog, trainees, trainers, equipment: sharedLists.equipment ?? [] })
+    const hints = suggestionsFor(field, card, { catalog, trainees, trainers, equipment: sharedLists.equipment ?? [] })
+    if (field.suggest !== 'shared:equipment') return hints
+    const standard = standardEquipment(labCourses, partner, cardCourse(field, card))
+    return mergeLabelled(labelled(standard, SOURCE_STANDARD), labelled(hints, SOURCE_SHARED))
   }
   $: fill = (fields, card, key, value) => {
     const batch = catalog ? traineeBatchOf(card, catalog) : null

@@ -7,21 +7,22 @@
   import AnswerSegmented from './AnswerSegmented.svelte'
   import ImproveWording from './ImproveWording.svelte'
   import SuggestInput from '../SuggestInput.svelte'
-  import { labelled, mergeLabelled, SOURCE_SECTION_A, sourceLabelFor } from '../../lib/suggestoptions.js'
+  import { hintOptions as optionsOfHints, labelled, mergeLabelled, SOURCE_SECTION_A, sourceLabelFor } from '../../lib/suggestoptions.js'
 
   export let field
   export let value = ''
   export let disabled = false
   export let courseOptions = [] // only used by kind:'courseRef' -- "course · batch" strings
   export let compact = false // choice on one row with its question (feedback question lists)
-  export let suggestions = [] // template `suggest` hints (TMS names, shared equipment): typing aid only
+  export let suggestions = [] // template `suggest` hints (TMS names, shared equipment): typing aid only.
+  // names, or {value, label} options that carry their own source tag (lab-standard equipment)
 
   const dispatch = createEventDispatcher()
   // datalist id must be unique per rendered field (many identity cards can each have one)
   const courseRefListId = `courseref-${Math.random().toString(36).slice(2, 9)}`
   $: hasHints = suggestions.length > 0
   // a courseRef with its own suggest (L course) offers section A courses and TMS courses together
-  $: hintOptions = labelled(suggestions, sourceLabelFor(field.suggest))
+  $: hintOptions = optionsOfHints(suggestions, sourceLabelFor(field.suggest))
   $: refChoices = suggestions.length
     ? mergeLabelled(labelled(courseOptions, SOURCE_SECTION_A), hintOptions)
     : labelled(courseOptions, '')

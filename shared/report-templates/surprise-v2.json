@@ -720,7 +720,8 @@
        "label": "Equipment name",
        "kind": "text",
        "required": true,
-       "suggest": "shared:equipment"
+       "suggest": "shared:equipment",
+       "suggestCourse": "batch"
       },
       {
        "key": "status",

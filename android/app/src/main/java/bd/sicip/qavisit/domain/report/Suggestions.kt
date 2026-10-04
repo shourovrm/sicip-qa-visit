@@ -5,7 +5,8 @@
 //   tmsBatch         -> batch numbers of the card's `course`, all batches, newest first
 //   tmsTrainee       -> trainees of the card's course + batch (D: "Course · N"; L: course + batch)
 //   tmsTrainer       -> the institute's trainers, the card's course trainers first (C)
-//   shared:equipment -> the shared equipment-name list
+//   shared:equipment -> the shared equipment-name list (the UI puts the lab-standard equipment of
+//                       the card's course ahead of it, LabEquipment.kt)
 package bd.sicip.qavisit.domain.report
 
 import bd.sicip.qavisit.data.tms.TmsBatchRef
@@ -33,6 +34,8 @@ data class SuggestionSources(
     val equipment: List<String> = emptyList(),
     val traineesByBatch: Map<Long, List<TmsTraineeHint>> = emptyMap(),
     val trainers: List<TmsTrainerHint> = emptyList(),
+    // lab-standard equipment per association course (LabEquipment.kt)
+    val labCourses: List<LabCourse> = emptyList(),
 )
 
 private fun JsonObject.text(key: String): String = this[key]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()

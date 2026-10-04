@@ -4,6 +4,7 @@ export const SOURCE_TMS = 'TMS'
 export const SOURCE_SHARED = 'Shared'
 export const SOURCE_PAST_VISITS = 'Past visits'
 export const SOURCE_SECTION_A = 'Section A'
+export const SOURCE_STANDARD = 'Standard'
 
 // the source a template field's `suggest` kind comes from
 export function sourceLabelFor(suggestKind) {
@@ -15,6 +16,11 @@ export function sourceLabelFor(suggestKind) {
 // [{value, label}] for a plain list of names, all from one source
 export function labelled(values, label) {
   return (values ?? []).map((value) => ({ value: String(value ?? ''), label }))
+}
+
+// hints as options: a plain name takes the field's source label, an option keeps its own
+export function hintOptions(hints, label) {
+  return (hints ?? []).map((hint) => (typeof hint === 'string' ? { value: hint, label } : hint))
 }
 
 // several labelled lists as one: given order, no blanks, a repeat (any case) keeps its first label
