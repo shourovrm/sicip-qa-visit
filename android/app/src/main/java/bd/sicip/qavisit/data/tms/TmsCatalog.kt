@@ -27,14 +27,16 @@ class TmsCatalog(private val api: TmsApi) {
 
     suspend fun institutes(entityId: Long, trancheId: Long): List<TmsInstitute> =
         api.getList("institute/filterList?entity=$entityId&tranche=$trancheId&courseType=&course=&district=")
-            .map { it.objectOrEmpty() }.map { it.toInstitute(entityId) }
-
-    private fun JsonObject.toInstitute(fallbackEntityId: Long) = TmsInstitute(
-        id = this["id"].lenientLong(),
-        instituteNo = this["training_institute_no"].lenientText(),
-        shortName = this["short_name"].lenientText(),
-        name = this["institute_name"].lenientText(),
-        address = this["address"].lenientText(),
-        entityId = this["entity_id"].lenientLong().takeIf { it != 0L } ?: fallbackEntityId,
-    )
+            .map { it.objectOrEmpty() }.map { tmsInstituteOf(it, entityId) }
 }
+
+// entityId = the partner the list was asked for. the row's own entity_id is whoever registered the
+// institute, so an institute shared by two partners would link to the wrong partner's courses.
+fun tmsInstituteOf(row: JsonObject, entityId: Long) = TmsInstitute(
+    id = row["id"].lenientLong(),
+    instituteNo = row["training_institute_no"].lenientText(),
+    shortName = row["short_name"].lenientText(),
+    name = row["institute_name"].lenientText(),
+    address = row["address"].lenientText(),
+    entityId = entityId,
+)

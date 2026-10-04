@@ -23,11 +23,12 @@ export async function loadLinkChoices(association, instituteText) {
   return { tranche, entities, partner, institutes, institute: autoLinkCandidate(institutes, instituteText) }
 }
 
-// what the report stores (address: same key as android TmsLinkData.kt)
+// what the report stores (address: same key as android TmsLinkData.kt). entity = the partner the
+// officer picked: institute.entity_id is whoever registered the institute, wrong for a shared one
 export function linkData(tranche, entityId, institute) {
   return {
     tranche_id: Number(tranche.id),
-    entity_id: Number(institute.entity_id || entityId),
+    entity_id: Number(entityId),
     institute_id: Number(institute.id),
     institute_no: String(institute.training_institute_no ?? ''),
     name: String(institute.institute_name ?? ''),
