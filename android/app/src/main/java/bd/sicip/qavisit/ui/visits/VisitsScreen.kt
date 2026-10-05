@@ -5,7 +5,7 @@
 // it's actually scored). Scheduled has no
 // category yet (only assigned at trip finish) -- rows get a SCHEDULED or ON TOUR status pill
 // instead, flat list, no month grouping. Below the subtabs, a scrollable FilterChip row narrows
-// by period/district/category/purpose (VisitFilter.kt, pure fn) plus -- Team only -- the
+// by period/association/district/category/purpose (VisitFilter.kt, pure fn) plus -- Team only -- the
 // existing officer filter; shared across both top-level tabs.
 package bd.sicip.qavisit.ui.visits
 
@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import bd.sicip.qavisit.data.db.AppDb
 import bd.sicip.qavisit.data.db.Officer
 import bd.sicip.qavisit.data.db.Visit
+import bd.sicip.qavisit.data.seed.ASSOCIATIONS
 import bd.sicip.qavisit.data.seed.DISTRICTS
 import bd.sicip.qavisit.data.seed.PURPOSES
 import bd.sicip.qavisit.data.sync.SyncNow
@@ -68,6 +69,7 @@ import java.util.Locale
 import kotlinx.coroutines.flow.combine
 
 private const val ALL_OFFICERS = "All officers"
+private val ASSOCIATION_OPTIONS = listOf(FILTER_ALL) + ASSOCIATIONS
 private val DISTRICT_OPTIONS = listOf(FILTER_ALL) + DISTRICTS
 private val CATEGORY_OPTIONS = listOf(FILTER_ALL) + POINTS.keys
 private val PURPOSE_OPTIONS = listOf(FILTER_ALL) + PURPOSES
@@ -134,6 +136,15 @@ fun VisitsScreen(officerId: String, db: AppDb, onEditVisit: (String) -> Unit, on
             modifier = Modifier.fillMaxWidth(),
         ) {
             item { PeriodFilterChip(filter.period) { filter = filter.copy(period = it) } }
+            item {
+                FilterChipDropdown(
+                    label = "Association",
+                    options = ASSOCIATION_OPTIONS,
+                    selected = filter.association,
+                    onSelect = { filter = filter.copy(association = it) },
+                    allValue = FILTER_ALL,
+                )
+            }
             item {
                 FilterChipDropdown(
                     label = "District",

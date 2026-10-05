@@ -1,4 +1,4 @@
-// VisitFilter: period boundaries (incl. custom range), district/category/purpose, combined.
+// VisitFilter: period boundaries (incl. custom range), association/district/category/purpose, combined.
 package bd.sicip.qavisit.ui.visits
 
 import bd.sicip.qavisit.data.db.Visit
@@ -15,11 +15,12 @@ private fun visit(
     category: String = "N/A",
     purpose: String = "Monitoring Visit",
     institute: String = "Inst",
+    association: String = "Assoc",
 ) = Visit(
     id = id,
     officerId = "o1",
     institute = institute,
-    association = "Assoc",
+    association = association,
     district = district,
     purpose = purpose,
     startDate = startDate,
@@ -136,5 +137,11 @@ class VisitFilterTest {
     @Test fun query_blank_keeps_everything() {
         val visits = listOf(visit("v1", "2026-07-01"), visit("v2", "2026-07-01"))
         assertEquals(visits, filterVisits(visits, VisitFilter(query = "  "), TODAY))
+    }
+
+    @Test fun association_filter_keeps_only_matching_association() {
+        val rehab = visit("v1", "2026-07-10", association = "REHAB")
+        val baci = visit("v2", "2026-07-10", association = "BACI")
+        assertEquals(listOf(rehab), filterVisits(listOf(rehab, baci), VisitFilter(association = "REHAB"), TODAY))
     }
 }

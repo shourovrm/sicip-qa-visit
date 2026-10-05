@@ -1,4 +1,4 @@
-// pure filter for the Visits list: period (start_date range) + district/category/purpose equality.
+// pure filter for the Visits list: period (start_date range) + association/district/category/purpose equality.
 // officer filtering (Team tab) stays separate -- it already existed before this filter row and
 // isn't part of the shared filter chips.
 package bd.sicip.qavisit.ui.visits
@@ -20,6 +20,7 @@ sealed class Period {
 
 data class VisitFilter(
     val period: Period = Period.AllTime,
+    val association: String = FILTER_ALL,
     val district: String = FILTER_ALL,
     val category: String = FILTER_ALL,
     val purpose: String = FILTER_ALL,
@@ -32,6 +33,7 @@ fun filterVisits(visits: List<Visit>, filter: VisitFilter, today: LocalDate = Lo
     return visits.filter { v ->
         val start = LocalDate.parse(v.startDate)
         (range == null || (!start.isBefore(range.first) && !start.isAfter(range.second))) &&
+            (filter.association == FILTER_ALL || v.association == filter.association) &&
             (filter.district == FILTER_ALL || v.district == filter.district) &&
             (filter.category == FILTER_ALL || v.category == filter.category) &&
             (filter.purpose == FILTER_ALL || v.purpose == filter.purpose) &&
