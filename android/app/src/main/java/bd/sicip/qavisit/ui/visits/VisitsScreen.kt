@@ -302,8 +302,15 @@ private fun VisitRow(visit: Visit, officerName: String?, onClick: () -> Unit, pi
                     )
                 }
                 Text(visit.institute, style = MaterialTheme.typography.titleMedium)
+                // old imported rows can carry a blank association -- skip it, no dangling dot.
+                val details = listOf(
+                    visit.association,
+                    visit.purpose,
+                    visit.district,
+                    "${visit.startDate} – ${visit.endDate}",
+                ).filter { it.isNotBlank() }
                 Text(
-                    "${visit.purpose} · ${visit.district} · ${visit.startDate} – ${visit.endDate}",
+                    details.joinToString(" · "),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
