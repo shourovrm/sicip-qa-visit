@@ -40,7 +40,7 @@ fun PickerDropdown(
     // through onSelect so callers can attach extra side effects (autofill) to the tap only.
     onTextChange: ((String) -> Unit)? = null,
     // options/selected stay the stored value (e.g. a category code); this only controls what's
-    // shown for them (e.g. the category's full "code — span (pts)" explanation).
+    // shown for them (e.g. the category's full "span (pts, code)" explanation).
     displayLabel: (String) -> String = { it },
     // small source tag at the end of an option row (e.g. "TMS"); null = no tag
     optionTag: (String) -> String? = { null },
