@@ -1,7 +1,7 @@
 <!-- Scheduled|Completed tabs, Personal|Team scope, filters, edit own (admin edits any), soft delete -->
 <script>
   import { onMount } from 'svelte'
-  import { listVisits, createVisit, updateVisit, softDeleteVisit } from '../lib/db.js'
+  import { listVisits, createVisit, updateVisit, softDeleteVisit, getTrip, softDeleteTrip, listLegsForTrips } from '../lib/db.js'
   import { officer, isAdmin } from '../lib/auth.js'
   import { officers, officerName } from '../lib/officers.js'
   import { DISTRICTS, ASSOCIATIONS, PURPOSES } from '../lib/seeds.js'
@@ -114,13 +114,30 @@
     }
   }
 
+  // last live visit of a tour: the tour has nothing left, so it goes too. a tour already on a
+  // submitted bill stays -- submitted bills are frozen.
+  async function emptiedTour(v) {
+    if (!v.trip_id) return null
+    const hasOtherVisit = visits.some((x) => x.trip_id === v.trip_id && x.id !== v.id)
+    if (hasOtherVisit) return null
+    const trip = await getTrip(v.trip_id)
+    if (trip.submitted) return null
+    const tripLegs = await listLegsForTrips([trip.id])
+    return { id: trip.id, travelCount: tripLegs.length }
+  }
+
+  function deleteMessage(v, tour) {
+    if (!v.trip_id) return `Delete visit "${v.institute}"?`
+    if (!tour) return `Delete visit "${v.institute}"? It's part of a tour -- deleting removes it from the tour.`
+    const travels = tour.travelCount > 0 ? ` and its ${tour.travelCount} travel${tour.travelCount === 1 ? '' : 's'}` : ''
+    return `Delete visit "${v.institute}"? It is the only visit of its tour, so the tour${travels} will be deleted too.`
+  }
+
   async function del(v) {
-    // visit on a tour: deleting it also drops the tour from bill prep, warn loudly
-    const msg = v.trip_id
-      ? `Delete visit "${v.institute}"? It's part of a tour -- deleting removes it from the tour, and the tour will disappear from bill preparation.`
-      : `Delete visit "${v.institute}"?`
-    if (!confirm(msg)) return
+    const tour = await emptiedTour(v)
+    if (!confirm(deleteMessage(v, tour))) return
     await softDeleteVisit(v.id)
+    if (tour) await softDeleteTrip(tour.id)
     visits = visits.filter((x) => x.id !== v.id)
   }
 </script>

@@ -62,6 +62,21 @@ export async function updateTrip(id, patch) {
   return data
 }
 
+export async function getTrip(id) {
+  const { data, error } = await supabase.from('trips').select('*').eq('id', id).single()
+  if (error) throw error
+  return data
+}
+
+// a tour goes with its travels + activity notes -- nothing is left to hang them on
+export async function softDeleteTrip(id) {
+  for (const table of ['travel_legs', 'activities']) {
+    const { error } = await supabase.from(table).update({ deleted: true }).eq('trip_id', id)
+    if (error) throw error
+  }
+  return updateTrip(id, { deleted: true })
+}
+
 // ---- travel legs ----
 export async function listLegsForTrips(tripIds) {
   if (!tripIds.length) return []
