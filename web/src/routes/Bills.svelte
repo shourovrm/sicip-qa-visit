@@ -2,7 +2,7 @@
      Submit freezes a snapshot (bills row) + marks tours submitted. Previous bills: read-only,
      regenerate .xlsx from the frozen snapshot (never re-derives from live data). -->
 <script>
-  import { listTrips, listVisits, listLegsForTrips, listBills, createBill, updateTrip, updateVisit, listTravelPlaces, createLeg, updateLeg, softDeleteLeg } from '../lib/db.js'
+  import { listTrips, listVisits, listLegsForTrips, listBills, createBill, updateTrip, updateVisit, listTravelPlaces, createLeg, updateLeg, softDeleteLeg, softDeleteTrip } from '../lib/db.js'
   import { officer } from '../lib/auth.js'
   import { CATEGORY_LABELS, suggestedNights, suggestedFood } from '../lib/scoring.js'
   import { leg as mkLeg, makeTrip, billTotals } from '../lib/billmath.js'
@@ -47,6 +47,14 @@
   // true when a tour has no live (non-deleted) primary visit left -- can't be billed
   function isOrphanTour(tripId) {
     return !visits.some((v) => v.trip_id === tripId && !v.is_additional && !v.deleted)
+  }
+
+  // orphan with no visit at all (not even an additional one) -- nothing to restore, let it go
+  async function deleteTour(tripId) {
+    if (!confirm('Delete this tour and its travels? It has no visit attached.')) return
+    await softDeleteTrip(tripId)
+    trips = trips.filter((t) => t.id !== tripId)
+    legs = legs.filter((l) => l.trip_id !== tripId)
   }
 
   function newLeg(tripId) {
@@ -257,7 +265,12 @@
             <tr class:orphan-row={orphan}>
               <td><input type="checkbox" disabled={orphan} checked={selected.has(t.id)} on:change={() => toggle(t.id)} /></td>
               {#if orphan}
-                <td colspan="5" class="muted">No visit attached — add or restore a visit to bill this tour</td>
+                <td colspan="5" class="muted">
+                  No visit attached — add or restore a visit to bill this tour
+                  {#if tVisits.length === 0}
+                    <button class="btn btn-danger" on:click={() => deleteTour(t.id)}>Delete tour</button>
+                  {/if}
+                </td>
               {:else}
                 <td>{institutesForTrip(t.id, visits).join(', ') || '—'}</td>
                 <td>{pv ? `${pv.start_date} – ${pv.end_date}` : ''}</td>

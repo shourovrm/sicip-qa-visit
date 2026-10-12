@@ -1,6 +1,6 @@
 <!-- tours (trips): read-only tour log. category + travel CRUD moved to Bills (bill prep) -->
 <script>
-  import { listTrips, listVisits, listLegsForTrips } from '../lib/db.js'
+  import { listTrips, listVisits, listLegsForTrips, softDeleteTrip } from '../lib/db.js'
   import { officer, isAdmin } from '../lib/auth.js'
   import { officers } from '../lib/officers.js'
   import { CATEGORY_LABELS, suggestedNights, suggestedFood } from '../lib/scoring.js'
@@ -27,6 +27,14 @@
   // load waits for the officer row (hard refresh: mount fires before auth resolves)
   let loadStarted = false
   $: if ($officer && !loadStarted) { loadStarted = true; load() }
+
+  // only offered on a tour with no visit left (abandoned start, or visits deleted earlier)
+  async function deleteTour(trip, travelCount) {
+    const travels = travelCount > 0 ? ` and its ${travelCount} travel${travelCount === 1 ? '' : 's'}` : ''
+    if (!confirm(`Delete this tour${travels}? It has no visit attached.`)) return
+    await softDeleteTrip(trip.id)
+    trips = trips.filter((t) => t.id !== trip.id)
+  }
 
   function onOfficerFilterChange(e) {
     officerFilter = e.target.value
@@ -73,6 +81,9 @@
             </div>
           {:else}
             <p class="muted">No primary visit attached.</p>
+            {#if !visits.some((v) => v.trip_id === trip.id) && !trip.submitted}
+              <button class="btn btn-danger" on:click={() => deleteTour(trip, tLegs.length)}>Delete tour</button>
+            {/if}
           {/if}
 
           <h3>Travel details</h3>
