@@ -114,6 +114,15 @@
     tourSortKey(legs.filter((l) => l.trip_id === a.id), a.started_at)
       .localeCompare(tourSortKey(legs.filter((l) => l.trip_id === b.id), b.started_at)))
 
+  // select-all covers billable tours only (orphans stay unticked). visits read inline, not via
+  // isOrphanTour, so svelte sees the dependency.
+  $: selectableTripIds = sortedTrips.filter((t) => visits.some((v) => v.trip_id === t.id && !v.is_additional && !v.deleted)).map((t) => t.id)
+  $: allSelected = selectableTripIds.length > 0 && selectableTripIds.every((id) => selected.has(id))
+
+  function toggleAll() {
+    selected = allSelected ? new Set() : new Set(selectableTripIds)
+  }
+
   // preview/snapshot/submit all iterate this instead of raw `selected` so they inherit the same
   // chrono order (android T5: "apply everywhere tours are listed/grouped for bills").
   $: orderedTripIds = sortedTrips.filter((t) => selected.has(t.id)).map((t) => t.id)
@@ -255,7 +264,7 @@
       <p class="muted">No finished, unsubmitted tours to bill.</p>
     {:else}
       <table>
-        <thead><tr><th></th><th>Institutes</th><th>Dates</th><th>Visits</th><th>Category</th><th>Travel</th></tr></thead>
+        <thead><tr><th><input type="checkbox" aria-label="Select all tours" disabled={selectableTripIds.length === 0} checked={allSelected} on:change={toggleAll} /></th><th>Institutes</th><th>Dates</th><th>Visits</th><th>Category</th><th>Travel</th></tr></thead>
         <tbody>
           {#each sortedTrips as t (t.id)}
             {@const tVisits = visits.filter((v) => v.trip_id === t.id)}
