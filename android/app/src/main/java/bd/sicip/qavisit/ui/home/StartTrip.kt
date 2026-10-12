@@ -71,6 +71,7 @@ fun StartTrip(officerId: String, db: AppDb, preselectedVisitId: String? = null, 
     if (showNewVisit) {
         VisitForm(
             officerId = officerId,
+            db = db,
             visitDao = db.visitDao(),
             officerDao = db.officerDao(),
             onDone = {

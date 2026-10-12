@@ -124,6 +124,7 @@ fun HomeScreen(
     if (visitReq != null) {
         VisitForm(
             officerId = officerId,
+            db = db,
             visitDao = db.visitDao(),
             officerDao = db.officerDao(),
             tripId = visitReq.tripId,

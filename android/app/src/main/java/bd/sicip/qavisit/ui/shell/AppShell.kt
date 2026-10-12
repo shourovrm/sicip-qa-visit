@@ -193,6 +193,7 @@ fun AppShell(context: Context, officerId: String) {
             ) { entry ->
                 VisitForm(
                     officerId = officerId,
+                    db = db,
                     visitDao = db.visitDao(),
                     officerDao = db.officerDao(),
                     visitId = entry.arguments?.getString("visitId"),

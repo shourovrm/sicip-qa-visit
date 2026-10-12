@@ -38,9 +38,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import bd.sicip.qavisit.data.db.AppDb
+import bd.sicip.qavisit.data.db.EmptiedTour
 import bd.sicip.qavisit.data.db.OfficerDao
 import bd.sicip.qavisit.data.db.Visit
 import bd.sicip.qavisit.data.db.VisitDao
+import bd.sicip.qavisit.data.db.deleteTour
+import bd.sicip.qavisit.data.db.tourEmptiedBy
 import bd.sicip.qavisit.data.seed.ASSOCIATIONS
 import bd.sicip.qavisit.data.seed.DISTRICTS
 import bd.sicip.qavisit.data.seed.PURPOSES
@@ -58,6 +62,7 @@ private val CATEGORY_OPTIONS = POINTS.keys.toList()
 @Composable
 fun VisitForm(
     officerId: String,
+    db: AppDb,
     visitDao: VisitDao,
     officerDao: OfficerDao,
     visitId: String? = null,
@@ -92,6 +97,11 @@ fun VisitForm(
     var category by remember { mutableStateOf("N/A") }
     var remarks by remember { mutableStateOf("") }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    // tour this delete would leave empty (dialog wording only -- recomputed on confirm)
+    var emptiedTour by remember { mutableStateOf<EmptiedTour?>(null) }
+    LaunchedEffect(showDeleteConfirm) {
+        if (showDeleteConfirm) emptiedTour = existing?.let { tourEmptiedBy(db, it) }
+    }
     var refOptions by remember { mutableStateOf(emptyList<String>()) }
     var instituteOptions by remember { mutableStateOf(emptyList<String>()) }
 
@@ -332,19 +342,16 @@ fun VisitForm(
             text = {
                 Text(
                     "This removes \"${target.institute}\" from your visit list. This can't be undone from the app." +
-                        if (target.tripId != null) {
-                            " This visit is part of a tour -- deleting it removes it from that tour, and the tour" +
-                                " disappears from bill preparation until another visit is attached."
-                        } else {
-                            ""
-                        },
+                        deleteTourNote(target.tripId != null, emptiedTour),
                 )
             },
             confirmButton = {
                 Button(
                     onClick = {
                         scope.launch {
+                            val tour = tourEmptiedBy(db, target)
                             visitDao.softDelete(target.id, Instant.now().toString())
+                            if (tour != null) deleteTour(db, tour.tripId)
                             onDone()
                         }
                     },
@@ -357,6 +364,18 @@ fun VisitForm(
             dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") } },
         )
     }
+}
+
+// extra delete-dialog sentence for a visit on a tour: last visit takes the tour (and travels) with it.
+private fun deleteTourNote(onTour: Boolean, emptiedTour: EmptiedTour?): String {
+    if (!onTour) return ""
+    if (emptiedTour == null) return " This visit is part of a tour -- deleting it removes it from that tour."
+    val travels = when (emptiedTour.travelCount) {
+        0 -> ""
+        1 -> " and its 1 travel"
+        else -> " and its ${emptiedTour.travelCount} travels"
+    }
+    return " It is the only visit of its tour, so the tour$travels will be deleted too."
 }
 
 // category/categoryOverride come straight from the caller (dropdown value, or unchanged for
