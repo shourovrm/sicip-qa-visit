@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -59,6 +60,7 @@ import bd.sicip.qavisit.data.db.Bill
 import bd.sicip.qavisit.data.db.Trip
 import bd.sicip.qavisit.data.db.TravelLeg
 import bd.sicip.qavisit.data.db.Visit
+import bd.sicip.qavisit.data.db.deleteTour
 import bd.sicip.qavisit.data.sync.SyncNow
 import bd.sicip.qavisit.domain.BillSnapshot
 import bd.sicip.qavisit.domain.BillTotals
@@ -117,6 +119,9 @@ private val CATEGORIES = POINTS.keys.toList()
 // every visit's clause (T5 #4, see domain.purposeBand), but nights/food/category still key off
 // the primary visit only (additional visits on the same trip don't score, matching how the
 // official sample batches per-trip, not per-visit).
+// hasVisits = only additional visits left (no primary): still restorable, so no Delete button.
+private data class OrphanTrip(val trip: Trip, val hasVisits: Boolean)
+
 private data class TripCandidate(val trip: Trip, val primary: Visit, val visits: List<Visit>, val legs: List<TravelLeg>)
 
 // T5 #1: chrono order, earliest tour first -- min(leg dep date+time) fallback trip.started_at.
@@ -124,17 +129,17 @@ private data class TripCandidate(val trip: Trip, val primary: Visit, val visits:
 // a finished/unsubmitted trip with an empty visit list (visits got deleted after Start tour) has
 // no primary -- used to just vanish from the picker. now it's carried back as an orphan so
 // NewBillPicker can still show it (disabled) instead of silently dropping the tour.
-private suspend fun loadUnsubmitted(db: AppDb, officerId: String): Pair<List<TripCandidate>, List<Trip>> {
+private suspend fun loadUnsubmitted(db: AppDb, officerId: String): Pair<List<TripCandidate>, List<OrphanTrip>> {
     val candidates = mutableListOf<TripCandidate>()
-    val orphans = mutableListOf<Trip>()
+    val orphans = mutableListOf<OrphanTrip>()
     db.tripDao().finishedUnsubmittedByOfficer(officerId).forEach { trip ->
         val visits = db.visitDao().byTrip(trip.id)
         val primary = primaryVisit(visits) { it.isAdditional }
-        if (primary == null) { orphans += trip; return@forEach }
+        if (primary == null) { orphans += OrphanTrip(trip, visits.isNotEmpty()); return@forEach }
         candidates += TripCandidate(trip, primary, visits, db.travelLegDao().byTrip(trip.id))
     }
     val sorted = candidates.sortedBy { c -> tourStartKey(c.legs.map { it.depDate to it.depTime }, c.trip.startedAt) }
-    return sorted to orphans.sortedBy { it.startedAt }
+    return sorted to orphans.sortedBy { it.trip.startedAt }
 }
 
 @Composable
@@ -143,7 +148,7 @@ fun BillScreen(officerId: String, db: AppDb, onDone: () -> Unit) {
     var step by remember { mutableStateOf(Step.PICKER) }
     var showPrevious by remember { mutableStateOf(false) }
     var unsubmitted by remember { mutableStateOf<List<TripCandidate>>(emptyList()) }
-    var orphanTrips by remember { mutableStateOf<List<Trip>>(emptyList()) }
+    var orphanTrips by remember { mutableStateOf<List<OrphanTrip>>(emptyList()) }
     var bills by remember { mutableStateOf<List<Bill>>(emptyList()) }
     var officerName by remember { mutableStateOf("") }
     val selected = remember { mutableStateOf(setOf<String>()) }
@@ -177,6 +182,13 @@ fun BillScreen(officerId: String, db: AppDb, onDone: () -> Unit) {
                     orphans = orphanTrips,
                     selected = selected.value,
                     onToggle = { id, on -> selected.value = if (on) selected.value + id else selected.value - id },
+                    onToggleAll = { on -> selected.value = if (on) unsubmitted.map { it.trip.id }.toSet() else emptySet() },
+                    onDeleteOrphan = { tripId ->
+                        scope.launch {
+                            deleteTour(db, tripId)
+                            reload()
+                        }
+                    },
                     onNext = { step = Step.PREVIEW },
                 )
             }
@@ -203,17 +215,27 @@ fun BillScreen(officerId: String, db: AppDb, onDone: () -> Unit) {
 @Composable
 private fun NewBillPicker(
     candidates: List<TripCandidate>,
-    orphans: List<Trip>,
+    orphans: List<OrphanTrip>,
     selected: Set<String>,
     onToggle: (String, Boolean) -> Unit,
+    onToggleAll: (Boolean) -> Unit,
+    onDeleteOrphan: (String) -> Unit,
     onNext: () -> Unit,
 ) {
+    var deleteTarget by remember { mutableStateOf<Trip?>(null) }
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
             "Select finished tours to batch onto one TA/DA bill.",
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
+        if (candidates.isNotEmpty()) {
+            val allSelected = candidates.all { it.trip.id in selected }
+            Row(modifier = Modifier.padding(horizontal = 28.dp), verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = allSelected, onCheckedChange = onToggleAll)
+                Text("Select all", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(start = 8.dp))
+            }
+        }
         LazyColumn(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -245,7 +267,9 @@ private fun NewBillPicker(
             }
             // orphans render after the selectable cards -- non-clickable (no onClick), just
             // visible so the tour doesn't silently disappear when its visits got deleted.
-            items(orphans, key = { it.id }) { t -> OrphanTripCard(t) }
+            items(orphans, key = { it.trip.id }) { o ->
+                OrphanTripCard(o.trip, onDelete = if (o.hasVisits) null else ({ deleteTarget = o.trip }))
+            }
             if (candidates.isEmpty() && orphans.isEmpty()) {
                 item {
                     Text(
@@ -263,12 +287,34 @@ private fun NewBillPicker(
             modifier = Modifier.fillMaxWidth().padding(16.dp).height(48.dp),
         ) { Text("Next (${selected.size} selected)") }
     }
+
+    deleteTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest = { deleteTarget = null },
+            title = { Text("Delete tour?") },
+            text = { Text("This tour has no visit attached. Deleting it also deletes its travels.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeleteOrphan(target.id)
+                        deleteTarget = null
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
+                    ),
+                ) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("Cancel") } },
+        )
+    }
 }
 
 // finished/unsubmitted trip with no visit left to bill against (see loadUnsubmitted) -- no
 // onClick (Card's plain overload), so it's plainly non-selectable, not just visually dimmed.
+// onDelete != null only when the tour has no visit at all -- nothing to restore.
 @Composable
-private fun OrphanTripCard(trip: Trip) {
+private fun OrphanTripCard(trip: Trip, onDelete: (() -> Unit)?) {
     Card(shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
@@ -281,6 +327,9 @@ private fun OrphanTripCard(trip: Trip) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
             )
+            if (onDelete != null) {
+                TextButton(onClick = onDelete) { Text("Delete tour", color = MaterialTheme.colorScheme.error) }
+            }
         }
     }
 }
