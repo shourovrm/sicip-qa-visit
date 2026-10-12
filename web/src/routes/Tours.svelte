@@ -4,6 +4,7 @@
   import { officer, isAdmin } from '../lib/auth.js'
   import { officers } from '../lib/officers.js'
   import { CATEGORY_LABELS, suggestedNights, suggestedFood } from '../lib/scoring.js'
+  import { institutesForTrip } from '../lib/billsnapshot.js'
   import Dropdown from '../components/Dropdown.svelte'
 
   let trips = []
@@ -56,7 +57,8 @@
     <div class="card trip">
       <div class="spread" on:click={() => (openTripId = openTripId === trip.id ? null : trip.id)} role="button" tabindex="0" on:keydown={() => {}}>
         <div>
-          <b>{pv?.institute ?? 'Tour'}</b>
+          <!-- every institute of the tour, primary first -- same title Bills shows -->
+          <b>{institutesForTrip(trip.id, visits).join(', ') || 'Tour'}</b>
           <span class="muted"> — {trip.status} — started {new Date(trip.started_at).toLocaleDateString()}</span>
         </div>
         <span class="muted">{openTripId === trip.id ? '▲' : '▼'}</span>
