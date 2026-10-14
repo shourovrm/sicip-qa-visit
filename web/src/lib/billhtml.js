@@ -223,7 +223,8 @@ function pageHeaderHtml(officerName, billDate) {
     </div>`
 }
 
-// print CSS: border hierarchy is 1pt table outline + section borders, 0.4pt inner grid.
+// print CSS: border hierarchy is 1pt table outline, 0.4pt inner grid. separate (not collapsed) borders +
+// box-decoration-break: clone so a rowspan cell cut by a page break still closes its bottom edge.
 const CSS = `
   @page { size: A4 landscape; margin: 12mm; }
   * { box-sizing: border-box; }
@@ -237,9 +238,11 @@ const CSS = `
   .band { background: #E4E4E4; padding: 3pt 6pt; font-weight: bold; }
   .band.title { text-align: center; font-size: 15pt; margin-top: 6pt; }
   .name-date { display: flex; justify-content: space-between; padding: 8pt 2pt 6pt; font-size: 9pt; }
-  table.itinerary { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1pt solid #000; }
+  table.itinerary { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed;
+    border: 1pt solid #000; border-right-width: 0.6pt; border-bottom-width: 0.6pt; box-decoration-break: clone; }
   table.itinerary th, table.itinerary td {
-    border: 0.4pt solid #000; padding: 2.5pt 3pt; font-size: 7.5pt; text-align: center;
+    border: 0 solid #000; border-right-width: 0.4pt; border-bottom-width: 0.4pt; box-decoration-break: clone;
+    padding: 2.5pt 3pt; font-size: 7.5pt; text-align: center;
     vertical-align: middle; overflow-wrap: break-word;
   }
   table.itinerary thead { display: table-header-group; }
