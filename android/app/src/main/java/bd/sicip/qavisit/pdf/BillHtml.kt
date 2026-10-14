@@ -151,7 +151,7 @@ private fun tableHeadHtml(): String = """
         <th>Date</th><th>Time</th><th>Place</th>
         <th>Date</th><th>Time</th><th>Place</th>
       </tr>
-    </thead>
+    </thead><tfoot><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></tfoot>
 """.trimIndent()
 
 private fun localTableHeadHtml(): String = """
@@ -168,7 +168,7 @@ private fun localTableHeadHtml(): String = """
         <th>Date</th><th>Time</th><th>Place</th>
         <th>Date</th><th>Time</th><th>Place</th>
       </tr>
-    </thead>
+    </thead><tfoot><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr></tfoot>
 """.trimIndent()
 
 // -- one trip: a full-width purpose band, then its legs day-grouped so the date cells rowspan
@@ -347,10 +347,14 @@ private fun dashIfZero(v: Double): String = if (v == 0.0) "-" else plainAmount(v
 private fun esc(s: String): String = s
     .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
 
+// a zero-height <tfoot> repeats under the last row of every printed page: the collapsed grid paints
+// no bottom edge where a rowspan (night/food/date) cell is cut by a page break, the footer's top
+// border closes it. tbody-per-trip keep-together left pages ~40% blank; separate borders +
+// box-decoration-break: clone drew the cut cell down to the page edge (stepped line). Tested on
+// Chromium 155 headless + WebView 154.
 // -- print CSS: system font stack (WebView's text stack handles unicode fallback correctly,
 // unlike the old canvas Paint) -- swap in bundled Noto Sans .ttf assets only if glyphs break.
-// border hierarchy: 1pt table outline, 0.4pt inner grid. separate (not collapsed) borders +
-// box-decoration-break: clone so a rowspan cell cut by a page break still closes its bottom edge.
+// border hierarchy: 1pt table outline + section borders, 0.4pt inner grid.
 private val CSS = """
     @page { size: A4 landscape; margin: 12mm; }
     * { box-sizing: border-box; }
@@ -364,14 +368,14 @@ private val CSS = """
     .band { background: #E4E4E4; padding: 3pt 6pt; font-weight: bold; }
     .band.title { text-align: center; font-size: 15pt; margin-top: 6pt; }
     .name-date { display: flex; justify-content: space-between; padding: 8pt 2pt 6pt; font-size: 9pt; }
-    table.itinerary { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed;
-      border: 1pt solid #000; border-right-width: 0.6pt; border-bottom-width: 0.6pt; box-decoration-break: clone; }
+    table.itinerary { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1pt solid #000; }
     table.itinerary th, table.itinerary td {
-      border: 0 solid #000; border-right-width: 0.4pt; border-bottom-width: 0.4pt; box-decoration-break: clone;
-      padding: 2.5pt 3pt; font-size: 7.5pt; text-align: center;
+      border: 0.4pt solid #000; padding: 2.5pt 3pt; font-size: 7.5pt; text-align: center;
       vertical-align: middle; overflow-wrap: break-word;
     }
     table.itinerary thead { display: table-header-group; }
+    table.itinerary tfoot { display: table-footer-group; }
+    table.itinerary tfoot td { padding: 0; height: 0; line-height: 0; font-size: 0; border: 0; border-top: 0.4pt solid #000; }
     table.itinerary thead th { font-weight: bold; background: #fff; }
     table.itinerary td.place { text-align: left; white-space: normal; }
     table.itinerary td.money { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
